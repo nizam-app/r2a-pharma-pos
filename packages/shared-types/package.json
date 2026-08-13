@@ -1,0 +1,29 @@
+{
+  "name": "@r2a/shared-types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared TypeScript DTOs and Zod schemas",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"@r2a/shared-types lint stub\"",
+    "test": "echo \"@r2a/shared-types test stub\"",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

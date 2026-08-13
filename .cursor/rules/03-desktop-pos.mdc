@@ -1,0 +1,21 @@
+---
+description: Tauri desktop POS, offline SQLite sync queue, and keyboard-first cashier UX.
+globs: apps/desktop/**/*,packages/ui/**/*
+alwaysApply: false
+---
+
+# Desktop POS & Offline Engine
+
+## Scope
+- Applies to `apps/desktop` and shared POS UI in `packages/ui` — not the owner web app.
+
+## Offline
+- Offline reads/writes go through local SQLite (`pos_local.db`) and `outbound_sync_queue` before cloud flush.
+- Keep queue FIFO; cloud ingest must stay idempotent by `event_id` / `eventId`.
+
+## UX
+- Keyboard-first cashier flows (see `docs/UX_Specification.md` for the full shortcut map).
+- Keep focus rings / keybindings clear for critical actions (`Ctrl+K`, `F2`, `F4`, `Enter` / `F10`, `Esc`).
+- Product search autocomplete target: render in &lt; 50ms; avoid heavy re-renders on the cart table.
+- Cashier must not see margins / base cost.
+---

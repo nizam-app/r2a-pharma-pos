@@ -1,0 +1,296 @@
+// Milestone 1 — Cloud PostgreSQL schema (Prisma)
+// Sync idempotency: Sale.eventId is globally unique (offline ingest identity).
+// Tenant-scoped uniques: email, sku, barcode, phone, store code, batch number.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums ---
+
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  MANAGER
+  CASHIER
+}
+
+/// Sellable packaging levels. Quantities elsewhere are stored in base (PIECE) units.
+enum UnitType {
+  BOX
+  STRIP
+  PIECE
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  MFS
+}
+
+// --- Tenancy & access ---
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stores         Store[]
+  users          User[]
+  refreshTokens  RefreshToken[]
+  products       Product[]
+  productUnits   ProductUnit[]
+  batches        Batch[]
+  customers      Customer[]
+  sales          Sale[]
+  saleItems      SaleItem[]
+  payments       Payment[]
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  code      String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users   User[]
+  batches Batch[]
+  sales   Sale[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  storeId      String?
+  email        String
+  passwordHash String
+  name         String
+  role         Role
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store         Store?         @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  sales         Sale[]
+  refreshTokens RefreshToken[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([storeId])
+}
+
+/// Opaque refresh tokens — store only SHA-256 hashes; rotate on each use.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  replacedById String?
+  createdAt DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([expiresAt])
+}
+
+// --- Catalog & inventory ---
+
+model Product {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  /// Active ingredient / generic name (search + substitution).
+  genericName String?
+  /// Brand / company (e.g. Beximco Pharmaceuticals).
+  manufacturer String?
+  /// Display strength (e.g. "500 mg", "500 mg + 65 mg").
+  strength    String?
+  /// Dosage form (e.g. "Tablet", "Syrup 100ml").
+  form        String?
+  sku         String?
+  barcode     String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  units     ProductUnit[]
+  batches   Batch[]
+  saleItems SaleItem[]
+
+  @@unique([tenantId, sku])
+  @@unique([tenantId, barcode])
+  @@index([tenantId])
+  @@index([tenantId, name])
+  @@index([tenantId, genericName])
+  @@index([tenantId, manufacturer])
+  @@index([tenantId, barcode])
+}
+
+/// Conversion factors to the lowest unit (PIECE). Example: BOX factorToBase=100, STRIP=10, PIECE=1.
+model ProductUnit {
+  id           String   @id @default(cuid())
+  tenantId     String
+  productId    String
+  unitType     UnitType
+  factorToBase Int
+  /// Optional display label override (e.g. "Blister").
+  label        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, unitType])
+  @@index([tenantId])
+  @@index([productId])
+}
+
+/// FEFO-ready stock lot. quantityOnHand / prices are in base (PIECE) units.
+model Batch {
+  id             String   @id @default(cuid())
+  tenantId       String
+  storeId        String
+  productId      String
+  batchNumber    String
+  expiryDate     DateTime @db.Date
+  quantityOnHand Int
+  costPerBase    Decimal  @db.Decimal(12, 4)
+  sellPerBase    Decimal  @db.Decimal(12, 4)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  saleItems SaleItem[]
+
+  @@unique([tenantId, storeId, productId, batchNumber])
+  @@index([tenantId])
+  @@index([expiryDate])
+  /// FEFO pick: nearest expiry with stock for a product in a store.
+  @@index([storeId, productId, expiryDate, quantityOnHand])
+}
+
+// --- Customers ---
+
+model Customer {
+  id             String   @id @default(cuid())
+  tenantId       String
+  name           String
+  phone          String?
+  email          String?
+  loyaltyPoints  Int      @default(0)
+  /// Optional account credit balance (not a POS payment method).
+  creditBalance  Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sales  Sale[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+  @@index([tenantId, phone])
+}
+
+// --- Sales (append-only / immutable intent) ---
+
+/// Immutable sale header. Prefer insert-only; no soft overwrite path.
+model Sale {
+  id         String   @id @default(cuid())
+  tenantId   String
+  storeId    String
+  userId     String
+  customerId String?
+  /// Offline sync / ingest idempotency key (global unique).
+  eventId    String   @unique
+  soldAt     DateTime @default(now())
+  subtotal   Decimal  @db.Decimal(12, 2)
+  discount   Decimal  @default(0) @db.Decimal(12, 2)
+  total      Decimal  @db.Decimal(12, 2)
+  notes      String?
+  createdAt  DateTime @default(now())
+  // No updatedAt — sales are append-only.
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items    SaleItem[]
+  payments Payment[]
+
+  @@index([tenantId])
+  @@index([tenantId, storeId, soldAt])
+  @@index([storeId, soldAt])
+}
+
+model SaleItem {
+  id           String   @id @default(cuid())
+  tenantId     String
+  saleId       String
+  productId    String
+  batchId      String
+  unitType     UnitType
+  /// Quantity in the sold unit (e.g. 2 BOX).
+  unitQty      Int
+  /// Quantity converted to base (PIECE) units.
+  quantityBase Int
+  /// Price charged per sold unit at time of sale.
+  unitPrice    Decimal  @db.Decimal(12, 4)
+  lineTotal    Decimal  @db.Decimal(12, 2)
+  createdAt    DateTime @default(now())
+  // No updatedAt — line items are immutable with the parent sale.
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  batch   Batch   @relation(fields: [batchId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@index([saleId])
+  @@index([productId])
+  @@index([batchId])
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  tenantId  String
+  saleId    String
+  method    PaymentMethod
+  amount    Decimal       @db.Decimal(12, 2)
+  /// Optional card/MFS trx id / external reference.
+  reference String?
+  createdAt DateTime      @default(now())
+  // No updatedAt — payments recorded with the sale are immutable.
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([saleId])
+}

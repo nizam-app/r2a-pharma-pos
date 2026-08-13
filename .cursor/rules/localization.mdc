@@ -1,0 +1,125 @@
+---
+description: PharmaSync localization rules
+alwaysApply: true
+---
+
+# PharmaSync Localization Rules
+
+PharmaSync POS supports multiple UI locales.
+
+Current locales:
+- bn-BD
+- en
+
+Default UI locale:
+- bn-BD
+
+## Core rule
+
+All new user-facing interface text MUST use the existing localization system.
+
+Do NOT hard-code new UI strings directly inside React components.
+
+Use the existing typed translation key system:
+
+`t("...")`
+
+and add matching entries to:
+
+- `apps/desktop/src/i18n/locales/en.ts`
+- `apps/desktop/src/i18n/locales/bn-BD.ts`
+
+Any future locale must reuse the same keys and components.
+
+## Translate
+
+Translate static application/interface text:
+
+- navigation
+- headings
+- buttons
+- form labels
+- placeholders/instructions
+- modal copy
+- validation messages
+- frontend-owned errors/toasts
+- status messages
+- tooltips / aria labels
+- keyboard shortcut descriptions
+
+## Never translate runtime/domain data
+
+Do NOT translate or transliterate:
+
+- medicine/product names
+- generic names
+- manufacturer names
+- customer/user names
+- batch numbers
+- transaction IDs
+- phone numbers
+- barcodes
+- SKU/product codes
+- MFS/provider names and references
+- other stored/runtime business values
+
+## Numbers
+
+Use Latin digits 0-9 in all UI locales.
+
+Do not automatically convert numbers into Bengali digits.
+
+Keep values such as:
+
+৳12.00
+120
+01712 345678
+
+unchanged.
+
+## Receipt
+
+UI language does NOT control receipt language.
+
+Do not localize or modify receipt body/template/model unless explicitly authorized.
+
+## Components
+
+Never create separate Bangla and English versions of a screen/component.
+
+Use one component + translation keys.
+
+## State safety
+
+Changing locale must not reset:
+
+- active sale
+- cart
+- selected customer
+- loyalty state
+- payment state
+- modal/workflow state
+
+## Keyboard
+
+Tab is NOT a PharmaSync POS navigator.
+
+POS navigation uses arrow keys.
+
+- Arrow keys → navigate choices
+- Enter → activate
+- Esc → back/dismiss
+- F6 → Hold / park the active sale
+- F7 → Held sales list (toggle)
+
+Do not introduce `[Tab] Navigate`.
+
+## Product rule
+
+There is no Baki / customer-credit payment feature in PharmaSync POS.
+
+## New features
+
+Every newly implemented UI feature must include localization entries for all currently supported locales in the same development task.
+
+A feature is not considered UI-complete if new user-facing strings remain hard-coded.

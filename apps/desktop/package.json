@@ -1,0 +1,49 @@
+{
+  "name": "@r2a/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tauri + React cashier POS (offline-first)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit -p tsconfig.json --pretty false",
+    "test": "echo \"@r2a/desktop test — not configured yet\"",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "tauri": "tauri",
+    "desktop": "tauri",
+    "dev:tauri": "tauri dev",
+    "build:tauri": "tauri build",
+    "smoke:m3e": "tsx scripts/smoke-m3e.ts",
+    "smoke:m3l": "tsx scripts/smoke-m3l.ts",
+    "smoke:m3u": "tsx scripts/smoke-m3u.ts",
+    "smoke:m3z": "tsx scripts/smoke-m3z.ts",
+    "smoke:m3ae": "tsx scripts/smoke-m3ae.ts",
+    "smoke:m3al": "tsx scripts/smoke-m3al.ts",
+    "smoke:m3ap": "tsx scripts/smoke-m3ap.ts",
+    "smoke:m4a": "tsx scripts/smoke-m4a.ts",
+    "smoke:m4c": "tsx scripts/smoke-m4c.ts",
+    "smoke:m4d": "tsx scripts/smoke-m4d.ts"
+  },
+  "dependencies": {
+    "@r2a/shared-types": "*",
+    "@r2a/ui": "*",
+    "@tauri-apps/api": "^2.8.0",
+    "lucide-react": "^1.30.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "@tauri-apps/cli": "^2.8.0",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "tailwindcss": "^4.1.11",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.6"
+  }
+}

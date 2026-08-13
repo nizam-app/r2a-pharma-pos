@@ -1,0 +1,29 @@
+{
+  "name": "r2a-pharmacy-pos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tenant Pharmacy POS & Inventory SaaS (offline-first)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "db:generate": "npm run prisma:generate -w @r2a/database",
+    "db:migrate": "npm run prisma:migrate -w @r2a/database",
+    "db:deploy": "npm run prisma:deploy -w @r2a/database",
+    "db:seed": "npm run prisma:seed -w @r2a/database"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@11.9.0"
+}

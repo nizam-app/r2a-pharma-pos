@@ -1,0 +1,20 @@
+[[permission]]
+identifier = "allow-local-db"
+description = "Local SQLite IPC (pos_local.db catalog cache + outbound queue)"
+commands.allow = [
+  "db_migrate",
+  "get_local_db_path",
+  "search_cached_products",
+  "list_cached_batches",
+  "replace_catalog_cache",
+  "enqueue_sync_event",
+  "count_unsynced",
+  "list_sync_queue",
+  "list_sync_pending",
+  "mark_sync_synced",
+  "mark_sync_attempt",
+  "mark_sync_dead",
+  "retry_sync_event",
+  "count_sync_dead",
+  "apply_cached_stock_delta"
+]

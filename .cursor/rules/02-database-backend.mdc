@@ -1,0 +1,31 @@
+---
+description: Prisma, Express API, multi-tenant isolation, FEFO, and shared Zod contracts.
+globs: apps/server/**/*,packages/database/**/*,packages/shared-types/**/*,**/*.prisma,**/*.sql
+alwaysApply: false
+---
+
+# Backend & Database
+
+## Tenancy
+- Every domain entity has `tenantId`. Scope every Prisma query by `tenantId` from the JWT — never from the client body alone.
+
+## Contracts
+- Reuse schemas from `@r2a/shared-types`. Do not invent parallel DTOs/Zod for the same payloads.
+- Domain API DTOs: camelCase. Sync queue envelope: snake_case (map at the sync boundary).
+
+## Domain rules
+- FEFO: select batches with `expiryDate ASC` where `quantityOnHand > 0`; manual override needs permission.
+- Prisma Batch fields (do not invent aliases): `expiryDate`, `quantityOnHand`, `costPerBase`, `sellPerBase`.
+- ProductUnit conversion: `factorToBase`. Quantities stored in lowest unit (PIECE).
+- Sales are append-only. Payments are `CASH` | `CARD` | `MFS` only (no Baki as a tender).
+- Stock sync uses **deltas** (`quantity_change`), never absolute overwrite from offline nodes.
+- Sale ingest idempotency via unique `eventId`. Online route: `POST /api/v1/sales/ingest` (not M4 `/sync/ingest`).
+- Cashier responses omit `costPerBase` / margin; cashiers may read `sellPerBase` for checkout but cannot mutate cost/sell catalog prices.
+
+## API shape
+- Validate inputs with Zod. Do not swallow errors.
+- Success envelope (legacy `sendResponse`): `{ status: "success", message, data?, meta? }`.
+- Error envelope (via `AppError` + global handler): `{ status: "fail"|"error", message, ... }` — do not use `{ success: false, error: { code, message } }` unless docs are re-authorized.
+- Layering: `router → controller → service` under `apps/server/src/modules/...`. Mount under `/api/v1`.
+---
+

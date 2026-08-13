@@ -1,0 +1,13 @@
+{
+  "name": "@r2a/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Owner web dashboard (React + TypeScript)",
+  "scripts": {
+    "dev": "echo \"@r2a/web not implemented yet — Milestone 6\"",
+    "build": "echo \"@r2a/web build stub\"",
+    "lint": "echo \"@r2a/web lint stub\"",
+    "test": "echo \"@r2a/web test stub\"",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  }
+}

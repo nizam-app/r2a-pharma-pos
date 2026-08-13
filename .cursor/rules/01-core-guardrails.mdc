@@ -1,0 +1,32 @@
+---
+description: Milestone gating, stack lock, doc hierarchy, and safe agent ops for R2A Pharmacy POS.
+alwaysApply: true
+---
+
+# Core Guardrails
+
+## Source of truth
+- Before large or architectural work, read `Current_Status.md` and `PROJECT_MASTER_PLAN.md`.
+- Use `docs/Project_Requirement_Documents.md`, `docs/System_Architecture_Technical_Specification.md`, `docs/UX_Specification.md`, and `docs/Project_Handover.md` only as supporting context.
+- On conflict, **status + master plan override** the older `docs/` drafts.
+
+## Milestone gating
+- Only implement the milestone the user explicitly authorizes.
+- Do not start M2+ work (or later) from status alone without authorization.
+
+## Stack lock
+- Express + TypeScript, Prisma + PostgreSQL, Tauri + React + SQLite, Zod in `@r2a/shared-types`.
+- Never reintroduce MongoDB, Mongoose, or a competing backend/frontend stack.
+
+## Safety
+- Never commit secrets (`.env`). Use `.env.example` only.
+- Do not delete config roots (`.env`, `package.json`, `tsconfig.json`, `schema.prisma`) without explicit confirmation.
+- No force-delete of trees or `git reset --hard` unless the user explicitly asks.
+- Git commit / push only when the user explicitly asks.
+
+## Efficiency
+- Be concise; prefer targeted edits over rewriting large files.
+- No drive-by refactors or unrelated docs unless asked.
+- If a proposed edit matches existing code, say "No changes needed" and stop.
+---
+
