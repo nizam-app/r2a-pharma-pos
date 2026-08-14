@@ -14,6 +14,12 @@ export type {
 } from "./types";
 export { pullCatalogCache } from "./catalogPull";
 export type { CachePullResult } from "./catalogPull";
+export {
+  CATALOG_MAX_PAGES,
+  CATALOG_PAGE_SIZE,
+  collectPagedList,
+  mapBatch,
+} from "./catalogPages";
 export { isTauriRuntime } from "./runtime";
 export {
   __resetLocalDbForTests,

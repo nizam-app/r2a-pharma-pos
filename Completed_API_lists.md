@@ -4,8 +4,8 @@
 **Package:** `@r2a/server` (`apps/server`)  
 **Base URL (dev):** `http://localhost:8787` (override with `PORT` / `BASE_URL`)  
 **API prefix:** `/api/v1`  
-**Last updated:** 2026-08-13  
-**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6)
+**Last updated:** 2026-08-14  
+**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (§19) + **M5 MVP hardening DONE** (**§20 — M5**)
 
 > **Source of truth for contracts:** Zod schemas in `@r2a/shared-types`.  
 > **Live status:** [`Current_Status.md`](Current_Status.md).  
@@ -16,7 +16,12 @@
 > **Desktop note (Slice 4 AA–AD):** Still **no new cloud endpoints**. Receipt Preview (dynamic lines); Card stub terminal → `CARD` ingest; MFS bKash/Nagad/Rocket + **invented** confirm/result → `MFS` ingest (+ provider meta in `notes`). See **§16**.  
 > **Desktop note (Slice 5 AF–AL):** Still **no new cloud endpoints**. F4 substitutes (`GET /products/:id/substitutes`); Settings pharmacy header → Receipt Preview; Force Offline; Transactions list/detail/reprint from local log; Shift open/close local; Create Customer removed from POS; `POST /customers` **OWNER-only**. See **§17**.  
 > **Desktop note (Slice 6 AM–AP):** Still **no new cloud endpoints**. Hold / Park Sale is **local** (`heldSaleStore`, max 3 soft holds); **F6** Hold + **F7** Held list (toggle); resume rechecks live stock/expiry (strip/clamp); mid-payment Hold aborts card/MFS stubs and does **not** ingest. **No** hard reservation / cloud hold / multi-terminal shared holds. See **§18**.  
-> **M3 closed (2026-08-13):** Desktop POS shell complete. Later screens → Slice 7+. Queue flush = **M4**. No new cloud routes in M3.  
+> **M3 closed (2026-08-13):** Desktop POS shell complete. Later screens → Slice 7+. No new cloud routes in M3.  
+> **M4 closed (2026-08-14):** One-way offline→cloud sync. New cloud route `POST /api/v1/sync/ingest` (reuses `ingestSale`). Desktop 15s worker + Sync Queue panel. See **§19**.  
+> **M5 closed (2026-08-14):** **§20 — M5** — PATCH RBAC, desktop Receive stock (no new routes), Sync Queue 409 copy, paged catalog pull. Print / FEFO PIN stay stubs. See **§20**.  
+> **M5 Batch A (2026-08-14):** `PATCH /customers/:id` and `PATCH /batches/:id` are **`OWNER`, `MANAGER`** (cashier `403`, including batch qty). No new routes.  
+> **M5 Batch C (2026-08-14):** Desktop Settings → Receive stock (Owner/Manager, online only) uses existing `POST /api/v1/batches` and `PATCH /api/v1/batches/:id` (`quantityOnHand`). No new cloud routes.  
+> **M5 Batch E (2026-08-14):** Desktop `catalogPull` pages `GET /products` and `GET /batches` (`limit=100` + `offset` until `meta.total`, cap 50 pages / 5000 rows). Still **no** `costPerBase` in the local cache. No new cloud routes. No CSV.  
 > **FEFO display (desktop):** Search cards prefer the earliest **sellable** (non-expired) lot. Cloud `GET …/fefo-batch` still returns the earliest **in-stock** lot by expiry (may be expired). See §8.5.  
 > **Demo seed:** Napa `NAPA-500` ships with **4 lots** for Select Batch UX (`NP23091` FEFO · `NP24031` · `NP24052` · `NP23010` expired). Customer **Karim** ships with **120** loyalty points. Re-run `npm run db:seed` after pull.
 
@@ -134,7 +139,6 @@ Owners / managers see `costPerBase` on batch payloads.
 
 | Path / feature | Why |
 |----------------|-----|
-| `POST /api/v1/sync/ingest` | Milestone 4 desktop sync pipeline |
 | Sale delete / update | Sales are append-only |
 | Super Admin platform routes | Role exists; no console API in M2 |
 | Payment gateway charge APIs | Enum only; no Card/MFS processor integration yet |
@@ -166,14 +170,15 @@ Owners / managers see `costPerBase` on batch payloads.
 | GET | `/api/v1/batches` | Bearer | Any authenticated |
 | POST | `/api/v1/batches` | Bearer | `OWNER`, `MANAGER` |
 | GET | `/api/v1/batches/:id` | Bearer | Any authenticated |
-| PATCH | `/api/v1/batches/:id` | Bearer | Any auth*; price fields blocked for `CASHIER` |
+| PATCH | `/api/v1/batches/:id` | Bearer | `OWNER`, `MANAGER` (cashier `403`, including qty) |
 | GET | `/api/v1/customers` | Bearer | Any authenticated |
 | POST | `/api/v1/customers` | Bearer | **`OWNER` only** (not Manager; not on desktop POS — Owner web later) |
 | GET | `/api/v1/customers/:id` | Bearer | Any authenticated |
-| PATCH | `/api/v1/customers/:id` | Bearer | Any authenticated |
+| PATCH | `/api/v1/customers/:id` | Bearer | `OWNER`, `MANAGER` (cashier `403`) |
 | POST | `/api/v1/sales/ingest` | Bearer | Any authenticated |
+| POST | `/api/v1/sync/ingest` | Bearer | Any authenticated |
 
-\*Cashier may patch non-price fields (e.g. `quantityOnHand`); mutating `costPerBase` / `sellPerBase` returns `403`.
+Cashier GET still omits `costPerBase`. Price-field `403` remains defense-in-depth on PATCH; the route itself is Owner/Manager only (M5 Batch A).
 
 ---
 
@@ -474,11 +479,11 @@ Cashiers without an explicit `storeId` query are limited to their JWT store when
 
 ### 9.4 `PATCH /api/v1/batches/:id`
 
-**Auth:** Bearer  
+**Auth:** Bearer · **`restrictTo("OWNER", "MANAGER")`** (M5 Batch A). Cashiers receive **`403`** for any PATCH, including `{ "quantityOnHand": … }`. Receiving / qty adjust is Owner/Manager only.
 
 Updatable: `batchNumber`, `expiryDate`, `quantityOnHand`, `costPerBase`, `sellPerBase` (at least one required).
 
-If body includes `costPerBase` or `sellPerBase` and role is `CASHIER` → **`403`** `"Cashiers cannot mutate costPerBase or sellPerBase"`.
+If body includes `costPerBase` or `sellPerBase` and role is `CASHIER` → **`403`** `"Cashiers cannot mutate costPerBase or sellPerBase"` (defense-in-depth; cashiers no longer reach this handler).
 
 ---
 
@@ -504,7 +509,9 @@ If body includes `costPerBase` or `sellPerBase` and role is `CASHIER` → **`403
 
 ### 10.4 `PATCH /api/v1/customers/:id`
 
-**Auth:** Bearer · Partial: `name?`, `phone?` (nullable), `email?` (nullable).
+**Auth:** Bearer · **`restrictTo("OWNER", "MANAGER")`** (M5 Batch A). Cashiers receive **`403`** (search-only at POS). Owner web edit UI is **M6**.
+
+Partial: `name?`, `phone?` (nullable), `email?` (nullable).
 
 **Not updatable via this PATCH:** `loyaltyPoints`, `creditBalance`. Slice 2 POS applies loyalty settlement in **session only** after zero-pay complete (display on Sale Completed). Authoritative cloud mutation is a planned gap (§15.3).
 
@@ -517,7 +524,7 @@ Response objects may include `loyaltyPoints` and `creditBalance`. Desktop Select
 ### `POST /api/v1/sales/ingest`
 
 **Auth:** Bearer  
-**Purpose:** Online authenticated sale creation (append-only). **Not** the M4 desktop `/sync/ingest` pipeline.
+**Purpose:** Online authenticated sale creation (append-only). Offline / Force Offline / network-5xx completes use **`POST /api/v1/sync/ingest`** instead (§19). Do **not** merge the two paths.
 
 #### Request body
 
@@ -594,7 +601,7 @@ M2 already accepts `total: 0` and payment `amount: 0` (`nonnegative`). Desktop m
 | Tender | `payments: [{ "method": "CASH", "amount": 0 }]` (min 1 payment required) |
 | Loyalty / FEFO override audit (stub) | `notes` strings (`loyaltyRedeem:…`, `fefoOverride:…`) — **not** first-class fields yet |
 
-**Online required** for Slice 2 zero-pay complete (no offline queue flush / M4 worker). Offline enqueue of completed zero-pay sales is a documented gap until Slice 3 / M4.
+~~Online required for Slice 2 zero-pay complete~~ → **M4** queues Cash / Card / MFS / zero-pay when Offline, Force Offline, or ingest is network/5xx (§19). Online happy path is still this route.
 
 #### Example (FEFO — omit `batchId`)
 
@@ -630,7 +637,8 @@ M2 already accepts `total: 0` and payment `amount: 0` (`nonnegative`). Desktop m
 4. GET  /products/:id/fefo-batch             → optional; desktop prefers sellable FEFO for search card
 5. GET  /products/:id/substitutes            → alternate brands (same generic) — wired M3 Batch AG (F4)
 6. GET  /customers?q=…                       → Select Customer (F8); Create form = later slice
-7. POST /sales/ingest                        → zero-pay (loyalty) · Cash (Slice 3) · Card/MFS (Slice 4)
+7. POST /sales/ingest                        → online complete (zero-pay · Cash · Card/MFS)
+7b. POST /sync/ingest                        → M4 worker flush of queued offline sales (same payload / eventId)
 8. On 401: POST /auth/refresh                → new tokens; retry
 9. On logout: POST /auth/logout              → revoke refresh
 ```
@@ -665,12 +673,15 @@ POST /products → POST /batches → POST /users (cashier)
 | Batches | `apps/server/src/modules/batch/` |
 | Customers | `apps/server/src/modules/customer/` |
 | Sales ingest | `apps/server/src/modules/sale/` |
+| Sync ingest | `apps/server/src/modules/sync/` |
 | Zod contracts | `packages/shared-types/src/` |
 | Prisma schema | `packages/database/prisma/schema.prisma` |
 | Exit smoke | `apps/server/scripts/m2-smoke.mjs` |
 | Slice 2 exit smoke | `apps/desktop/scripts/smoke-m3u.ts` (`npm run smoke:m3u -w @r2a/desktop`) |
 | Slice 3 exit smoke | `apps/desktop/scripts/smoke-m3z.ts` (`npm run smoke:m3z -w @r2a/desktop`) |
 | Slice 4 exit smoke | `apps/desktop/scripts/smoke-m3ae.ts` (`npm run smoke:m3ae -w @r2a/desktop`) |
+| M4 cloud ingest smoke | `apps/server/scripts/m4b-smoke.mjs` (`npm run smoke:m4b -w @r2a/server`) |
+| M4 desktop exit smoke | `apps/desktop/scripts/smoke-m4.ts` (`npm run smoke:m4 -w @r2a/desktop`; composes m4a/c/d/e + m3ap) |
 
 ---
 
@@ -685,7 +696,7 @@ POST /products → POST /batches → POST /users (cashier)
 | Session / refresh | `POST /auth/login`, `POST /auth/refresh`, `GET /users/me` | Invented login UI; tokens in webview localStorage (MVP) |
 | Connectivity badge | `GET /api/v1/health` | Online/offline flip |
 | Catalog search / batches | `GET /products`, `GET /batches`, `GET /products/:id/fefo-batch` | Offline = SQLite cache |
-| Select Customer (F8) | `GET /customers` | No Baki UI; Create Customer = toast stub |
+| Select Customer (F8) | `GET /customers` | No Baki UI; Create **removed** (Owner web M6) |
 | Zero-pay complete | `POST /sales/ingest` | Loyalty → `discount`; CASH ৳0; see §11 |
 
 ### 14.2 Desktop-only (no cloud)
@@ -710,7 +721,7 @@ Recorded from Slice 2 locks — implement later (not in Batch U):
 | Real manager FEFO override | Verify MANAGER/OWNER PIN or password; role check; audit log; **FEFO override flag on sale line / ingest** |
 | Real loyalty OTP | Send SMS/WhatsApp (n8n later); server-side verify; rate limit |
 | Loyalty earn/redeem persistence | Authoritative mutation on sale ingest (or dedicated routes); extend `PATCH /customers` and/or ingest payload beyond `discount`/`notes` |
-| Offline completed sale → queue | `outbound_sync_queue` + M4 `POST /sync/ingest` worker |
+| ~~Offline completed sale → queue~~ | **Done in M4** (§19) — `outbound_sync_queue` + `POST /sync/ingest` |
 
 ~~Cash / Card / MFS tender~~ → Slice 3 Cash (§15) + Slice 4 Card/MFS (§16) done.
 
@@ -758,7 +769,7 @@ Checks loyalty calculator units, static no-tender/Baki/M4 guards, and live zero-
 | ~~**Card** payment detail~~ | **Done in Slice 4** (§16) — stub terminal only |
 | ~~**MFS** payment detail~~ | **Done in Slice 4** (§16) — providers + invented confirm |
 | Loyalty earn/redeem persistence | Same gap as §14.3 — session display only today |
-| Offline cash/zero-pay → queue | `outbound_sync_queue` + M4 `POST /sync/ingest` (no M4 worker in Slice 3/4) |
+| ~~Offline cash/zero-pay → queue~~ | **Done in M4** (§19) |
 
 ### 15.4 Slice 3 exit smoke
 
@@ -813,7 +824,7 @@ Checks earn lock, print stub helpers + IPC TODO, Payment/Cash/Sale Completed wir
 | Settings → live pharmacy header | ~~Replace `STUB_PHARMACY_HEADER`~~ → **Done in Slice 5** (§17) |
 | Replace invented MFS confirm/result | When user shares Figma |
 | Loyalty earn/redeem persistence | Same gap as §14.3 |
-| Offline complete → queue | M4 `POST /sync/ingest` worker (not started) |
+| ~~Offline complete → queue~~ | **Done in M4** (§19) |
 
 ### 16.4 Slice 4 exit smoke
 
@@ -861,7 +872,7 @@ Checks earn lock, print + card + MFS stubs/TODOs, Receipt Preview 80/58 dynamic 
 | Owner web Create Customer | `apps/web` — not desktop |
 | Real Tauri **printer IPC** | Still open (§16.3) |
 | Real **card** SDK / **MFS** APIs | Still open (§16.3); MFS = backend-confirmed status, no cashier Trx |
-| M4 sync flush worker | `POST /sync/ingest` — **not started** |
+| ~~M4 sync flush worker~~ | **Done in M4** (§19) |
 | Loyalty earn/redeem persistence | Same gap as §14.3 |
 
 ### 17.4 Slice 5 exit smoke
@@ -910,7 +921,7 @@ Checks shift store helpers, Shift UI + Counter Ready wiring, Slice 5 DoD source 
 | Cloud sales **list** / **shift** APIs | Still open (§17.3) |
 | Owner web Create Customer | `apps/web` — not desktop |
 | Real Tauri **printer IPC** / **card** SDK / **MFS** APIs | Still open (§16.3); MFS = backend-confirmed status, no cashier Trx |
-| M4 sync flush worker | `POST /sync/ingest` — **not started** |
+| ~~M4 sync flush worker~~ | **Done in M4** (§19) |
 
 ### 18.4 Slice 6 exit smoke
 
@@ -924,7 +935,226 @@ Checks held-sale store max-3 + local TODO, soft resume recheck (strip/clamp / ke
 
 ---
 
-## 19. Change log
+## 19. M4 — One-way sync (Batch F)
+
+One new Express route: **`POST /api/v1/sync/ingest`**. Desktop POS still uses `POST /sales/ingest` when online and not Force Offline. Offline / Force Offline / network-5xx completes enqueue locally; a 15s TypeScript worker flushes FIFO through this route. Reuses `ingestSale` (delta stock, `eventId` idempotency). **No** new cloud list API for the Sync Queue panel.
+
+### 19.1 `POST /api/v1/sync/ingest`
+
+**Auth:** Bearer (`protect` + `tenantContext`). JWT `tenantId` only — body `tenantId` is ignored.  
+**Roles:** Any authenticated (`OWNER` / `MANAGER` / `CASHIER`). Cashiers still never receive `costPerBase` on nested batches.  
+**Module:** `apps/server/src/modules/sync/` (`router → controller → service`). Mounted on `domainRouter` at `/sync`.  
+**Does not** replace or change `POST /api/v1/sales/ingest`.
+
+#### Request body (snake_case envelope)
+
+Validate with `syncIngestBatchSchema`. Wrapper invalid (empty `events`, schema fail) → **400**. Per-event poison does **not** 400 the batch.
+
+```json
+{
+  "events": [
+    {
+      "event_id": "<same as Sale.eventId / queue row id>",
+      "entity_type": "sale",
+      "action": "create",
+      "payload": { "...camelCase SaleIngestInput..." },
+      "created_at": "2026-08-14T08:00:00.000Z"
+    }
+  ]
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `events` | array | yes | Min 1. Processed **in array order** |
+| `events[].event_id` | string | yes | Idempotency key; mapped onto `payload.eventId` before `ingestSale` |
+| `events[].entity_type` | enum | yes | M4 processes **`sale` only**. `stock_delta` / `product` / `customer` → that event `rejected` |
+| `events[].action` | enum | yes | M4 processes **`create` only** |
+| `events[].payload` | object | yes | camelCase `saleIngestSchema` (`eventId`, `storeId`, `items`, `payments`, …) — same DTO as §11 |
+| `events[].created_at` | date | no | Queue timestamp; unused by cloud stock logic |
+
+#### Per-event processing
+
+| Case | `data.results[].status` |
+|------|-------------------------|
+| `sale` + `create` + valid payload + new `eventId` | `accepted` — `ingestSale` commits sale + decrements `quantityOnHand` (delta, never absolute overwrite) |
+| Same `eventId` already in Postgres | `duplicate` — **no** second stock hit (`ingestSale` idempotent no-op) |
+| Payload fails `saleIngestSchema` | `rejected` + `message` (Zod). Batch continues |
+| `ingestSale` 4xx (`AppError`) | `rejected` + `message`. Batch continues |
+| Unsupported `entity_type` / `action` | `rejected` (`unsupported entity_type/action: …`) |
+| 5xx inside `ingestSale` | Propagates — not converted to `rejected` |
+
+**HTTP 200** with the locked success envelope even when some events are `rejected` (partial success). Earlier accepted rows stay committed.
+
+```json
+{
+  "status": "success",
+  "message": "Sync ingest processed",
+  "data": {
+    "results": [
+      { "eventId": "evt-1", "status": "accepted", "sale": { } },
+      { "eventId": "evt-1-again", "status": "duplicate", "sale": { } },
+      { "eventId": "evt-bad", "status": "rejected", "message": "unsupported entity_type/action: product/create" }
+    ]
+  }
+}
+```
+
+`results[]` is camelCase (`eventId`, `status`, `message?`, `sale?`). Nested `sale` omits `costPerBase` for cashiers.
+
+**No token → 401.**
+
+### 19.2 Desktop complete-or-queue
+
+Helper: `completeSaleOrQueue` in `apps/desktop/src/lib/saleIngest.ts`. Wired on Cash / Card / MFS / zero-pay in `App.tsx`. Uses connectivity `isOnline` + `forcedOffline` (not only `navigator.onLine`).
+
+| When | Path |
+|------|------|
+| Online **and** not Force Offline | `POST /api/v1/sales/ingest` (unchanged happy path) |
+| Offline, Force Offline, or ingest **network / 5xx / 408 / 429** | Enqueue then **same** Sale Completed + Receipt Preview |
+| Online ingest **4xx** (validation, 404, 409 stock, 401) | **Do not** enqueue; stay on payment |
+
+Enqueue rules:
+
+- Queue row **`id` = `payload.eventId`**. Re-enqueue of the same id is idempotent (no duplicate row).
+- `entity_type: "sale"`, `action: "create"`, payload = camelCase `SaleIngestInput`.
+- Local catalog: `apply_cached_stock_delta(batchId, −quantityBase)` per line with `batchId`; clamp ≥ 0.
+- Still append `transactionLogStore`. Optional queued toast (i18n). **No** distinct Queued Completed screen.
+- Hold during card/MFS still aborts stubs and **must not** enqueue.
+
+### 19.3 Local queue + 15s worker
+
+Table `outbound_sync_queue` (SQLite / memory backend parity):
+
+| Column | Notes |
+|--------|-------|
+| `id` | = sale `eventId` |
+| `entity_type`, `action`, `payload`, `created_at` | Envelope; payload JSON TEXT |
+| `synced` | 1 after `accepted` / `duplicate` |
+| `attempt_count` | Transient retries |
+| `last_error`, `last_attempt_at` | Last flush error / time |
+| `dead` | 1 = dead-letter (not pending) |
+
+`countUnsynced` = `synced = 0 AND dead = 0`.
+
+Worker (`apps/desktop/src/lib/syncWorker.ts`) runs in the **webview** (not Rust HTTP — tokens are in localStorage):
+
+| Lock | Behavior |
+|------|----------|
+| Interval | **15s**; also flush on start (if online), **Go Online**, and browser `online` |
+| Pause | Force Offline **or** connectivity `mode !== "online"` |
+| FIFO | Oldest `created_at`, then `id`. Up to **10** events per tick (`list_sync_pending`) |
+| POST | `{ events: [...] }` snake_case envelope; `payload` already camelCase |
+| `accepted` / `duplicate` | `mark_sync_synced` |
+| Poison **4xx** (`rejected`) | `mark_sync_dead` immediately; continue FIFO |
+| Transient **network / 5xx / timeout** | `mark_sync_attempt` on the **head** row only; **stop the tick** |
+| Backoff | Skip head if `last_attempt_at` newer than `min(15s × 2^(attempt_count−1), 240s)` |
+| Max transient | **8** then dead-letter |
+| **401 / 403** | Token refresh once via `apiRequest`; if still failing: badge `syncError`, **do not** dead-letter, stop tick |
+| After accepted/duplicate | Optional fire-and-forget `catalogPull` (not bi-di sync) |
+
+Dev helpers (browser console): `__r2aFlushSyncNow()` · `__r2aMarkHeadSyncDead()`.
+
+### 19.4 Sync Queue panel (desktop-only — no cloud list API)
+
+Opened from the connectivity **badge** menu (**Sync queue**) and **Settings → Connectivity → Open sync queue**. Overlay panel (Shift / Held family). **No** new sidebar item.
+
+| Piece | Behavior |
+|-------|----------|
+| Header | Sync queue · Pending n · Failed n (Latin digits) |
+| Rows | Time · `TXN-` / `eventId` tail · ৳ from payload · Pending / Syncing / Failed |
+| Sort | Failed first (`dead = 1`), then pending by `created_at` |
+| Keys | ↑/↓ · Enter Retry on Failed (`retry_sync_event`) · Esc close · **no Tab** |
+| Retry | Clears `dead` / `attempt_count` / `last_error`. Does **not** delete the sale |
+| Empty | All synchronized |
+
+i18n: `en.ts` + `bn-BD.ts`. Domain `eventId` / ৳ / `last_error` stay as data.
+
+### 19.5 TODOs (M4 exit — do not forget)
+
+| Need | Notes |
+|------|-------|
+| **409 conflict UX** | **DONE** in M5 (**§20 — M5**). Failed Sync Queue rows show i18n copy + raw `last_error`; Enter Retry. Still **no** void — do not invent void here |
+| Bi-directional catalog/stock sync | **M6** |
+| Cloud `GET /sales` / cloud shift | Still open (§17.3) |
+| Hard reservation / cloud hold | Still open (§18.3) |
+| Real printer IPC / card SDK / MFS APIs | Still open (§16.3); MFS = backend-confirmed status, no cashier Trx |
+| Baki tender | Not a payment method |
+| Slice 7+ POS screens | When shared — not invented ahead |
+
+### 19.6 M4 exit smokes
+
+```bash
+# Cloud (server must be running)
+npm run smoke:m2 -w @r2a/server
+npm run smoke:m4b -w @r2a/server
+
+# Desktop (Node; no live cloud required)
+npm run smoke:m4 -w @r2a/desktop
+```
+
+`smoke:m4` composes `smoke:m4a` (queue IPC) · `smoke:m4c` (complete-or-queue) · `smoke:m4d` (15s worker) · `smoke:m4e` (Sync Queue panel) · `smoke:m3ap` (Hold guard: App still does not POST `/sync/ingest`; worker owns flush) + catalog §19 / status DONE checks.
+
+**Manual reconnect path:** Force Offline → sell Napa Cash → Sale Completed → Sync queue Pending → Go Online → wait ≤15s (or `__r2aFlushSyncNow()`) → All synchronized / badge Synced. No second receipt popup. Online (not forced) Cash still uses `/sales/ingest`.
+
+---
+
+## 20. M5 — MVP hardening (Batch F)
+
+**§20 — M5** closes Milestone 5. **No new cloud routes.** Desktop POS + existing M2/M4 APIs. Print stub and FEFO PIN stub stay. Owner web remains a stub (**M6**).
+
+### 20.1 PATCH roles (Batch A)
+
+| Method | Path | Roles after M5 |
+|--------|------|----------------|
+| `PATCH` | `/api/v1/customers/:id` | **`OWNER`, `MANAGER`** — cashier `403` (search-only at POS) |
+| `PATCH` | `/api/v1/batches/:id` | **`OWNER`, `MANAGER`** — cashier `403` (including qty). Receiving is the qty path |
+| `POST` | `/api/v1/customers` | **`OWNER` only** (unchanged; not on desktop POS) |
+| `POST` | `/api/v1/batches` | **`OWNER`, `MANAGER`** (unchanged) |
+
+Cashier GET still omits `costPerBase`. Price-field `403` remains defense-in-depth. `smoke:m2` includes cashier PATCH 403s.
+
+### 20.2 Receive stock (desktop-only — Batches B–C)
+
+**No new cloud routes.** Owner/Manager **Settings → Receive stock** (cashier: section omitted, not a locked row). Online only — Force Offline / `mode !== "online"` → toast; **no** GRN queue.
+
+| Mode | Call |
+|------|------|
+| Add lot | `POST /api/v1/batches` (`productId`, `batchNumber`, `expiryDate`, `quantityOnHand` PIECE, `costPerBase`, `sellPerBase`) |
+| Adjust qty | `PATCH /api/v1/batches/:id` `{ quantityOnHand }` (absolute on-hand) |
+
+Success → i18n toast + `catalogPull`. Cost fields visible here (Owner + Manager). No new sidebar item. No CSV. Supplier-return bucket = **M6**.
+
+### 20.3 409 Sync Queue copy (Batch D)
+
+Failed `outbound_sync_queue` rows (`dead = 1`): i18n `syncQueue.conflictReason` when `last_error` looks like insufficient stock / `409` / conflict, **plus** raw `last_error` as data. Enter still **Retry** (`retry_sync_event`). **No** void / delete sale. Online ingest **4xx/409** still stays on payment (does not enqueue). Stage with `__r2aMarkHeadSyncDead()` (defaults to `409 Insufficient stock`).
+
+### 20.4 Paged catalog pull (Batch E)
+
+Desktop `catalogPull` pages `GET /products` (`isActive=true`) and `GET /batches` with `limit=100` + `offset` until `meta.total`. Hard cap **50** pages (5000 rows) per resource; i18n toast if truncated; still replace cache with what was fetched. `replaceCatalogCache` once at the end. **Never** cache `costPerBase` (`mapBatch` drops it). No CSV. Not bi-directional sync (**M6**).
+
+### 20.5 Stubs still out (not M5)
+
+Print stub (`TODO(real printer IPC)`), FEFO PIN stub (any 4-digit + local Authorized By; **no** `pinHash`), real card SDK, real MFS APIs, loyalty persist, cloud `GET /sales`, cloud shift, Owner web, sale void, on-account tender, Slice 7+, CSV onboarding, hard holds.
+
+### 20.6 M5 exit smokes
+
+```bash
+# Cloud (server must be running)
+npm run smoke:m2 -w @r2a/server
+npm run smoke:m4b -w @r2a/server
+
+# Desktop (Node; composes m5a–m5e + smoke:m4 + §20 / DONE / runbook)
+npm run smoke:m5 -w @r2a/desktop
+```
+
+Dev runbook: [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md).
+
+**Manual pilot path:** Owner Receive stock → cashier sells Napa Cash online → cashier has no Receive stock → Force Offline sale + Sync queue (409 copy if staged). Print / FEFO PIN remain stubs.
+
+---
+
+## 21. Change log
 
 | Date | Change |
 |------|--------|
@@ -939,3 +1169,5 @@ Checks held-sale store max-3 + local TODO, soft resume recheck (strip/clamp / ke
 | 2026-08-13 | Shift soft gate documented: New Sale [F2] requires open shift; connectivity badge independent |
 | 2026-08-13 | **M3 Batch AP (Slice 6 exit):** §18 Hold / Park Sale (max 3 soft holds, F6 Hold, F7 Held list, resume recheck, payment abort); no new cloud routes; `smoke:m3ap` |
 | 2026-08-13 | **M3 FULL EXIT:** desktop POS shell closed; no new cloud routes; later screens → Slice 7+; M4 flush not started |
+| 2026-08-14 | **M4 Batch F (M4 exit):** §19 `POST /api/v1/sync/ingest` + desktop queue/worker/Sync Queue panel; `smoke:m4`; M4 DONE |
+| 2026-08-14 | **M5 Batch F (M5 exit):** §20 PATCH RBAC + desktop Receive stock + 409 copy + paged catalog pull; `docs/DEV_RUNBOOK.md`; `smoke:m5`; user pilot walkthrough **PASS**; M5 DONE |

@@ -11,4 +11,6 @@ interface ImportMeta {
 interface Window {
   /** M4 Batch D walkthrough — flush outbound_sync_queue now (no-op while forced/offline). */
   __r2aFlushSyncNow?: () => Promise<void>;
+  /** M4/M5 walkthrough — mark FIFO head dead. Default last_error is 409 Insufficient stock. */
+  __r2aMarkHeadSyncDead?: (lastError?: string) => Promise<string | null>;
 }

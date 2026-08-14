@@ -24,7 +24,15 @@
     "smoke:m3ap": "tsx scripts/smoke-m3ap.ts",
     "smoke:m4a": "tsx scripts/smoke-m4a.ts",
     "smoke:m4c": "tsx scripts/smoke-m4c.ts",
-    "smoke:m4d": "tsx scripts/smoke-m4d.ts"
+    "smoke:m4d": "tsx scripts/smoke-m4d.ts",
+    "smoke:m4e": "tsx scripts/smoke-m4e.ts",
+    "smoke:m4": "tsx scripts/smoke-m4.ts",
+    "smoke:m5a": "tsx scripts/smoke-m5a.ts",
+    "smoke:m5b": "tsx scripts/smoke-m5b.ts",
+    "smoke:m5c": "tsx scripts/smoke-m5c.ts",
+    "smoke:m5d": "tsx scripts/smoke-m5d.ts",
+    "smoke:m5e": "tsx scripts/smoke-m5e.ts",
+    "smoke:m5": "tsx scripts/smoke-m5.ts"
   },
   "dependencies": {
     "@r2a/shared-types": "*",

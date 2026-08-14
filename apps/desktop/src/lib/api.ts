@@ -82,10 +82,14 @@ async function refreshAccessToken(): Promise<boolean> {
   return true;
 }
 
-export async function apiRequest<T>(
+/**
+ * Full success envelope (`data` + `meta`). Use for paged lists that need
+ * `meta.total`. Most callers still want {@link apiRequest} (`data` only).
+ */
+export async function apiRequestEnvelope<T>(
   path: string,
   options: RequestOptions = {},
-): Promise<T> {
+): Promise<{ data: T; meta?: unknown }> {
   const { method = "GET", body, auth = true, _retried = false } = options;
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -107,7 +111,7 @@ export async function apiRequest<T>(
   if (res.status === 401 && auth && !_retried) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
-      return apiRequest<T>(path, { ...options, _retried: true });
+      return apiRequestEnvelope<T>(path, { ...options, _retried: true });
     }
     onSessionInvalid?.();
     const envelope = await parseEnvelope<T>(res);
@@ -123,7 +127,15 @@ export async function apiRequest<T>(
     );
   }
 
-  return envelope.data as T;
+  return { data: envelope.data as T, meta: envelope.meta };
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const { data } = await apiRequestEnvelope<T>(path, options);
+  return data;
 }
 
 export async function loginRequest(input: LoginInput): Promise<AuthTokenPair> {

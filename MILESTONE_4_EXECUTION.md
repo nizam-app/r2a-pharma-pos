@@ -5,8 +5,8 @@
 **Live progress context:** [`Current_Status.md`](Current_Status.md)  
 **API catalog:** [`Completed_API_lists.md`](Completed_API_lists.md)  
 **Authorized plan:** [`.cursor/plans/m4_one-way_sync_a1d2e18c.plan.md`](.cursor/plans/m4_one-way_sync_a1d2e18c.plan.md)  
-**Status of M4:** **IN PROGRESS** — user authorized 2026-08-13. **Batches A–D DONE.** Batches E–F pending.  
-**Prerequisite:** Milestone 0–**3** **DONE** (cloud API + desktop POS shell Slice 1–6). Queue **table** exists (M3 Batch E); queue **flush** does not.  
+**Status of M4:** **DONE** — user authorized 2026-08-13; Batches A–F complete 2026-08-14.  
+**Prerequisite:** Milestone 0–**3** **DONE** (cloud API + desktop POS shell Slice 1–6). Queue table (M3 Batch E) + flush (M4 A–E) + catalog §19 (Batch F).  
 **Do not start:** M5 hardening, M6 owner web / bi-di sync / n8n / RLS, Slice 7+ POS screens, real printer / card SDK / MFS APIs, hard reservation / cloud hold, Baki — unless the user re-authorizes.
 
 ---
@@ -138,10 +138,12 @@ This section records that `PROJECT_MASTER_PLAN.md`, `Current_Status.md`, `Comple
 |------|--------|
 | M0 / M1 / M2 | **DONE** |
 | M3 desktop POS shell | **DONE** (Slices 1–6 / A–AP) |
-| Cloud API | Real — auth, inventory, FEFO, `POST /api/v1/sales/ingest` |
-| Local SQLite | Real — catalog cache + `outbound_sync_queue` **table** (id, entity_type, action, payload, synced, created_at) |
+| Cloud API | Real — auth, inventory, FEFO, `POST /api/v1/sales/ingest`, **`POST /api/v1/sync/ingest` (M4)** |
+| Local SQLite | Real — catalog cache + `outbound_sync_queue` (retry/dead columns + IPC) |
 | Queue **flush** / 15s worker | **DONE (Batch D)** — pause on Force Offline; badge pending/syncing/error |
 | Offline complete | **DONE (Batch C)** — Force Offline / offline / 5xx → `outbound_sync_queue`; same Sale Completed |
+| Sync Queue panel | **DONE (Batch E)** — badge + Settings; no sidebar Sync |
+| M4 exit / catalog §19 | **DONE (Batch F)** — `smoke:m4`; M4 closed |
 | `@r2a/web` | Stub — not M4 |
 
 ### Milestone 4 scope (from master plan §7)
@@ -758,14 +760,14 @@ When done, paste the Batch D User walkthrough and list every YOU DO step.
 
 ### Tasks
 
-- [ ] `features/sync/SyncQueuePanel.tsx` (+ `index.ts`) per **Invented screens**
-- [ ] Open from ConnectivityBadge menu (second action besides Force/Go Online — `↑`/`↓` or keep one-column menu: Force/Go Online **and** Sync queue; **←/→** or **↑/↓** between items, Enter activate, Esc close, **no Tab**)
-- [ ] Settings → Connectivity: pending, failed, last flush time, **Open sync queue**
-- [ ] Enter on a Failed row → `retry_sync_event` + optional immediate `__flush` / worker nudge
-- [ ] Empty state; live refresh when worker marks rows (poll on interval or after flush events)
-- [ ] All strings in `en.ts` + `bn-BD.ts` (including aria labels). Domain `eventId` / ৳ / errors stay as data
-- [ ] Chrome: teal pills, light panel, match Held/Shift density
-- [ ] `smoke:m4e`: i18n keys exist both locales; panel source has no Tab navigator; no sidebar Sync route; Retry/Esc present
+- [x] `features/sync/SyncQueuePanel.tsx` (+ `index.ts`) per **Invented screens**
+- [x] Open from ConnectivityBadge menu (second action besides Force/Go Online — `↑`/`↓` or keep one-column menu: Force/Go Online **and** Sync queue; **←/→** or **↑/↓** between items, Enter activate, Esc close, **no Tab**)
+- [x] Settings → Connectivity: pending, failed, last flush time, **Open sync queue**
+- [x] Enter on a Failed row → `retry_sync_event` + optional immediate `__flush` / worker nudge
+- [x] Empty state; live refresh when worker marks rows (poll on interval or after flush events)
+- [x] All strings in `en.ts` + `bn-BD.ts` (including aria labels). Domain `eventId` / ৳ / errors stay as data
+- [x] Chrome: teal pills, light panel, match Held/Shift density
+- [x] `smoke:m4e`: i18n keys exist both locales; panel source has no Tab navigator; no sidebar Sync route; Retry/Esc present
 
 ### Allowed focus
 
@@ -833,19 +835,19 @@ When done, paste the Batch E User walkthrough and list every YOU DO step.
 
 ### Tasks
 
-- [ ] `Completed_API_lists.md` **§19** (M4):
+- [x] `Completed_API_lists.md` **§19** (M4):
   - `POST /api/v1/sync/ingest` contract (auth, body, per-event results)
   - Desktop worker 15s, FIFO, dead-letter, queue columns
   - Desktop complete-or-queue rules
   - Sync Queue panel (no new cloud list API)
   - TODOs still open (409 conflict UX, bi-di, hardware, …)
   - `smoke:m4` / `smoke:m4b` commands
-- [ ] `npm run smoke:m4 -w @r2a/desktop` (and/or compose m4a–m4e) + confirm `smoke:m4b` still PASS
-- [ ] `smoke:m2` still PASS
-- [ ] Update [`Current_Status.md`](Current_Status.md): M4 **DONE**, next = M5 when authorized; desktop line includes queue flush; §9/§10/changelog
-- [ ] Update [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_PLAN.md): M4 status **DONE**, progress log, suggested next command → do not start M5 unless authorized
-- [ ] Tick all A–F checkboxes in **this** file; progress tracker + change log
-- [ ] Confirm `smoke-m3ap` still runs (guard relaxed)
+- [x] `npm run smoke:m4 -w @r2a/desktop` (and/or compose m4a–m4e) + confirm `smoke:m4b` still PASS
+- [x] `smoke:m2` still PASS
+- [x] Update [`Current_Status.md`](Current_Status.md): M4 **DONE**, next = M5 when authorized; desktop line includes queue flush; §9/§10/changelog
+- [x] Update [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_PLAN.md): M4 status **DONE**, progress log, suggested next command → do not start M5 unless authorized
+- [x] Tick all A–F checkboxes in **this** file; progress tracker + change log
+- [x] Confirm `smoke-m3ap` still runs (guard relaxed)
 
 ### Allowed focus
 
@@ -929,22 +931,23 @@ npm run smoke:m4 -w @r2a/desktop
 | B `POST /sync/ingest` | **DONE** | 2026-08-13 | `smoke:m4b` 13/13; `smoke:m2` still 13/13; no desktop worker |
 | C Offline complete → queue | **DONE** | 2026-08-13 | `smoke:m4c`; same Sale Completed; no 15s worker |
 | D 15s worker + badge | **DONE** | 2026-08-13 | `smoke:m4d`; pause on Force Offline; `__r2aFlushSyncNow()`; no Sync Queue panel |
-| E Sync Queue panel | PENDING | | |
-| F Exit + catalog | PENDING | | |
+| E Sync Queue panel | **DONE** | 2026-08-14 | `smoke:m4e`; badge + Settings entry; Retry; `__r2aMarkHeadSyncDead()`; no sidebar Sync |
+| F Exit + catalog | **DONE** | 2026-08-14 | `Completed_API_lists.md` §19; `smoke:m4`; user reconnect walkthrough **PASS**; M4 closed |
 
 ---
 
-## M4 Full Exit (fill in on Batch F)
+## M4 Full Exit (filled on Batch F)
 
-User authorized M4 on **2026-08-13**. Exit when Batch F walkthrough PASSes.
+User authorized M4 on **2026-08-13**. Batch F catalog + smokes **2026-08-14**. User reconnect walkthrough **PASS** (2026-08-14). M4 is **closed**.
 
-### Delivered (target)
+### Delivered
 
 - Offline / Force Offline checkout → same Sale Completed
 - `outbound_sync_queue` flush every 15s via `POST /api/v1/sync/ingest`
 - Idempotent `eventId`
 - Dead-letter + Retry UI
 - Badge pending / syncing / error wired for real
+- Catalog §19 + `smoke:m4`
 
 ### Still not M4 (do not start unless authorized)
 
@@ -966,6 +969,8 @@ User authorized M4 on **2026-08-13**. Exit when Batch F walkthrough PASSes.
 | 2026-08-13 | **M4 Batch B DONE** — `POST /api/v1/sync/ingest` reuses `ingestSale`; per-event accepted/duplicate/rejected; `smoke:m4b`; next = Batch C |
 | 2026-08-13 | **M4 Batch C DONE** — offline/Force Offline complete → queue + local stock delta + same Sale Completed; `smoke:m4c`; next = Batch D |
 | 2026-08-13 | **M4 Batch D DONE** — 15s TS flush worker + badge pending/syncing/error; pause on Force Offline; `smoke:m4d`; next = Batch E |
+| 2026-08-14 | **M4 Batch E DONE** — Sync Queue panel + badge/Settings entry; i18n en + bn-BD; `smoke:m4e`; next = Batch F |
+| 2026-08-14 | **M4 Batch F DONE** — catalog §19; `smoke:m4`; user reconnect walkthrough **PASS**; M4 **closed**; next = authorize M5 |
 
 ---
 

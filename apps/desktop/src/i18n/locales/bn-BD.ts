@@ -5,6 +5,46 @@ export const bnBD = {
   "settings.title": "সেটিংস",
   "settings.language": "ভাষা",
   "settings.pharmacy": "ফার্মেসি / রসিদ",
+  "settings.receiveStock": "স্টক গ্রহণ",
+  "settings.receiveStockHelp":
+    "লট যোগ করুন এবং হাতে থাকা পরিমাণ সমন্বয় করুন। শুধু মালিক ও ম্যানেজার।",
+  "settings.receiveStockModes": "স্টক গ্রহণের মোড",
+  "settings.receiveStockModeAdd": "লট যোগ করুন",
+  "settings.receiveStockModeAdjust": "পরিমাণ সমন্বয়",
+  "settings.receiveStockProduct": "পণ্য",
+  "settings.receiveStockProductPlaceholder": "নাম লিখুন (যেমন Napa)",
+  "settings.receiveStockProductHint": "ক্যাটালগ খুঁজতে টাইপ করুন।",
+  "settings.receiveStockSearching": "খোঁজা হচ্ছে…",
+  "settings.receiveStockNoProducts": "কোনো পণ্য পাওয়া যায়নি।",
+  "settings.receiveStockChangeProduct": "পণ্য পরিবর্তন",
+  "settings.receiveStockBatchNumber": "ব্যাচ নম্বর",
+  "settings.receiveStockExpiry": "মেয়াদোত্তীর্ণের তারিখ",
+  "settings.receiveStockExpiryPlaceholder": "YYYY-MM-DD",
+  "settings.receiveStockQty": "পরিমাণ (PIECE)",
+  "settings.receiveStockCost": "প্রতি পিসের খরচ",
+  "settings.receiveStockSell": "প্রতি পিসের বিক্রয়মূল্য",
+  "settings.receiveStockSaveLot": "লট সংরক্ষণ",
+  "settings.receiveStockSaveQty": "পরিমাণ সংরক্ষণ",
+  "settings.receiveStockSaving": "সংরক্ষণ হচ্ছে…",
+  "settings.receiveStockLotSaved": "লট গ্রহণ করা হয়েছে।",
+  "settings.receiveStockQtySaved": "পরিমাণ হালনাগাদ হয়েছে।",
+  "settings.receiveStockSaveFailed": "সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+  "settings.receiveStockOffline":
+    "স্টক গ্রহণের জন্য অনলাইন সংযোগ লাগবে। অনলাইনে যান এবং আবার চেষ্টা করুন।",
+  "settings.receiveStockDuplicate":
+    "এই পণ্যের জন্য এই ব্যাচ নম্বর আগে থেকেই আছে। হাতে থাকা পরিমাণ বদলাতে পরিমাণ সমন্বয় ব্যবহার করুন।",
+  "settings.receiveStockNeedProduct": "একটি পণ্য নির্বাচন করুন।",
+  "settings.receiveStockNeedBatch": "একটি ব্যাচ নির্বাচন করুন।",
+  "settings.receiveStockNeedBatchNumber": "ব্যাচ নম্বর লিখুন।",
+  "settings.receiveStockNeedExpiry": "মেয়াদ YYYY-MM-DD আকারে লিখুন।",
+  "settings.receiveStockNeedQty": "সম্পূর্ণ সংখ্যায় পরিমাণ লিখুন (0 বা তার বেশি)।",
+  "settings.receiveStockNeedCost": "প্রতি পিসের খরচ লিখুন।",
+  "settings.receiveStockNeedSell": "প্রতি পিসের বিক্রয়মূল্য লিখুন।",
+  "settings.receiveStockPickBatch": "বিদ্যমান লট",
+  "settings.receiveStockNoBatches": "এই পণ্যের কোনো লট নেই।",
+  "settings.receiveStockCurrentQty": "হাতে আছে",
+  "settings.receiveStockChangeBatch": "লট পরিবর্তন",
+  "settings.receiveStockFooter": "↑/↓ ক্ষেত্র · Enter সংরক্ষণ",
   "settings.connectivity": "সংযোগ",
   "settings.interfaceLanguage": "ইন্টারফেসের ভাষা",
   "settings.interfaceLanguageHelp":
@@ -34,6 +74,11 @@ export const bnBD = {
     "হেলথ চেক বন্ধ আছে। অনলাইনে যান না করা পর্যন্ত POS স্থানীয় ক্যাটালগে চলবে।",
   "settings.connectivityAutoNote":
     "ক্লাউড সংযোগ স্বয়ংক্রিয়ভাবে পরীক্ষা হয়। এই টার্মিনালে উপেক্ষা করতে ফোর্স অফলাইন ব্যবহার করুন।",
+  "settings.syncPending": "অপেক্ষমাণ",
+  "settings.syncFailed": "ব্যর্থ",
+  "settings.lastFlush": "শেষ ফ্লাশ",
+  "settings.lastFlushNever": "কখনো নয়",
+  "settings.openSyncQueue": "সিঙ্ক কিউ খুলুন",
   "settings.back": "ফিরে যান",
   "settings.categories": "সেটিংস বিভাগ",
   "settings.selectCategory": "একটি বিভাগ নির্বাচন করুন",
@@ -97,6 +142,9 @@ export const bnBD = {
     "বিক্রয় এই টার্মিনালে সংরক্ষিত হয়েছে। অনলাইনে গেলে সিঙ্ক হবে।",
   "ops.tryAgainWhenConnected": "সংযোগ হলে আবার চেষ্টা করুন।",
 
+  "catalog.truncated":
+    "ক্যাটালগ ক্যাশ 5000 সারিতে থেমেছে। খোঁজে কিছু পণ্য বা লট নাও থাকতে পারে।",
+
   "completed.paperWidth": "কাগজের প্রস্থ",
 
   "footer.newSale": "নতুন বিক্রয়",
@@ -135,6 +183,7 @@ export const bnBD = {
   "connectivity.titleForcedOffline":
     "এই টার্মিনালে ফোর্স অফলাইন — অনলাইনে যান না করা পর্যন্ত হেলথ চেক বন্ধ",
   "connectivity.titleError": "শেষ সিঙ্ক প্রচেষ্টা ব্যর্থ হয়েছে",
+  "connectivity.syncQueue": "সিঙ্ক কিউ",
 
   "counter.readyTitle": "কাউন্টার প্রস্তুত",
   "counter.readySubtitle": "নতুন বিক্রয় শুরু করার জন্য প্রস্তুত।",
@@ -697,4 +746,28 @@ export const bnBD = {
   "hold.footerBusyCart":
     "↑/↓ নেভিগেট · Enter রিজিউম (আগে বর্তমান বিক্রয় হোল্ড বা মুছুন) · Esc বন্ধ",
   "hold.loyaltyApplied": "লয়্যালটি",
+
+  "syncQueue.title": "সিঙ্ক কিউ",
+  "syncQueue.subtitle": "অপেক্ষমাণ {pending} · ব্যর্থ {failed}",
+  "syncQueue.pendingCount": "অপেক্ষমাণ {n}",
+  "syncQueue.failedCount": "ব্যর্থ {n}",
+  "syncQueue.close": "সিঙ্ক কিউ বন্ধ করুন",
+  "syncQueue.listLabel": "আউটবাউন্ড সিঙ্ক কিউ",
+  "syncQueue.empty": "সব সিঙ্ক হয়েছে",
+  "syncQueue.emptyHint":
+    "এই টার্মিনালে কোনো অপেক্ষমাণ বা ব্যর্থ বিক্রয় নেই।",
+  "syncQueue.colTime": "সময়",
+  "syncQueue.colTxn": "Txn",
+  "syncQueue.colTotal": "মোট",
+  "syncQueue.colStatus": "অবস্থা",
+  "syncQueue.statusPending": "অপেক্ষমাণ",
+  "syncQueue.statusSyncing": "সিঙ্ক হচ্ছে",
+  "syncQueue.statusFailed": "ব্যর্থ",
+  "syncQueue.retry": "আবার চেষ্টা",
+  "syncQueue.conflictReason":
+    "স্টক অপর্যাপ্ত অথবা লট সংঘাত। আবার চেষ্টা করুন। বিক্রয় ট্রানজেকশনে থাকবে।",
+  "syncQueue.footer":
+    "↑/↓ নেভিগেট · Enter আবার চেষ্টা (ব্যর্থ) · Esc বন্ধ",
+  "syncQueue.footerEmpty": "Esc বন্ধ",
+  "syncQueue.footerPending": "↑/↓ নেভিগেট · Esc বন্ধ",
 } as const satisfies Record<MessageKey, string>;

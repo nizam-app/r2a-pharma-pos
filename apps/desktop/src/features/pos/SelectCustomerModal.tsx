@@ -34,7 +34,8 @@ type LoadIssue = "offline" | "failed" | null;
 /**
  * Select Customer (F8) — Batch R (+ Slice 5 lock).
  * Search phone/name · Enter select · Esc close · Walk-in.
- * Create Customer is **not** on POS — Owner web only (deferred).
+ * M5 lock: Create Customer is **not** on POS — Owner web M6.
+ * No PATCH-customer UI on POS for any role in M5 (edit = Owner web).
  * Chrome stays Search Results - Napa (modal content only).
  */
 export function SelectCustomerModal({

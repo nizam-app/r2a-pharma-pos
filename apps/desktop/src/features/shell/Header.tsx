@@ -6,6 +6,7 @@ import { useConnectivity } from "./ConnectivityProvider";
 export type HeaderProps = {
   terminalLabel?: string;
   cashierLabel?: string;
+  onOpenSyncQueue?: () => void;
 };
 
 /**
@@ -15,6 +16,7 @@ export type HeaderProps = {
 export function Header({
   terminalLabel = "TERMINAL 01",
   cashierLabel = "—",
+  onOpenSyncQueue,
 }: HeaderProps) {
   const { reprobe, syncing, forcedOffline } = useConnectivity();
   const { t } = useLocale();
@@ -38,7 +40,7 @@ export function Header({
       </div>
 
       <div className="flex shrink-0 items-center gap-3">
-        <ConnectivityBadge />
+        <ConnectivityBadge onOpenSyncQueue={onOpenSyncQueue} />
         <button
           type="button"
           className="rounded p-1 text-muted hover:bg-shell hover:text-foreground"

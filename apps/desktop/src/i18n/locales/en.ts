@@ -3,6 +3,46 @@ export const en = {
   "settings.title": "Settings",
   "settings.language": "Language",
   "settings.pharmacy": "Pharmacy / Receipt",
+  "settings.receiveStock": "Receive stock",
+  "settings.receiveStockHelp":
+    "Add lots and adjust on-hand quantity. Owner and Manager only.",
+  "settings.receiveStockModes": "Receive stock mode",
+  "settings.receiveStockModeAdd": "Add lot",
+  "settings.receiveStockModeAdjust": "Adjust qty",
+  "settings.receiveStockProduct": "Product",
+  "settings.receiveStockProductPlaceholder": "Type a name (e.g. Napa)",
+  "settings.receiveStockProductHint": "Type to search the catalog.",
+  "settings.receiveStockSearching": "Searching…",
+  "settings.receiveStockNoProducts": "No products found.",
+  "settings.receiveStockChangeProduct": "Change product",
+  "settings.receiveStockBatchNumber": "Batch number",
+  "settings.receiveStockExpiry": "Expiry date",
+  "settings.receiveStockExpiryPlaceholder": "YYYY-MM-DD",
+  "settings.receiveStockQty": "Quantity (PIECE)",
+  "settings.receiveStockCost": "Cost per piece",
+  "settings.receiveStockSell": "Sell per piece",
+  "settings.receiveStockSaveLot": "Save lot",
+  "settings.receiveStockSaveQty": "Save quantity",
+  "settings.receiveStockSaving": "Saving…",
+  "settings.receiveStockLotSaved": "Lot received.",
+  "settings.receiveStockQtySaved": "Quantity updated.",
+  "settings.receiveStockSaveFailed": "Could not save. Try again.",
+  "settings.receiveStockOffline":
+    "Receiving requires an online connection. Go Online and try again.",
+  "settings.receiveStockDuplicate":
+    "This batch number already exists for this product. Use Adjust qty to change on-hand.",
+  "settings.receiveStockNeedProduct": "Select a product.",
+  "settings.receiveStockNeedBatch": "Select a batch.",
+  "settings.receiveStockNeedBatchNumber": "Enter a batch number.",
+  "settings.receiveStockNeedExpiry": "Enter expiry as YYYY-MM-DD.",
+  "settings.receiveStockNeedQty": "Enter quantity as a whole number (0 or more).",
+  "settings.receiveStockNeedCost": "Enter cost per piece.",
+  "settings.receiveStockNeedSell": "Enter sell per piece.",
+  "settings.receiveStockPickBatch": "Existing lots",
+  "settings.receiveStockNoBatches": "No lots for this product.",
+  "settings.receiveStockCurrentQty": "On hand",
+  "settings.receiveStockChangeBatch": "Change lot",
+  "settings.receiveStockFooter": "↑/↓ Fields · Enter Save",
   "settings.connectivity": "Connectivity",
   "settings.interfaceLanguage": "Interface Language",
   "settings.interfaceLanguageHelp":
@@ -32,6 +72,11 @@ export const en = {
     "Health checks are paused. POS continues on local catalog until Go Online.",
   "settings.connectivityAutoNote":
     "Cloud health is checked automatically. Use Force Offline to ignore it on this terminal.",
+  "settings.syncPending": "Pending",
+  "settings.syncFailed": "Failed",
+  "settings.lastFlush": "Last flush",
+  "settings.lastFlushNever": "Never",
+  "settings.openSyncQueue": "Open sync queue",
   "settings.back": "Back",
   "settings.categories": "Settings categories",
   "settings.selectCategory": "Select a category",
@@ -95,6 +140,9 @@ export const en = {
     "Sale saved on this terminal. It will sync when you Go Online.",
   "ops.tryAgainWhenConnected": "Try again when connected.",
 
+  "catalog.truncated":
+    "Catalog cache stopped at 5000 rows. Some products or lots may be missing from search.",
+
   "completed.paperWidth": "Paper width",
 
   "footer.newSale": "New Sale",
@@ -132,6 +180,7 @@ export const en = {
   "connectivity.titleForcedOffline":
     "Forced offline on this terminal — health checks paused until Go Online",
   "connectivity.titleError": "Last sync attempt failed",
+  "connectivity.syncQueue": "Sync queue",
 
   "counter.readyTitle": "Counter Ready",
   "counter.readySubtitle": "Ready to start a new sale.",
@@ -689,6 +738,30 @@ export const en = {
   "hold.footerBusyCart":
     "↑/↓ Navigate · Enter Resume (hold or clear current first) · Esc Close",
   "hold.loyaltyApplied": "Loyalty",
+
+  "syncQueue.title": "Sync queue",
+  "syncQueue.subtitle": "Pending {pending} · Failed {failed}",
+  "syncQueue.pendingCount": "Pending {n}",
+  "syncQueue.failedCount": "Failed {n}",
+  "syncQueue.close": "Close sync queue",
+  "syncQueue.listLabel": "Outbound sync queue",
+  "syncQueue.empty": "All synchronized",
+  "syncQueue.emptyHint":
+    "No pending or failed sales on this terminal.",
+  "syncQueue.colTime": "Time",
+  "syncQueue.colTxn": "Txn",
+  "syncQueue.colTotal": "Total",
+  "syncQueue.colStatus": "Status",
+  "syncQueue.statusPending": "Pending",
+  "syncQueue.statusSyncing": "Syncing",
+  "syncQueue.statusFailed": "Failed",
+  "syncQueue.retry": "Retry",
+  "syncQueue.conflictReason":
+    "Insufficient stock or a lot conflict. Retry to try again. The sale stays in Transactions.",
+  "syncQueue.footer":
+    "↑/↓ Navigate · Enter Retry (Failed) · Esc Close",
+  "syncQueue.footerEmpty": "Esc Close",
+  "syncQueue.footerPending": "↑/↓ Navigate · Esc Close",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -14,13 +14,18 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "@/features/auth";
+import { useLocale } from "@/i18n";
 import { pullCatalogCache } from "@/lib/localDb/catalogPull";
 import {
+  countSyncDead,
   countUnsynced,
   ensureLocalDb,
   getLocalDbKind,
   getLocalDbPath,
+  listSyncPending,
+  markSyncDead,
 } from "@/lib/localDb";
+import { QA_SYNC_CONFLICT_LAST_ERROR } from "@/lib/syncConflict";
 import {
   SYNC_FLUSH_INTERVAL_MS,
   bindFlushNowHelper,
@@ -28,6 +33,7 @@ import {
   shouldPauseSyncWorker,
 } from "@/lib/syncWorker";
 import { useConnectivity } from "./ConnectivityProvider";
+import { PosToast } from "./PosToast";
 
 type LocalDbContextValue = {
   ready: boolean;
@@ -35,7 +41,12 @@ type LocalDbContextValue = {
   dbPath: string | null;
   lastPullAt: string | null;
   lastPullError: string | null;
+  /** Last outbound flush tick that ran (ISO). Null until the first tick. */
+  lastFlushAt: string | null;
+  /** Dead-letter rows (`dead = 1`). */
+  deadCount: number;
   refreshPendingCount: () => Promise<number>;
+  refreshQueueStats: () => Promise<void>;
   pullCacheNow: () => Promise<void>;
 };
 
@@ -43,6 +54,7 @@ const LocalDbContext = createContext<LocalDbContextValue | null>(null);
 
 export function LocalDbProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
+  const { t } = useLocale();
   const {
     mode,
     isOnline,
@@ -59,8 +71,11 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
   const [dbPath, setDbPath] = useState<string | null>(null);
   const [lastPullAt, setLastPullAt] = useState<string | null>(null);
   const [lastPullError, setLastPullError] = useState<string | null>(null);
+  const [lastFlushAt, setLastFlushAt] = useState<string | null>(null);
+  const [deadCount, setDeadCount] = useState(0);
   const pullInFlight = useRef(false);
   const pulledThisOnlineSession = useRef(false);
+  const [truncToast, setTruncToast] = useState<string | null>(null);
 
   const refreshPendingCount = useCallback(async () => {
     try {
@@ -72,21 +87,34 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     }
   }, [setPendingCount]);
 
+  const refreshQueueStats = useCallback(async () => {
+    try {
+      const dead = await countSyncDead();
+      setDeadCount(dead);
+      await refreshPendingCount();
+    } catch {
+      /* keep last known counts */
+    }
+  }, [refreshPendingCount]);
+
   const pullCacheNow = useCallback(async () => {
     if (pullInFlight.current) return;
     pullInFlight.current = true;
     try {
-      await pullCatalogCache();
+      const result = await pullCatalogCache();
       setLastPullAt(new Date().toISOString());
       setLastPullError(null);
       pulledThisOnlineSession.current = true;
+      if (result.truncated) {
+        setTruncToast(t("catalog.truncated"));
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Catalog pull failed";
       setLastPullError(msg);
     } finally {
       pullInFlight.current = false;
     }
-  }, []);
+  }, [t]);
 
   // Open / migrate when authenticated.
   useEffect(() => {
@@ -103,6 +131,11 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
         setDbPath(await getLocalDbPath());
         setReady(true);
         await refreshPendingCount();
+        try {
+          setDeadCount(await countSyncDead());
+        } catch {
+          setDeadCount(0);
+        }
       } catch (err) {
         console.error("[localDb] init failed", err);
         if (!cancelled) setReady(false);
@@ -150,7 +183,9 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
           },
         });
         if (cancelled) return;
+        setLastFlushAt(new Date().toISOString());
         setPendingCount(result.pendingCount);
+        setDeadCount(result.deadCount);
         setSyncError(result.deadCount > 0 || result.lastTickFailed);
         if (
           result.accepted + result.duplicate > 0 &&
@@ -166,13 +201,30 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const unbind = bindFlushNowHelper(runTick);
+    const unbindFlush = bindFlushNowHelper(runTick);
+    const markHeadDead = async (lastError?: string) => {
+      const pending = await listSyncPending(1);
+      const head = pending[0];
+      if (!head) return null;
+      await markSyncDead(
+        head.id,
+        lastError?.trim() || QA_SYNC_CONFLICT_LAST_ERROR,
+      );
+      await refreshQueueStats();
+      return head.id;
+    };
+    if (typeof window !== "undefined") {
+      window.__r2aMarkHeadSyncDead = markHeadDead;
+    }
 
     if (shouldPauseSyncWorker({ forcedOffline, mode })) {
       setFlushSyncing(false);
       return () => {
         cancelled = true;
-        unbind();
+        unbindFlush();
+        if (window.__r2aMarkHeadSyncDead === markHeadDead) {
+          delete window.__r2aMarkHeadSyncDead;
+        }
       };
     }
 
@@ -191,7 +243,10 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.clearInterval(id);
       window.removeEventListener("online", onOnline);
-      unbind();
+      unbindFlush();
+      if (window.__r2aMarkHeadSyncDead === markHeadDead) {
+        delete window.__r2aMarkHeadSyncDead;
+      }
       setFlushSyncing(false);
     };
   }, [
@@ -203,6 +258,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     setFlushSyncing,
     setSyncError,
     pullCacheNow,
+    refreshQueueStats,
   ]);
 
   const value = useMemo<LocalDbContextValue>(
@@ -212,7 +268,10 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
       dbPath,
       lastPullAt,
       lastPullError,
+      lastFlushAt,
+      deadCount,
       refreshPendingCount,
+      refreshQueueStats,
       pullCacheNow,
     }),
     [
@@ -221,13 +280,25 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
       dbPath,
       lastPullAt,
       lastPullError,
+      lastFlushAt,
+      deadCount,
       refreshPendingCount,
+      refreshQueueStats,
       pullCacheNow,
     ],
   );
 
   return (
-    <LocalDbContext.Provider value={value}>{children}</LocalDbContext.Provider>
+    <LocalDbContext.Provider value={value}>
+      {children}
+      {truncToast ? (
+        <PosToast
+          message={truncToast}
+          tone="info"
+          onDismiss={() => setTruncToast(null)}
+        />
+      ) : null}
+    </LocalDbContext.Provider>
   );
 }
 

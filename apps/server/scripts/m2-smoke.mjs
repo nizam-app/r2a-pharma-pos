@@ -335,6 +335,69 @@ async function main() {
     fail("8d. Cashier blocked from creating users", JSON.stringify(userBlock.body));
   }
 
+  // M5 Batch A — cashier cannot PATCH customers or batch qty
+  let customerId = null;
+  let customerName = null;
+  const custSearch = await req("/customers?limit=5", { token: ownerToken });
+  if (
+    custSearch.status === 200 &&
+    Array.isArray(custSearch.body?.data) &&
+    custSearch.body.data[0]?.id
+  ) {
+    customerId = custSearch.body.data[0].id;
+    customerName = custSearch.body.data[0].name;
+  } else {
+    const createdCust = await req("/customers", {
+      method: "POST",
+      token: ownerToken,
+      body: { name: "M5 Smoke Customer" },
+    });
+    customerId = createdCust.body?.data?.id;
+    customerName = createdCust.body?.data?.name;
+  }
+
+  const cashCustPatch = await req(`/customers/${customerId}`, {
+    method: "PATCH",
+    token: cashierToken,
+    body: { name: "Cashier Must Not Edit" },
+  });
+  if (cashCustPatch.status === 403) {
+    pass("8e. Cashier blocked from PATCH customer");
+  } else {
+    fail(
+      "8e. Cashier blocked from PATCH customer",
+      JSON.stringify(cashCustPatch.body),
+    );
+  }
+
+  const cashQtyPatch = await req(`/batches/${fefoBatchId}`, {
+    method: "PATCH",
+    token: cashierToken,
+    body: { quantityOnHand: 1 },
+  });
+  if (cashQtyPatch.status === 403) {
+    pass("8f. Cashier blocked from PATCH batch qty");
+  } else {
+    fail(
+      "8f. Cashier blocked from PATCH batch qty",
+      JSON.stringify(cashQtyPatch.body),
+    );
+  }
+
+  const ownerCustPatch = await req(`/customers/${customerId}`, {
+    method: "PATCH",
+    token: ownerToken,
+    body: { name: customerName || "M5 Smoke Customer" },
+  });
+  if (
+    ownerCustPatch.status === 200 &&
+    ownerCustPatch.body?.data?.id === customerId
+  ) {
+    pass("8g. Owner PATCH customer");
+  } else {
+    fail("8g. Owner PATCH customer", JSON.stringify(ownerCustPatch.body));
+  }
+
   // Explicit batchId ingest path (owner)
   const event2 = `m2-smoke-explicit-${Date.now()}`;
   const explicit = await req("/sales/ingest", {

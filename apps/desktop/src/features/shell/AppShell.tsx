@@ -3,6 +3,7 @@ import { useLocale } from "@/i18n";
 import { HeldSalesPanel } from "@/features/hold";
 import { SettingsPanel } from "@/features/settings";
 import { ShiftPanel } from "@/features/shift";
+import { SyncQueuePanel } from "@/features/sync";
 import { TransactionsPanel } from "@/features/transactions";
 import type { HeldSaleSnapshot } from "@/lib/heldSaleStore";
 import type { SaleCustomer } from "@/lib/customerSearch";
@@ -64,6 +65,10 @@ export type AppShellProps = {
   onOpenShift?: () => void;
   onCloseShift?: () => void;
   onShiftChanged?: () => void;
+  /** Sync Queue overlay (M4 Batch E) — no sidebar item. */
+  syncQueueOpen?: boolean;
+  onOpenSyncQueue?: () => void;
+  onCloseSyncQueue?: () => void;
   /** Modals / overlays (e.g. Select Batch) — inside connectivity + local DB providers. */
   overlay?: ReactNode;
 };
@@ -107,6 +112,9 @@ export function AppShell({
   onOpenShift,
   onCloseShift,
   onShiftChanged,
+  syncQueueOpen = false,
+  onOpenSyncQueue,
+  onCloseSyncQueue,
   overlay,
 }: AppShellProps) {
   const { t } = useLocale();
@@ -115,7 +123,11 @@ export function AppShell({
 
   return (
         <div className="relative flex h-full min-h-0 flex-col bg-canvas">
-          <Header terminalLabel={headerTerminal} cashierLabel={cashierLabel} />
+          <Header
+            terminalLabel={headerTerminal}
+            cashierLabel={cashierLabel}
+            onOpenSyncQueue={onOpenSyncQueue}
+          />
 
           <div className="flex min-h-0 flex-1">
             <Sidebar
@@ -150,7 +162,10 @@ export function AppShell({
                   />
                 ) : null}
                 {settingsOpen && onCloseSettings ? (
-                  <SettingsPanel onClose={onCloseSettings} />
+                  <SettingsPanel
+                    onClose={onCloseSettings}
+                    onOpenSyncQueue={onOpenSyncQueue}
+                  />
                 ) : null}
               </main>
 
@@ -178,6 +193,9 @@ export function AppShell({
                   onResume={onResumeHeld}
                   onListChanged={onHeldListChanged}
                 />
+              ) : null}
+              {syncQueueOpen && onCloseSyncQueue ? (
+                <SyncQueuePanel onClose={onCloseSyncQueue} />
               ) : null}
             </div>
           </div>

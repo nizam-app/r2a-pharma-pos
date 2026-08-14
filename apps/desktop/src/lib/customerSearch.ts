@@ -2,6 +2,8 @@
  * POS customer search (Batch R — Select Customer F8).
  * Online → M2 GET /customers. Offline → no local customer cache (walk-in only).
  * Never surface creditBalance / Baki in the POS UI.
+ * M5 lock: GET search only. No POST /customers and no PATCH /customers from POS
+ * (create = Owner web M6; profile edit = Owner web M6).
  */
 
 import { apiRequest } from "@/lib/api";

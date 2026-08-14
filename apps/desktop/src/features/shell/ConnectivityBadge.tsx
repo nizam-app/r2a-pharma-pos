@@ -72,11 +72,20 @@ function badgeTitle(
   }
 }
 
+type MenuItem = "primary" | "syncQueue";
+const MENU_ORDER: MenuItem[] = ["primary", "syncQueue"];
+
+export type ConnectivityBadgeProps = {
+  /** Open Sync Queue panel (Batch E). */
+  onOpenSyncQueue?: () => void;
+};
+
 /**
- * Header connectivity pill + Force Offline / Go Online menu (Batch AI).
- * Click / Enter opens menu; Esc closes. No Tab nav.
+ * Header connectivity pill + Force Offline / Go Online / Sync queue menu (Batch E).
+ * Click / Enter opens menu; ↑/↓ or ←/→ between items; Enter activate; Esc close.
+ * No Tab nav.
  */
-export function ConnectivityBadge() {
+export function ConnectivityBadge({ onOpenSyncQueue }: ConnectivityBadgeProps) {
   const {
     badgeState,
     pendingCount,
@@ -89,14 +98,20 @@ export function ConnectivityBadge() {
   const label = badgeLabel(badgeState, pendingCount, forcedOffline, t);
   const title = badgeTitle(badgeState, forcedOffline, t);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuIndex, setMenuIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const actionRef = useRef<HTMLButtonElement>(null);
+  const primaryRef = useRef<HTMLButtonElement>(null);
+  const syncQueueRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
+
+  const itemRef = (id: MenuItem) =>
+    id === "primary" ? primaryRef : syncQueueRef;
 
   useEffect(() => {
     if (!menuOpen) return;
-    actionRef.current?.focus();
+    setMenuIndex(0);
+    queueMicrotask(() => primaryRef.current?.focus());
   }, [menuOpen]);
 
   useEffect(() => {
@@ -114,6 +129,38 @@ export function ConnectivityBadge() {
   const closeMenu = () => {
     setMenuOpen(false);
     triggerRef.current?.focus();
+  };
+
+  const focusMenuItem = (index: number) => {
+    const next = (index + MENU_ORDER.length) % MENU_ORDER.length;
+    setMenuIndex(next);
+    itemRef(MENU_ORDER[next]!).current?.focus();
+  };
+
+  const runPrimaryAction = async () => {
+    if (forcedOffline) {
+      setMenuOpen(false);
+      await goOnline();
+      triggerRef.current?.focus();
+      return;
+    }
+    forceOffline();
+    setMenuOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  const runSyncQueue = () => {
+    setMenuOpen(false);
+    onOpenSyncQueue?.();
+  };
+
+  const activateFocused = () => {
+    const id = MENU_ORDER[menuIndex] ?? "primary";
+    if (id === "syncQueue") {
+      runSyncQueue();
+      return;
+    }
+    void runPrimaryAction();
   };
 
   const onTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -135,23 +182,29 @@ export function ConnectivityBadge() {
       closeMenu();
       return;
     }
-    if (event.key === "Enter" && document.activeElement === actionRef.current) {
+    if (event.key === "Tab") {
       event.preventDefault();
       event.stopPropagation();
-      void runPrimaryAction();
-    }
-  };
-
-  const runPrimaryAction = async () => {
-    if (forcedOffline) {
-      setMenuOpen(false);
-      await goOnline();
-      triggerRef.current?.focus();
       return;
     }
-    forceOffline();
-    setMenuOpen(false);
-    triggerRef.current?.focus();
+    if (
+      event.key === "ArrowDown" ||
+      event.key === "ArrowUp" ||
+      event.key === "ArrowLeft" ||
+      event.key === "ArrowRight"
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      const delta =
+        event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : -1;
+      focusMenuItem(menuIndex + delta);
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.stopPropagation();
+      activateFocused();
+    }
   };
 
   return (
@@ -191,10 +244,14 @@ export function ConnectivityBadge() {
               : t("connectivity.menuOnlineHint")}
           </p>
           <button
-            ref={actionRef}
+            ref={primaryRef}
             type="button"
             role="menuitem"
-            className="flex w-full px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-shell focus-visible:bg-shell focus-visible:outline-none"
+            className={[
+              "flex w-full px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-shell focus-visible:bg-shell focus-visible:outline-none",
+              menuIndex === 0 ? "bg-shell" : "",
+            ].join(" ")}
+            onMouseEnter={() => setMenuIndex(0)}
             onClick={() => {
               void runPrimaryAction();
             }}
@@ -202,6 +259,19 @@ export function ConnectivityBadge() {
             {forcedOffline
               ? t("connectivity.goOnline")
               : t("connectivity.forceOffline")}
+          </button>
+          <button
+            ref={syncQueueRef}
+            type="button"
+            role="menuitem"
+            className={[
+              "flex w-full px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-shell focus-visible:bg-shell focus-visible:outline-none",
+              menuIndex === 1 ? "bg-shell" : "",
+            ].join(" ")}
+            onMouseEnter={() => setMenuIndex(1)}
+            onClick={runSyncQueue}
+          >
+            {t("connectivity.syncQueue")}
           </button>
         </div>
       ) : null}

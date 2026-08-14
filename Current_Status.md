@@ -1,6 +1,6 @@
 # R2A Pharmacy POS — Current Status
 
-**Last updated:** 2026-08-13  
+**Last updated:** 2026-08-14  
 **Purpose:** Single place to understand where the project stands when you return. Read this first in a new chat, then open the linked source-of-truth docs as needed.  
 **Maintainer note:** Update this file at the end of every completed milestone (or significant mid-milestone change).
 
@@ -11,15 +11,15 @@
 | Item | Status |
 |------|--------|
 | **Product** | Offline-first, multi-tenant Pharmacy POS + Inventory SaaS (Bangladesh / emerging markets) |
-| **Phase** | Phase 1 MVP — DB + cloud API + desktop **M3 POS shell DONE**; **M4 IN PROGRESS** (Batches A–D DONE; next Batch E Sync Queue UI) |
-| **Latest completed milestone** | **M3 — Desktop POS shell** |
-| **Next authorized work** | Authorize **M4 Batch E** (Sync Queue panel + i18n). Do not start F / M5 / Slice 7+ from status alone. |
+| **Phase** | Phase 1 MVP — DB + cloud API + desktop **M3 POS shell DONE**; **M4 DONE** (one-way sync). **M5 DONE** (RBAC + Receive stock + 409 copy + paged catalog + runbook) |
+| **Latest completed milestone** | **M5 — MVP hardening** |
+| **Next authorized work** | **M6** only when authorized in a new chat. Do not start M6 / Slice 7+ / hardware from status alone. |
 | **Cloud database** | Neon PostgreSQL (Prisma migrate + seed applied; `RefreshToken` migration applied in M2) |
 | **Cloud API** | Express + TypeScript in `apps/server` — **real** (auth, tenant guard, inventory, FEFO, sales ingest, **M4B** `POST /api/v1/sync/ingest`) |
-| **Local desktop / SQLite / Tauri** | **Login + chrome + connectivity + SQLite + Counter Ready → … → Cash / Card / MFS + Receipt Preview + print stub + F4 + Settings pharmacy header + Force Offline + Transactions List/Detail/Reprint + Shift Open/Close + Hold [F6] / Held list [F7]** (M3 A–Z + AA–AE + AF–AL + AM–AP); **soft gate:** New Sale [F2] requires open shift (badge stays connectivity-only); Card = terminal stub; MFS = invented confirm |
+| **Local desktop / SQLite / Tauri** | **Login + chrome + connectivity + SQLite + Counter Ready → … → Cash / Card / MFS + Receipt Preview + print stub + F4 + Settings pharmacy header + Force Offline + Transactions List/Detail/Reprint + Shift Open/Close + Hold [F6] / Held list [F7] + Sync Queue panel (badge / Settings) + 15s queue flush** (M3 A–Z + AA–AE + AF–AL + AM–AP; **M4 A–F DONE**); **soft gate:** New Sale [F2] requires open shift (badge stays connectivity-only); Card = terminal stub; MFS = invented confirm |
 | **MongoDB / Mongoose** | Removed; do not reintroduce |
 
-**Bottom line:** Schema, shared Zod, and the cloud Express API are smoke-verified (`npm run smoke:m2 -w @r2a/server` — 13/13). Desktop **M3 POS shell DONE** (Slices 1–6; Hold F6 / Held list F7; `smoke:m3ap`). **M4 Batches A–D DONE** (queue IPC `smoke:m4a`; `POST /api/v1/sync/ingest` `smoke:m4b` 13/13; offline complete `smoke:m4c`; 15s flush `smoke:m4d`). Sync Queue UI = Batches E–F. Later screens → Slice 7+ when you share them — not invented ahead.
+**Bottom line:** Schema, shared Zod, and the cloud Express API are smoke-verified (`npm run smoke:m2 -w @r2a/server` — cashier PATCH 403s in M5 A). Desktop **M3 POS shell DONE** (Slices 1–6; Hold F6 / Held list F7; `smoke:m3ap`). **M4 DONE** (queue IPC `smoke:m4a`; `POST /api/v1/sync/ingest` `smoke:m4b` 13/13; offline complete `smoke:m4c`; 15s flush `smoke:m4d`; Sync Queue UI `smoke:m4e`; exit `smoke:m4`). **M5 DONE** (`smoke:m5` composes `m5a`–`m5e` + `smoke:m4`; Receive stock; 409 copy; paged catalog; [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md)). Next = **M6 when authorized**.
 ---
 
 ## 2. Milestone board (authoritative progress)
@@ -32,8 +32,8 @@ Source of truth for milestone status: [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_
 | **M1** | Database foundation | **DONE** | Prisma schema, indexes, Neon migration, seed, `@r2a/shared-types` Zod |
 | **M2** | Cloud API core | **DONE** | Express TS, JWT + refresh, tenant guard, inventory CRUD, FEFO, sales ingest |
 | **M3** | Desktop POS shell | **DONE** | Slice 1–6 (A–AP). Later screens → Slice 7+ when authorized. See `MILESTONE_3_EXECUTION.md` |
-| **M4** | One-way sync | **IN PROGRESS** | Batches **A–D DONE** (queue IPC + `/sync/ingest` + offline complete + 15s flush). **E–F pending.** |
-| **M5** | MVP hardening | **PENDING** | RBAC E2E, payments polish, print stub, smoke tests, pilot runbook |
+| **M4** | One-way sync | **DONE** | Batches A–F. Queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue panel + catalog §19. See `MILESTONE_4_EXECUTION.md` |
+| **M5** | MVP hardening | **DONE** | Batches A–F. RBAC API + desktop Settings Receive stock + Sync Queue 409 copy + paged catalog pull + runbook + catalog §20. Print/PIN stay stubs. See `MILESTONE_5_EXECUTION.md`. |
 | **M6** | Growth (Phase 2) | **PENDING** | Bi-di sync, loyalty, n8n, owner web, RLS |
 | **M7** | Scale (Phase 3) | **PENDING** | Multi-branch, transfers, enterprise RBAC |
 
@@ -143,6 +143,34 @@ Detailed batch plan: [`MILESTONE_3_EXECUTION.md`](MILESTONE_3_EXECUTION.md).
 | AO | Soft resume recheck + payment-safety on Hold | **DONE** | 2026-08-13 |
 | AP | Slice 6 exit + API catalog | **DONE** | 2026-08-13 |
 
+### Milestone 4 execution batches (all green)
+
+Detailed batch plan: [`MILESTONE_4_EXECUTION.md`](MILESTONE_4_EXECUTION.md).
+
+| Batch | Title | Status | Date |
+|-------|-------|--------|------|
+| A | Queue schema + IPC + memory parity | **DONE** | 2026-08-13 |
+| B | Cloud `POST /api/v1/sync/ingest` | **DONE** | 2026-08-13 |
+| C | Offline complete → queue | **DONE** | 2026-08-13 |
+| D | 15s flush worker + badge | **DONE** | 2026-08-13 |
+| E | Sync Queue panel + i18n | **DONE** | 2026-08-14 |
+| F | M4 exit + API catalog §19 | **DONE** | 2026-08-14 |
+
+### Milestone 5 execution batches (all green)
+
+Detailed batch plan: [`MILESTONE_5_EXECUTION.md`](MILESTONE_5_EXECUTION.md).
+
+| Batch | Title | Status | Date |
+|-------|-------|--------|------|
+| A | RBAC API + docs lock | **DONE** | 2026-08-14 |
+| B | Desktop RBAC shell | **DONE** | 2026-08-14 |
+| C | Receive stock UI | **DONE** | 2026-08-14 |
+| D | 409 conflict UX | **DONE** | 2026-08-14 |
+| E | Paged catalog pull | **DONE** | 2026-08-14 |
+| F | Runbook + M5 exit | **DONE** | 2026-08-14 |
+
+**M5 exit (verified):** Owner/Manager receive stock on desktop; cashier sells online/offline with FEFO; cloud holds sales via ingest/sync; print/PIN stubs; `smoke:m5`. Owner UI waits for M6.
+
 ## 3. Locked product & stack decisions
 
 Do not drift from these unless the user explicitly changes them.
@@ -179,7 +207,7 @@ R2A-Pharmacy-POS/
 │   ├── database/        # REAL — Prisma schema, migrations, seed, client export
 │   ├── shared-types/    # REAL — Zod auth/product/batch/customer/sale/sync + enums
 │   └── ui/              # REAL bootstrap — ShellPlaceholder (M3 Batch A); Shadcn later
-├── docs/                # Specs (handover, PRD, architecture, UX)
+├── docs/                # Specs (handover, PRD, architecture, UX) + DEV_RUNBOOK.md
 ├── workflows/           # Future n8n contracts (empty/placeholder era)
 ├── PROJECT_MASTER_PLAN.md
 ├── MILESTONE_1_EXECUTION.md
@@ -334,7 +362,7 @@ Locked modular tree: `router ? controller ? service` under `src/modules/*`; moun
 
 **Env strategy:** `@r2a/server` loads **repo-root `.env` only** (not `apps/server/.env`).
 
-**Smoke:** `npm run smoke:m2 -w @r2a/server` (server must be running; default `http://localhost:8787`, or set `BASE_URL`). Last run **13/13 PASS** (2026-08-09) against seeded `owner@demo.local`.
+**Smoke:** `npm run smoke:m2 -w @r2a/server` (server must be running; default `http://localhost:8787`, or set `BASE_URL`). Last run **16/16 PASS** (2026-08-14, M5 Batch A cashier PATCH 403s) against seeded `owner@demo.local`.
 
 ### 6.2 Key API routes (all under `/api/v1` unless noted)
 
@@ -344,7 +372,7 @@ Locked modular tree: `router ? controller ? service` under `src/modules/*`; moun
 | POST | `/auth/register` \| `/login` \| `/refresh` \| `/logout` | Refresh tokens hashed in DB |
 | GET | `/users/me` | Protected |
 | POST | `/users` | OWNER/MANAGER only |
-| * | `/products`, `/batches`, `/customers` | Tenant-scoped CRUD |
+| * | `/products`, `/batches`, `/customers` | Tenant-scoped CRUD; **M5 A:** PATCH customers/batches = OWNER/MANAGER |
 | GET | `/products/:productId/fefo-batch` | FEFO pick (cloud: earliest in-stock; see desktop sellable preference) |
 | GET | `/products/:productId/substitutes` | Same `genericName` |
 | POST | `/sales/ingest` | Online sale path only ? **not** M4 `/sync/ingest` |
@@ -419,7 +447,7 @@ Expected:
 - Deploy: schema up to date / migrations applied
 - Seed: prints `demo-pharmacy`, `MAIN`, `owner@demo.local`, `products: 5`
 - Builds succeed; packages resolve by workspace name
-- `smoke:m2`: health ? seed login ? cashier ? search ? FEFO ? ingest ? idempotent ? margin RBAC (**13/13**)
+- `smoke:m2`: health → seed login → cashier → search → FEFO → ingest → idempotent → margin RBAC + cashier PATCH 403s (**16/16**)
 
 ---
 
@@ -469,12 +497,19 @@ Do **not** start these unless the user authorizes the matching milestone:
 - ~~Hold F6 + Held list UI (M3 Batch AN)~~ — **DONE** (park/resume/discard; stub recheck toast)
 - ~~Soft resume recheck + payment-safety on Hold (M3 Batch AO)~~ — **DONE** (strip/clamp on resume; abort card/MFS stubs)
 - ~~Slice 6 exit + API catalog (M3 Batch AP)~~ — **DONE** (`Completed_API_lists.md` §18; `smoke:m3ap`; **F7** Held list toggle)
-- ~~Cloud `POST /api/v1/sync/ingest` (M4 Batch B)~~ — **DONE** (`smoke:m4b`; reuses `ingestSale`; catalog §19 = Batch F)
+- ~~Cloud `POST /api/v1/sync/ingest` (M4 Batch B)~~ — **DONE** (`smoke:m4b`; reuses `ingestSale`; catalog §19)
 - ~~Offline complete → queue (M4 Batch C)~~ — **DONE** (`smoke:m4c`; same Sale Completed; pending count; no 15s worker)
 - ~~15s flush worker + badge (M4 Batch D)~~ — **DONE** (`smoke:m4d`; pause on Force Offline; `__r2aFlushSyncNow()`)
-- Sync Queue panel (M4 Batches E–F)
+- ~~Sync Queue panel (M4 Batch E)~~ — **DONE** (`smoke:m4e`; badge + Settings Connectivity; Retry; no sidebar Sync)
+- ~~M4 exit + API catalog §19 (M4 Batch F)~~ — **DONE** (`Completed_API_lists.md` §19; `smoke:m4`)
+- ~~M5 Batch A RBAC PATCH (`customers` / `batches` OWNER+MANAGER)~~ — **DONE** (`smoke:m2` + `smoke:m5a`)
+- ~~M5 Batch B desktop RBAC (Receive stock Owner/Manager only)~~ — **DONE** (`smoke:m5b`)
+- ~~M5 Batch C Receive stock UI (POST/PATCH /batches)~~ — **DONE** (`smoke:m5c`)
+- ~~M5 Batch D 409 Sync Queue copy~~ — **DONE** (`smoke:m5d`)
+- ~~M5 Batch E paged catalog pull~~ — **DONE** (`smoke:m5e`)
+- ~~M5 Batch F runbook + catalog §20 + M5 DONE~~ — **DONE** (`docs/DEV_RUNBOOK.md`; `smoke:m5`)
 - n8n workflows, owner web dashboard, Postgres RLS (M6+)
-- Real Card terminal SDK / real MFS provider APIs (backend-confirmed status; no cashier manual Trx) — later authorized work / M5 polish
+- Real Card terminal SDK / real MFS provider APIs (backend-confirmed status; no cashier manual Trx) — later authorized work
 - Super Admin platform console (role exists; no admin product surface yet)
 
 ---
@@ -482,13 +517,14 @@ Do **not** start these unless the user authorizes the matching milestone:
 ## 10. Next step when you resume
 
 1. Read this file (`Current_Status.md`).
-2. Confirm M0–**M3** are **DONE**. M4 is **IN PROGRESS** (A–D DONE).
-3. Authorize **M4 Batch E** (Sync Queue panel + badge/Settings entry). Do **not** start F / M5 / hardware / Slice 7+ unless authorized.
+2. Confirm M0–**M5** are **DONE**.
+3. **M6** only when authorized in a **new chat**. Do **not** start M6 / hardware / Slice 7+ from status alone.
 4. Attach/reference:
    - `PROJECT_MASTER_PLAN.md`
    - `Current_Status.md`
-   - `MILESTONE_3_EXECUTION.md`
-   - `Completed_API_lists.md` (§14–§18 desktop notes)
+   - `ROLES_AND_PERMISSIONS.md`
+   - `docs/DEV_RUNBOOK.md`
+   - `Completed_API_lists.md` (§14–§20)
    - Specs under `docs/` as needed
 
 ### Desktop run (Batches A–AP)
@@ -529,16 +565,35 @@ npm run dev:tauri -w @r2a/desktop
 # Held n/3 [F7] toggles Held list → Enter Resume (soft stock/expiry recheck) / Discard
 # QA: __r2aArmPrintFailOnce() / __r2aArmCardDeclineOnce() / __r2aArmMfsFailOnce()
 # Redeem → OTP (any 6 digits) → Loyalty line; Proceed at ৳0 → Complete Sale → zero-pay ingest
-# Exit smokes: npm run smoke:m3ap -w @r2a/desktop  (also smoke:m4d / smoke:m4c / smoke:m4a / smoke:m3al / smoke:m3ae / smoke:m3z / smoke:m3u / smoke:m3e)
+# M4: Force Offline → complete sale → Sync queue Pending → Go Online → flush ≤15s (`__r2aFlushSyncNow()`)
+# M5: Owner Settings → Receive stock; cashier checkout unchanged; Failed Sync Queue shows 409 copy
+# Exit smokes: npm run smoke:m5 -w @r2a/desktop  (composes m5a–m5e + smoke:m4; also smoke:m2 / smoke:m4b on the server)
+# Runbook: docs/DEV_RUNBOOK.md
 ```
 
 ### Milestone 3 — delivered (closed 2026-08-13)
 
 - Keyboard checkout **online**: Cash / Card stub / MFS invent → `POST /sales/ingest` + Sale Completed + Receipt Preview
 - Hold **F6** / Held list **F7**; Shift soft gate; Force Offline; Transactions; F4; Settings header
-- Local SQLite catalog cache + `outbound_sync_queue` **table** (flush = **M4**)
+- Local SQLite catalog cache + `outbound_sync_queue` **table** (flush = **M4 DONE**)
 - **Later screens:** append Slice 7+ when shared — do not invent ahead
-- **Still later (not M3):** real printer IPC · real card SDK · real MFS APIs · cloud sales list / cloud shift · Owner web Create Customer · M4 Sync Queue panel (Batch E)
+- **Still later (not M3/M4/M5):** real printer IPC · real card SDK · real MFS APIs · cloud sales list / cloud shift · Owner web Create Customer · Slice 7+
+
+### Milestone 4 — delivered (closed 2026-08-14)
+
+- Offline / Force Offline checkout → **same** Sale Completed + Receipt Preview; row in `outbound_sync_queue`
+- 15s TypeScript worker → `POST /api/v1/sync/ingest` (reuses `ingestSale`; idempotent `eventId`; stock deltas)
+- Dead-letter + Retry UI (Sync Queue panel from badge / Settings Connectivity; **no** sidebar Sync)
+- Online path still `POST /sales/ingest` when connected and not forced
+
+### Milestone 5 — delivered (closed 2026-08-14)
+
+- Owner vs Cashier RBAC: `PATCH /customers/:id` and `PATCH /batches/:id` = OWNER+MANAGER (cashier 403, including qty)
+- Owner/Manager **Settings → Receive stock** (online Add lot / Adjust qty); cashier omitted
+- Failed Sync Queue: i18n 409/stock copy + raw `last_error`; Enter Retry; **no** void
+- Paged `catalogPull` (`meta.total`, cap 50 pages); never cache `costPerBase`
+- Print stub + FEFO PIN stub unchanged
+- [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md) + catalog **§20** + `smoke:m5`
 
 ---
 
@@ -547,10 +602,14 @@ npm run dev:tauri -w @r2a/desktop
 | Document | Use it for |
 |----------|------------|
 | [`Current_Status.md`](Current_Status.md) | “Where are we now?” (this file) |
-| [`Completed_API_lists.md`](Completed_API_lists.md) | Full cloud API catalog (M2) + M3 desktop §§14–18 |
+| [`Completed_API_lists.md`](Completed_API_lists.md) | Full cloud API catalog (M2) + M3 desktop §§14–18 + **M4 §19** + **M5 §20** |
 | [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_PLAN.md) | Locked stack, milestones, DoD, agent rules |
 | [`MILESTONE_1_EXECUTION.md`](MILESTONE_1_EXECUTION.md) | How M1 was batched and verified |
 | [`MILESTONE_3_EXECUTION.md`](MILESTONE_3_EXECUTION.md) | How M3 slices/batches were executed (Slice 1–6 **DONE**; M3 closed) |
+| [`MILESTONE_4_EXECUTION.md`](MILESTONE_4_EXECUTION.md) | How M4 batches A–F were executed (**DONE**) |
+| [`MILESTONE_5_EXECUTION.md`](MILESTONE_5_EXECUTION.md) | How M5 batches A–F were executed (**DONE**) |
+| [`ROLES_AND_PERMISSIONS.md`](ROLES_AND_PERMISSIONS.md) | Canonical RBAC (v2). Owner web = M6. No on-account tender |
+| [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md) | Local setup: env files, Neon or Postgres Docker, seed, smokes |
 | [`docs/Project_Handover.md`](docs/Project_Handover.md) | Agent context / non-negotiable business rules |
 | [`docs/Project_Requirement_Documents.md`](docs/Project_Requirement_Documents.md) | Product requirements |
 | [`docs/System_Architecture_Technical_Specification.md`](docs/System_Architecture_Technical_Specification.md) | Architecture / tenancy / sync notes |
@@ -562,7 +621,7 @@ npm run dev:tauri -w @r2a/desktop
 
 Tracked so returning chats don?t re-learn tribal knowledge:
 
-1. **Payments:** No Baki payment method ? only Cash, Card, MFS (schema + Zod already updated). Master-plan M5 ?Baki? wording is a future product change, not current scope.
+1. **Payments:** No Baki / on-account tender — only Cash, Card, MFS (schema + Zod + master-plan M5). `Customer.creditBalance` is unused leftover; do not surface.
 2. **Customer `creditBalance`:** Still on the model as optional account credit storage; **not** a POS tender type. May be refined later with requirements.
 3. **Prisma 7 warning:** `package.json#prisma` seed config is deprecated toward `prisma.config.ts` ? fine for now; migrate when upgrading Prisma major.
 4. **Prisma Batch field names (locked):** `expiryDate`, `quantityOnHand`, `costPerBase`, `sellPerBase` ? never invent `expirationDate` / `quantityBase` aliases.
@@ -576,9 +635,10 @@ Tracked so returning chats don?t re-learn tribal knowledge:
 9d. **Hold / Park Sale (desktop) — Slice 6 AP DONE:** `heldSaleStore` + Hold **F6** + Held list **F7** (toggle; cart Held n/3) + resume / discard confirm. Soft hold — no reservation. Resume rechecks live batch/expiry/qty (strip unsellable, clamp short stock; keep hold if none remain). Mid-payment Hold aborts card/MFS stubs and does not ingest / Sale Completed. **No** cloud hold / multi-terminal shared holds. See `MILESTONE_3_EXECUTION.md` Slice 6 + `Completed_API_lists.md` §18.
 10. **Deferred — Owner/Manager terminal presence:** Owner/Manager should see each cashier/terminal **online (green) / offline (red)** in real time. Needs cloud heartbeat/presence from desktop + owner/manager UI (likely **M6 owner web** or a later authorized slice). Do not invent presence APIs until authorized.
 11. **Deferred ? catalog onboarding (CSV / Excel import):** Real pharmacies onboard hundreds?thousands of SKUs from supplier/Excel lists. Owner/manager bulk import into Neon is the expected path; **not designed or built yet**. Today: seed demo + product/batch APIs only. Do not invent import UI/API until authorized.
-12. **Deferred ? goods receiving / stock adjust UX:** Day-to-day FEFO depends on **new lots** (batch #, expiry, qty) after the initial load. Batch CRUD exists on the API; there is **no receiving / GRN / purchase / stock-adjust POS or owner UI** yet. Without that, catalog + FEFO go stale after first seed/import.
+12. **Goods receiving / stock adjust UX — M5 Batch C DONE:** Day-to-day FEFO depends on **new lots** (batch #, expiry, qty) after the initial load. Owner/Manager **Settings → Receive stock** (online): Add lot `POST /api/v1/batches`; Adjust qty `PATCH /api/v1/batches/:id` `{ quantityOnHand }`. Cashier does not see the section. After save, `catalogPull` refreshes POS search/FEFO. No offline GRN queue. Supplier-return bucket remains **M6**.
+12b. **409 conflict UX — M5 Batch D DONE:** Failed Sync Queue rows map `last_error` (insufficient stock / 409 / conflict) to i18n `syncQueue.conflictReason` plus raw `last_error` as data. Enter still Retry. **No** void / delete sale. Online ingest 409 still stays on payment. Stage with `__r2aMarkHeadSyncDead()` (defaults to `409 Insufficient stock`). Catalog **§20**.
 13. **Product catalog display fields (locked):** `manufacturer`, `strength`, `form` are optional on `Product` (schema + Zod + seed + desktop cache). Search UI shows them; free-text `q` also matches these fields. Do not invent from `description`.
-14. **Pilot scale ? catalog cache pull:** Desktop `catalogPull` is thin (`limit=100` products/batches). Fine for demo seed; **thousands of SKUs need paged / full sync** before a real pilot. Local SQLite stays a lean cache (not a second master DB); Neon remains source of truth.
+14. **Pilot scale — catalog cache pull (M5 Batch E DONE):** Desktop `catalogPull` pages `GET /products` (`isActive=true`) and `GET /batches` with `limit=100` + `offset` until `meta.total`, cap **50 pages** (5000 rows) per resource; i18n toast if truncated. Local SQLite stays a lean cache (not a second master DB); Neon remains source of truth. Still drops `costPerBase`. No CSV. Bi-di sync remains **M6**.
 15. **Physical FEFO is ops, not GPS:** App recommends batch # + expiry; cashiers match packs on the shelf. Shelf discipline (older expiry in front) is training/process ? do not invent bin/location features unless authorized.
 16. **Search FEFO vs expired (locked):** Search card shows earliest **sellable** FEFO lot (not an expired lot ?in front?). Expired lots stay visible in **Select Batch** detail and are not confirmable. Product row is EXPIRED/blocked only when **no** sellable stock remains. Cloud FEFO helper may still return earliest in-stock (including expired) ? see `Completed_API_lists.md` ?8.5.
 17. **Search card UX:** Denser catalog cards (teal PharmaSync, not purple mocks). Unit chips on search are **display-only**; sale flow stays Search ? Select Batch ? Quantity & Packaging.
@@ -648,4 +708,13 @@ user-facing strings. Runtime/domain data and receipt content remain untranslated
 | 2026-08-13 | **M4 Batch B DONE** — `POST /api/v1/sync/ingest` reuses `ingestSale`; per-event accepted/duplicate/rejected; `smoke:m4b` 13/13; `smoke:m2` still 13/13; next = authorize Batch C |
 | 2026-08-13 | **M4 Batch C DONE** — offline/Force Offline complete → queue + local stock delta + same Sale Completed; `smoke:m4c`; next = authorize Batch D |
 | 2026-08-13 | **M4 Batch D DONE** — 15s TS flush worker + badge pending/syncing/error; pause on Force Offline; `smoke:m4d`; next = authorize Batch E |
+| 2026-08-14 | **M4 Batch E DONE** — Sync Queue panel + badge/Settings entry; i18n en + bn-BD; `smoke:m4e`; next = authorize Batch F |
+| 2026-08-14 | **M4 Batch F DONE** — catalog §19; `smoke:m4`; user reconnect walkthrough **PASS**; M4 **closed**; next = authorize M5 |
+| 2026-08-14 | **M5 execution file created** — `MILESTONE_5_EXECUTION.md` A–F not started; Roles + M5 linked in doc map; next = Authorize M5 Batch A |
+| 2026-08-14 | **M5 Batch A DONE** — `PATCH /customers/:id` + `PATCH /batches/:id` OWNER/MANAGER (cashier 403 incl. qty); `smoke:m2` + `smoke:m5a`; next = Authorize M5 Batch B |
+| 2026-08-14 | **M5 Batch B DONE** — Settings Receive stock placeholder Owner/Manager only (cashier omitted); Create/PATCH customer still off POS; `smoke:m5b`; next = Authorize M5 Batch C |
+| 2026-08-14 | **M5 Batch C DONE** — Settings Receive stock Add lot + Adjust qty (online POST/PATCH /batches); catalogPull; cashier still omitted; `smoke:m5c`; user walkthrough **PASS**; next = Authorize M5 Batch D |
+| 2026-08-14 | **M5 Batch D DONE** — Sync Queue Failed i18n conflict copy + raw `last_error`; Enter Retry; no void; `__r2aMarkHeadSyncDead()` defaults to 409; `smoke:m5d`; user walkthrough **PASS**; next = Authorize M5 Batch E |
+| 2026-08-14 | **M5 Batch E DONE** — paged `catalogPull` (`meta.total`, limit 100, cap 50 pages); `costPerBase` still dropped; truncated i18n toast; `smoke:m5e`; user walkthrough **PASS**; next = Authorize M5 Batch F |
+| 2026-08-14 | **M5 Batch F DONE** — `docs/DEV_RUNBOOK.md`; catalog §20; `smoke:m5`; user pilot walkthrough **PASS**; M5 **closed**; next = authorize M6 |
 

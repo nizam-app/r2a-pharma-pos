@@ -31,8 +31,10 @@ customerRouter.get(
   customerController.getById,
 );
 
+/** Edit customer — Owner/Manager only (cashier is search-only at POS). */
 customerRouter.patch(
   "/:id",
+  restrictTo("OWNER", "MANAGER"),
   validate({ params: idParamSchema, body: customerUpdateSchema }),
   customerController.update,
 );

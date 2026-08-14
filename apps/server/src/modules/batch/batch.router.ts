@@ -30,8 +30,10 @@ batchRouter.get(
   batchController.getById,
 );
 
+/** Patch lot (incl. qty) — Owner/Manager only. Cashier cannot adjust on-hand. */
 batchRouter.patch(
   "/:id",
+  restrictTo("OWNER", "MANAGER"),
   validate({ params: idParamSchema, body: batchUpdateSchema }),
   batchController.update,
 );

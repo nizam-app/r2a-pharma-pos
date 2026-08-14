@@ -3,7 +3,7 @@
 **Document type:** Single source of truth for Cursor agents and engineers  
 **Project:** Multi-Tenant Pharmacy POS & Inventory SaaS  
 **Version:** 1.0.0  
-**Last updated:** 2026-08-13  
+**Last updated:** 2026-08-14  
 
 > **How to use in a fresh chat:** Attach or `@` this file (`PROJECT_MASTER_PLAN.md`) plus relevant docs under `docs/`. Follow milestones in order. Do not introduce MongoDB, Mongoose, or any stack outside the Tech Stack below.
 
@@ -204,8 +204,8 @@ Track status in this table. Agents must only implement the milestone the user au
 | M1 | Database foundation | **DONE** | Prisma schema, migrations, seed, `@r2a/shared-types` |
 | M2 | Cloud API core | **DONE** | Express TS auth, tenant guard, inventory, FEFO, sales ingest |
 | M3 | Desktop POS shell | **DONE** | Slice 1–6; later screens → Slice 7+. See `MILESTONE_3_EXECUTION.md` |
-| M4 | One-way sync | **IN PROGRESS** | Batches A–D DONE (queue IPC + `/sync/ingest` + offline complete + 15s worker). E–F: Sync Queue UI |
-| M5 | MVP hardening | PENDING | RBAC E2E, payments, print stub, smoke tests, runbook |
+| M4 | One-way sync | **DONE** | Batches A–F (queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue UI + catalog §19) |
+| M5 | MVP hardening | **DONE** | RBAC E2E, Receive stock, 409 copy, paged catalog, print stub, `smoke:m5`, runbook |
 | M6 | Growth (Phase 2) | PENDING | Bi-di sync, loyalty, n8n, owner web, RLS |
 | M7 | Scale (Phase 3) | PENDING | Multi-branch, transfers, enterprise RBAC |
 
@@ -311,31 +311,42 @@ Detailed batches: [`MILESTONE_3_EXECUTION.md`](MILESTONE_3_EXECUTION.md) (Slice 
 - [x] Batch AO: soft resume recheck (strip/clamp); Hold aborts card/MFS stubs + epoch-guards ingest
 - [x] Batch AP: Slice 6 exit + `Completed_API_lists.md` §18 + `smoke:m3ap`; **F7** Held list toggle
 
-**Still later (hardening / deferred / next milestones):** real printer IPC, real card SDK, real MFS APIs (backend-confirmed status; no cashier Trx), cloud sales list / cloud shift API, Owner web Create Customer, M4 queue flush. Later POS screens → Slice 7+ when shared.
+**Still later (hardening / deferred / next milestones):** real printer IPC, real card SDK, real MFS APIs (backend-confirmed status; no cashier Trx), cloud sales list / cloud shift API, Owner web Create Customer, 409 conflict copy (M5 D). Later POS screens → Slice 7+ when shared.
 
-**Exit:** Keyboard checkout **online** **Met**. Local catalog cache + outbound queue **table** **Met**. Queue **flush** is **M4** (not this milestone). User closed M3 screens 2026-08-13.---
-
-### Milestone 4 — One-way Sync Worker
-
-- Tauri worker every 15s → flush `outbound_sync_queue` FIFO
-- Cloud `POST /api/v1/sync/ingest` — append-only sales + stock deltas, idempotent by `event_id`
-- Retry / backoff / dead-letter for poison events
-
-**Exit:** Offline sale appears in Postgres after reconnect with no duplicates.
+**Exit:** Keyboard checkout **online** **Met**. Local catalog cache + outbound queue **table** **Met**. Queue **flush** is **M4** (**Met** 2026-08-14). User closed M3 screens 2026-08-13.
 
 ---
 
-### Milestone 5 — MVP Hardening & Pilot Ready
+### Milestone 4 — One-way Sync Worker (DONE)
 
-- Owner vs Cashier RBAC end-to-end
-- Purchase / stock entry for batches
-- Cash + MFS + Baki (customer due)
-- Receipt path on one target printer
-- Pre-loaded drug master usable at counter
-- Smoke tests: auth, FEFO, sync ingest
-- Dev runbook (Postgres Docker, desktop build)
+Detailed batches: [`MILESTONE_4_EXECUTION.md`](MILESTONE_4_EXECUTION.md) (A–F all green; closed 2026-08-14).  
+API catalog: [`Completed_API_lists.md`](Completed_API_lists.md) §19.
 
-**MVP ship gate:** Single-store pharmacy sells online/offline with FEFO; cloud holds sales (owner UI can wait for M6).
+- [x] Tauri/desktop worker every 15s → flush `outbound_sync_queue` FIFO
+- [x] Cloud `POST /api/v1/sync/ingest` — append-only sales + stock deltas, idempotent by `event_id`
+- [x] Retry / backoff / dead-letter for poison events
+- [x] Sync Queue panel (badge + Settings; no new sidebar)
+- [x] Offline complete → same Sale Completed; online path still `/sales/ingest`
+
+**Exit:** Offline sale appears in Postgres after reconnect with no duplicates. **Met** (2026-08-14; user reconnect walkthrough **PASS**).
+
+---
+
+### Milestone 5 — MVP Hardening & Pilot Ready (DONE)
+
+Detailed batches: [`MILESTONE_5_EXECUTION.md`](MILESTONE_5_EXECUTION.md) (A–F all green; closed 2026-08-14).  
+API catalog: [`Completed_API_lists.md`](Completed_API_lists.md) §20.  
+Runbook: [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md).
+
+- [x] Owner vs Cashier RBAC end-to-end (`PATCH` customers/batches OWNER+MANAGER)
+- [x] Purchase / stock entry for batches (desktop Settings; Owner/Manager)
+- [x] Cash + Card + MFS only (fully settled; **no** on-account tender)
+- [x] Receipt path: **print stub** in M5 (real IPC later — user lock)
+- [x] Pre-loaded drug master usable at counter (paged catalog pull; no CSV)
+- [x] Smoke tests: auth, FEFO, sync ingest + `smoke:m5`
+- [x] Dev runbook (Postgres Docker / Neon, desktop build)
+
+**MVP ship gate:** Single-store pharmacy sells online/offline with FEFO; cloud holds sales (owner UI can wait for M6). **Met** (2026-08-14).
 
 ---
 
@@ -373,12 +384,11 @@ Detailed batches: [`MILESTONE_3_EXECUTION.md`](MILESTONE_3_EXECUTION.md) (Slice 
 ## 9. Suggested Next Command to the Agent
 
 ```text
-Follow @PROJECT_MASTER_PLAN.md @Current_Status.md @MILESTONE_3_EXECUTION.md
-M3 is DONE. Do not start M4 / hard reservation / cloud hold / Slice 7+
-unless the user authorizes. Later screens are appended as Slice 7+.
+Follow @PROJECT_MASTER_PLAN.md @Current_Status.md @ROLES_AND_PERMISSIONS.md @Completed_API_lists.md
+M0–M5 are DONE. Do not start M6 / Slice 7+ / hardware unless the user authorizes it in a new chat.
 ```
 
-M3 Batches A–Z + AA–AE + AF–AL + AM–AP are complete. Next is **M4** when authorized, or a new screen for Slice 7+.
+M0–M5 are complete. Next = **M6 when authorized**. Do not start M6 from this file alone.
 
 ---
 
@@ -432,3 +442,12 @@ M3 Batches A–Z + AA–AE + AF–AL + AM–AP are complete. Next is **M4** when
 | 2026-08-13 | **M4 Batch B completed:** `POST /api/v1/sync/ingest` reuses `ingestSale`; `smoke:m4b` 13/13; next = Batch C |
 | 2026-08-13 | **M4 Batch C completed:** offline/Force Offline complete → queue + local stock delta; `smoke:m4c`; next = Batch D |
 | 2026-08-13 | **M4 Batch D completed:** 15s TS flush worker + badge pending/syncing/error; `smoke:m4d`; next = Batch E |
+| 2026-08-14 | **M4 Batch E completed:** Sync Queue panel + badge/Settings entry; i18n en + bn-BD; `smoke:m4e`; next = Batch F |
+| 2026-08-14 | **Milestone 4 completed:** catalog §19; `smoke:m4`; user reconnect walkthrough **PASS**; next = M5 when authorized |
+| 2026-08-14 | **M5 execution file created:** `MILESTONE_5_EXECUTION.md` (A–F not started); on-account wording removed from M5 bullets; print/PIN stay stubs; next = Authorize M5 Batch A |
+| 2026-08-14 | **M5 Batch A completed:** PATCH customers/batches OWNER+MANAGER (cashier 403 incl. qty); `smoke:m2` + `smoke:m5a`; M5 stays PENDING until F; next = Authorize M5 Batch B |
+| 2026-08-14 | **M5 Batch B completed:** Settings Receive stock placeholder Owner/Manager only; Create/PATCH customer still off POS; `smoke:m5b`; M5 stays PENDING until F; next = Authorize M5 Batch C |
+| 2026-08-14 | **M5 Batch C completed:** Settings Receive stock Add lot + Adjust qty (online `POST`/`PATCH /batches`); `catalogPull`; `smoke:m5c`; user walkthrough **PASS**; M5 stays PENDING until F; next = Authorize M5 Batch D |
+| 2026-08-14 | **M5 Batch D completed:** Sync Queue Failed i18n conflict copy + raw `last_error`; Enter Retry; no void; `smoke:m5d`; user walkthrough **PASS**; M5 stays PENDING until F; next = Authorize M5 Batch E |
+| 2026-08-14 | **M5 Batch E completed:** paged `catalogPull` (`limit=100` + `offset` until `meta.total`, cap 50 pages); `costPerBase` still dropped; `smoke:m5e`; user walkthrough **PASS**; M5 stays PENDING until F; next = Authorize M5 Batch F |
+| 2026-08-14 | **Milestone 5 completed:** `docs/DEV_RUNBOOK.md`; catalog §20; `smoke:m5`; user pilot walkthrough **PASS**; M5 **DONE**; next = M6 when authorized |

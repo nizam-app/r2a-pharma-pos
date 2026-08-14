@@ -202,6 +202,8 @@ function AuthenticatedPos() {
   /** Held Sales list (Batch AN) — does not clear sale state until Resume. */
   const [heldOpen, setHeldOpen] = useState(false);
   const [heldCount, setHeldCount] = useState(0);
+  /** Sync Queue overlay (M4 Batch E) — does not clear sale / cart. */
+  const [syncQueueOpen, setSyncQueueOpen] = useState(false);
   /** Bumps Counter Ready Active Shift after local open/close. */
   const [shiftEpoch, setShiftEpoch] = useState(0);
   const [cartLines, setCartLines] = useState<CartLine[]>([]);
@@ -389,6 +391,7 @@ function AuthenticatedPos() {
       setSettingsOpen(false);
       setTransactionsOpen(false);
       setHeldOpen(false);
+      setSyncQueueOpen(false);
       setShiftOpen(true);
       return;
     }
@@ -407,6 +410,7 @@ function AuthenticatedPos() {
     setSettingsOpen(false);
     setShiftOpen(false);
     setHeldOpen(false);
+    setSyncQueueOpen(false);
     setSearchFocusedProduct(null);
     setView("sale");
   }, [abortPrintStub, user?.tenantId, user?.storeId, showToast, t]);
@@ -426,6 +430,7 @@ function AuthenticatedPos() {
     setSettingsOpen(false);
     setShiftOpen(false);
     setHeldOpen(false);
+    setSyncQueueOpen(false);
     setView("counter");
   }, [abortPrintStub]);
 
@@ -510,6 +515,7 @@ function AuthenticatedPos() {
     setTransactionsOpen(false);
     setSettingsOpen(false);
     setShiftOpen(false);
+    setSyncQueueOpen(false);
     setView("sale");
     refreshHeldCount();
     showToast(t("hold.parked"), "success");
@@ -531,7 +537,16 @@ function AuthenticatedPos() {
     setSettingsOpen(false);
     setTransactionsOpen(false);
     setShiftOpen(false);
+    setSyncQueueOpen(false);
     setHeldOpen(true);
+  }, []);
+
+  const openSyncQueue = useCallback(() => {
+    setSettingsOpen(false);
+    setTransactionsOpen(false);
+    setShiftOpen(false);
+    setHeldOpen(false);
+    setSyncQueueOpen(true);
   }, []);
 
   /**
@@ -573,6 +588,7 @@ function AuthenticatedPos() {
       setTransactionsOpen(false);
       setSettingsOpen(false);
       setShiftOpen(false);
+      setSyncQueueOpen(false);
       setView("sale");
       refreshHeldCount();
 
@@ -1504,14 +1520,25 @@ function AuthenticatedPos() {
         event.preventDefault();
         if (heldOpen) {
           setHeldOpen(false);
-        } else if (!settingsOpen && !transactionsOpen && !shiftOpen) {
+        } else if (
+          !settingsOpen &&
+          !transactionsOpen &&
+          !shiftOpen &&
+          !syncQueueOpen
+        ) {
           openHeldList();
         }
         return;
       }
 
       // Settings / Transactions / Shift / Held list own Esc / ←→ / Enter — do not cancel sale or cart nav.
-      if (settingsOpen || transactionsOpen || shiftOpen || heldOpen) {
+      if (
+        settingsOpen ||
+        transactionsOpen ||
+        shiftOpen ||
+        heldOpen ||
+        syncQueueOpen
+      ) {
         return;
       }
 
@@ -1692,6 +1719,7 @@ function AuthenticatedPos() {
     transactionsOpen,
     shiftOpen,
     heldOpen,
+    syncQueueOpen,
     qtyOpen,
     batchOpen,
     editOpen,
@@ -1759,6 +1787,9 @@ function AuthenticatedPos() {
         onCloseHeld={() => setHeldOpen(false)}
         onResumeHeld={resumeHeldSale}
         onHeldListChanged={refreshHeldCount}
+        syncQueueOpen={syncQueueOpen}
+        onOpenSyncQueue={openSyncQueue}
+        onCloseSyncQueue={() => setSyncQueueOpen(false)}
         hideCartPanel={onCompleted}
         footerStatus={
           onCompleted
@@ -1786,6 +1817,7 @@ function AuthenticatedPos() {
           setSettingsOpen(false);
           setShiftOpen(false);
           setHeldOpen(false);
+          setSyncQueueOpen(false);
           setTransactionsOpen(true);
         }}
         onCloseTransactions={() => setTransactionsOpen(false)}
@@ -1794,6 +1826,7 @@ function AuthenticatedPos() {
           setSettingsOpen(false);
           setTransactionsOpen(false);
           setHeldOpen(false);
+          setSyncQueueOpen(false);
           setShiftOpen(true);
         }}
         onCloseShift={() => setShiftOpen(false)}
@@ -1803,6 +1836,7 @@ function AuthenticatedPos() {
           setTransactionsOpen(false);
           setShiftOpen(false);
           setHeldOpen(false);
+          setSyncQueueOpen(false);
           setSettingsOpen(true);
         }}
         onCloseSettings={() => setSettingsOpen(false)}
