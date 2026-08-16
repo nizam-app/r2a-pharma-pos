@@ -10,7 +10,8 @@
  *   → floor(netPayableBeforeLoyaltyRedeem / 100)
  * - Full loyalty cover (amount due ৳0): earned = 0
  *
- * TODO(real integration): persist earn/redeem on authoritative cloud sale ingest.
+ * Cloud ingest (M6 Batch D) snapshots `loyaltyUsed` / `loyaltyEarned`.
+ * This helper remains the POS session calculator.
  */
 
 import {

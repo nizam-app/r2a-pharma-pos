@@ -16,3 +16,7 @@ export type UnitType = z.infer<typeof unitTypeSchema>;
 /** Mirrors Prisma `PaymentMethod`. No Baki — cash, card, or MFS only. */
 export const paymentMethodSchema = z.enum(["CASH", "CARD", "MFS"]);
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
+
+/** Mirrors Prisma `InventoryEventType`. Append-only stock ledger. */
+export const inventoryEventTypeSchema = z.enum(["RECEIVE", "ADJUST", "SALE"]);
+export type InventoryEventType = z.infer<typeof inventoryEventTypeSchema>;

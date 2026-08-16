@@ -9,4 +9,5 @@ export * from "./product";
 export * from "./batch";
 export * from "./customer";
 export * from "./sale";
+export * from "./owner";
 export * from "./sync";

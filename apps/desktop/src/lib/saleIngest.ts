@@ -1,15 +1,14 @@
 /**
  * Build + POST sale ingest (Batch T zero-pay + Batch X cash + AC card + AD MFS).
  *
- * M2 contract mapping (no schema invent):
+ * M2 contract mapping:
  * - Loyalty redeem → `discount` so `total = subtotal − discount` holds
  * - Tender payment amount = sale `total` (amount due), not cash received
  * - Zero due → `payments: [{ method: "CASH", amount: 0 }]` (min 1 payment; amount ≥ 0 OK)
  * - MFS provider / payer / trx → notes meta (schema has no payment provider field)
+ * - M6 D: also send `loyaltyUsed` / `loyaltyEarned` and per-line FEFO flags
  *
  * TODO(real integration):
- * - Dedicated loyalty earn/redeem fields + audit on ingest
- * - FEFO override flag on sale lines
  * - Prefer non-CASH zero tender type if product re-locks
  * - Card auth/ref codes from terminal SDK (notes stub only today)
  * - First-class MFS provider + Trx ID on Payment (today notes only)
@@ -23,6 +22,7 @@ import {
   countUnsynced,
   enqueueSyncEvent,
 } from "@/lib/localDb/client";
+import { settleLoyaltyForSale } from "@/lib/loyaltyCalc";
 import type { AppliedLoyaltyRedeem } from "@/lib/loyaltyRedeem";
 
 export type IngestedSaleSummary = {
@@ -139,6 +139,21 @@ export function buildSaleIngestPayload(
     );
   }
 
+  const loyaltyFields = args.customerId
+    ? (() => {
+        const settlement = settleLoyaltyForSale({
+          previousBalance: 0,
+          applied: args.appliedLoyalty,
+          cartSubtotal: args.cartSubtotal,
+          cartDiscount,
+        });
+        return {
+          loyaltyUsed: settlement.used,
+          loyaltyEarned: settlement.earned,
+        };
+      })()
+    : {};
+
   return {
     eventId: args.eventId,
     storeId: args.storeId,
@@ -147,15 +162,24 @@ export function buildSaleIngestPayload(
     discount,
     total,
     notes: notesParts.length > 0 ? notesParts.join("; ") : undefined,
-    items: args.lines.map((line) => ({
-      productId: line.productId,
-      batchId: line.batchId,
-      unitType: line.unitType,
-      unitQty: line.unitQty,
-      quantityBase: line.quantityBase,
-      unitPrice: line.unitPrice,
-      lineTotal: line.lineTotal,
-    })),
+    ...loyaltyFields,
+    items: args.lines.map((line) => {
+      const item: SaleIngestInput["items"][number] = {
+        productId: line.productId,
+        batchId: line.batchId,
+        unitType: line.unitType,
+        unitQty: line.unitQty,
+        quantityBase: line.quantityBase,
+        unitPrice: line.unitPrice,
+        lineTotal: line.lineTotal,
+      };
+      if (line.fefoOverride) {
+        item.fefoOverride = true;
+        const by = line.fefoOverride.authorizedByName.trim();
+        if (by) item.fefoAuthorizedByName = by;
+      }
+      return item;
+    }),
     // Payment amount = sale total (amount due), not cash received / change.
     payments: [{ method: paymentMethod, amount: total }],
   };

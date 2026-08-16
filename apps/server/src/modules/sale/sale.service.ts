@@ -1,5 +1,5 @@
-import { prisma, type Prisma } from "@r2a/database";
-import type { Role, SaleIngestInput } from "@r2a/shared-types";
+import { prisma, Prisma } from "@r2a/database";
+import type { Role, SaleIngestInput, SaleListQuery } from "@r2a/shared-types";
 import { AppError } from "../../utils/AppError";
 import { pickFefoBatch } from "../../utils/fefo";
 import { serializeBatch } from "../../utils/margin";
@@ -21,31 +21,130 @@ function toNumber(value: { toString(): string } | number): number {
   return typeof value === "number" ? value : Number(value.toString());
 }
 
+/** M6 Batch C scalars — Prisma editor types can lag behind `prisma generate`. */
+type SaleM6Fields = {
+  receiptNo: string | null;
+  loyaltyPrevious: number;
+  loyaltyUsed: number;
+  loyaltyEarned: number;
+};
+
+type SaleItemM6Fields = {
+  fefoOverride: boolean;
+  fefoAuthorizedByName: string | null;
+  costPerBaseAtSale: { toString(): string } | number | null;
+};
+
+function withSaleM6<T>(sale: T): T & SaleM6Fields {
+  return sale as T & SaleM6Fields;
+}
+
+function withSaleItemM6<T>(item: T): T & SaleItemM6Fields {
+  return item as T & SaleItemM6Fields;
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** `TXN-YYMMDD-HHmm` from soldAt (UTC). Suffix = last 2 alnum of eventId when needed. */
+export function formatReceiptNo(
+  soldAt: Date,
+  eventId: string,
+  withEventSuffix: boolean,
+): string {
+  const yy = pad2(soldAt.getUTCFullYear() % 100);
+  const mo = pad2(soldAt.getUTCMonth() + 1);
+  const dd = pad2(soldAt.getUTCDate());
+  const hh = pad2(soldAt.getUTCHours());
+  const mm = pad2(soldAt.getUTCMinutes());
+  const base = `TXN-${yy}${mo}${dd}-${hh}${mm}`;
+  if (!withEventSuffix) return base;
+  const alnum = eventId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  const tail = (alnum.slice(-2) || "XX").padStart(2, "X");
+  return `${base}-${tail}`;
+}
+
+async function allocateReceiptNo(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  soldAt: Date,
+  eventId: string,
+): Promise<string> {
+  const base = formatReceiptNo(soldAt, eventId, false);
+  const taken = await tx.sale.findFirst({
+    where: { tenantId, receiptNo: base },
+    select: { id: true },
+  });
+  if (!taken) return base;
+
+  const suffixed = formatReceiptNo(soldAt, eventId, true);
+  const suffixTaken = await tx.sale.findFirst({
+    where: { tenantId, receiptNo: suffixed },
+    select: { id: true },
+  });
+  if (!suffixTaken) return suffixed;
+
+  const alnum = eventId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  const longTail = (alnum.slice(-8) || Date.now().toString(36)).toUpperCase();
+  return `${base}-${longTail}`;
+}
+
+function p2002Target(err: unknown): string[] | null {
+  if (!err || typeof err !== "object" || !("code" in err)) return null;
+  if ((err as { code: string }).code !== "P2002") return null;
+  const target = (err as { meta?: { target?: string | string[] } }).meta?.target;
+  if (!target) return [];
+  return Array.isArray(target) ? target : [target];
+}
+
+function isEventIdConflict(target: string[] | null): boolean {
+  return Boolean(target && target.includes("eventId"));
+}
+
+function isReceiptNoConflict(target: string[] | null): boolean {
+  return Boolean(target && target.includes("receiptNo"));
+}
+
 function serializeSale(sale: SaleWithRelations, role: Role) {
+  const header = withSaleM6(sale);
   return {
-    id: sale.id,
-    eventId: sale.eventId,
-    tenantId: sale.tenantId,
-    storeId: sale.storeId,
-    userId: sale.userId,
-    customerId: sale.customerId,
-    soldAt: sale.soldAt,
-    subtotal: toNumber(sale.subtotal),
-    discount: toNumber(sale.discount),
-    total: toNumber(sale.total),
-    notes: sale.notes,
-    createdAt: sale.createdAt,
-    items: sale.items.map((item) => ({
-      id: item.id,
-      productId: item.productId,
-      batchId: item.batchId,
-      unitType: item.unitType,
-      unitQty: item.unitQty,
-      quantityBase: item.quantityBase,
-      unitPrice: toNumber(item.unitPrice),
-      lineTotal: toNumber(item.lineTotal),
-      batch: serializeBatch(item.batch, role),
-    })),
+    id: header.id,
+    eventId: header.eventId,
+    receiptNo: header.receiptNo,
+    tenantId: header.tenantId,
+    storeId: header.storeId,
+    userId: header.userId,
+    customerId: header.customerId,
+    soldAt: header.soldAt,
+    subtotal: toNumber(header.subtotal),
+    discount: toNumber(header.discount),
+    total: toNumber(header.total),
+    notes: header.notes,
+    loyaltyPrevious: header.loyaltyPrevious,
+    loyaltyUsed: header.loyaltyUsed,
+    loyaltyEarned: header.loyaltyEarned,
+    createdAt: header.createdAt,
+    items: header.items.map((item) => {
+      const line = withSaleItemM6(item);
+      const row: Record<string, unknown> = {
+        id: line.id,
+        productId: line.productId,
+        batchId: line.batchId,
+        unitType: line.unitType,
+        unitQty: line.unitQty,
+        quantityBase: line.quantityBase,
+        unitPrice: toNumber(line.unitPrice),
+        lineTotal: toNumber(line.lineTotal),
+        fefoOverride: line.fefoOverride,
+        fefoAuthorizedByName: line.fefoAuthorizedByName,
+        batch: serializeBatch(line.batch, role),
+      };
+      if (role !== "CASHIER" && line.costPerBaseAtSale != null) {
+        row.costPerBaseAtSale = toNumber(line.costPerBaseAtSale);
+      }
+      return row;
+    }),
     payments: sale.payments.map((p) => ({
       id: p.id,
       method: p.method,
@@ -105,6 +204,8 @@ export async function ingestSale(
     quantityBase: number;
     unitPrice: number;
     lineTotal: number;
+    fefoOverride: boolean;
+    fefoAuthorizedByName: string | null;
   };
 
   const resolvedLines: ResolvedLine[] = [];
@@ -186,6 +287,7 @@ export async function ingestSale(
       batchId = fefo.id;
     }
 
+    const fefoOverride = line.fefoOverride === true;
     resolvedLines.push({
       productId: line.productId,
       batchId,
@@ -194,6 +296,10 @@ export async function ingestSale(
       quantityBase: line.quantityBase,
       unitPrice: line.unitPrice,
       lineTotal: line.lineTotal,
+      fefoOverride,
+      fefoAuthorizedByName: fefoOverride
+        ? (line.fefoAuthorizedByName ?? null)
+        : null,
     });
   }
 
@@ -205,92 +311,417 @@ export async function ingestSale(
     throw new AppError("total must equal subtotal − discount", 400);
   }
 
-  try {
-    const created = await prisma.$transaction(async (tx) => {
-      // Re-check idempotency inside txn (race with concurrent ingest)
-      const raced = await tx.sale.findFirst({
-        where: { eventId: input.eventId, tenantId: ctx.tenantId },
-        include: saleInclude,
-      });
-      if (raced) {
-        return { sale: raced, idempotent: true as const };
-      }
+  const loyaltyFieldsPresent =
+    input.loyaltyUsed !== undefined || input.loyaltyEarned !== undefined;
 
-      for (const line of resolvedLines) {
-        const updated = await tx.batch.updateMany({
-          where: {
-            id: line.batchId,
+  let receiptRetry = 0;
+  while (true) {
+    try {
+      const created = await prisma.$transaction(async (tx) => {
+        // Re-check idempotency inside txn (race with concurrent ingest)
+        const raced = await tx.sale.findFirst({
+          where: { eventId: input.eventId, tenantId: ctx.tenantId },
+          include: saleInclude,
+        });
+        if (raced) {
+          return { sale: raced, idempotent: true as const };
+        }
+
+        const itemCreates: Array<{
+          tenantId: string;
+          productId: string;
+          batchId: string;
+          unitType: ResolvedLine["unitType"];
+          unitQty: number;
+          quantityBase: number;
+          unitPrice: number;
+          lineTotal: number;
+          fefoOverride: boolean;
+          fefoAuthorizedByName: string | null;
+          costPerBaseAtSale: { toString(): string } | number;
+        }> = [];
+        const eventCreates: Array<{
+          tenantId: string;
+          storeId: string;
+          productId: string;
+          batchId: string;
+          actorUserId: string;
+          type: "SALE";
+          quantityBaseChange: number;
+        }> = [];
+
+        for (const line of resolvedLines) {
+          const updated = await tx.batch.updateMany({
+            where: {
+              id: line.batchId,
+              tenantId: ctx.tenantId,
+              storeId: input.storeId,
+              quantityOnHand: { gte: line.quantityBase },
+            },
+            data: {
+              quantityOnHand: { decrement: line.quantityBase },
+            },
+          });
+          if (updated.count !== 1) {
+            throw new AppError("Insufficient stock during sale commit", 409);
+          }
+
+          const batch = await tx.batch.findFirst({
+            where: { id: line.batchId, tenantId: ctx.tenantId },
+            select: { costPerBase: true },
+          });
+          if (!batch) {
+            throw new AppError("Insufficient stock during sale commit", 409);
+          }
+
+          itemCreates.push({
+            tenantId: ctx.tenantId,
+            productId: line.productId,
+            batchId: line.batchId,
+            unitType: line.unitType,
+            unitQty: line.unitQty,
+            quantityBase: line.quantityBase,
+            unitPrice: line.unitPrice,
+            lineTotal: line.lineTotal,
+            fefoOverride: line.fefoOverride,
+            fefoAuthorizedByName: line.fefoAuthorizedByName,
+            costPerBaseAtSale: batch.costPerBase,
+          });
+          eventCreates.push({
             tenantId: ctx.tenantId,
             storeId: input.storeId,
-            quantityOnHand: { gte: line.quantityBase },
-          },
-          data: {
-            quantityOnHand: { decrement: line.quantityBase },
-          },
-        });
-        if (updated.count !== 1) {
-          throw new AppError("Insufficient stock during sale commit", 409);
+            productId: line.productId,
+            batchId: line.batchId,
+            actorUserId: ctx.userId,
+            type: "SALE",
+            quantityBaseChange: -line.quantityBase,
+          });
         }
-      }
 
-      const sale = await tx.sale.create({
-        data: {
-          tenantId: ctx.tenantId,
-          storeId: input.storeId,
-          userId: ctx.userId,
-          customerId: input.customerId,
-          eventId: input.eventId,
-          soldAt: input.soldAt ?? new Date(),
-          subtotal: input.subtotal,
-          discount: input.discount,
-          total: input.total,
-          notes: input.notes,
-          items: {
-            create: resolvedLines.map((line) => ({
-              tenantId: ctx.tenantId,
-              productId: line.productId,
-              batchId: line.batchId,
-              unitType: line.unitType,
-              unitQty: line.unitQty,
-              quantityBase: line.quantityBase,
-              unitPrice: line.unitPrice,
-              lineTotal: line.lineTotal,
-            })),
-          },
-          payments: {
-            create: input.payments.map((p) => ({
-              tenantId: ctx.tenantId,
-              method: p.method,
-              amount: p.amount,
-              reference: p.reference,
-            })),
-          },
-        },
-        include: saleInclude,
+        let loyaltyPrevious = 0;
+        let loyaltyUsed = 0;
+        let loyaltyEarned = 0;
+        if (input.customerId && loyaltyFieldsPresent) {
+          const customer = await tx.customer.findFirst({
+            where: { id: input.customerId, tenantId: ctx.tenantId },
+            select: { id: true, loyaltyPoints: true },
+          });
+          if (!customer) {
+            throw new AppError("Customer not found", 404);
+          }
+          loyaltyPrevious = customer.loyaltyPoints;
+          loyaltyUsed = input.loyaltyUsed ?? 0;
+          loyaltyEarned = input.loyaltyEarned ?? 0;
+          await tx.customer.update({
+            where: { id: customer.id },
+            data: {
+              loyaltyPoints: Math.max(
+                0,
+                loyaltyPrevious - loyaltyUsed + loyaltyEarned,
+              ),
+            },
+          });
+        }
+
+        const soldAt = input.soldAt ?? new Date();
+        const receiptNo = await allocateReceiptNo(
+          tx,
+          ctx.tenantId,
+          soldAt,
+          input.eventId,
+        );
+
+        const sale = await tx.sale.create({
+          data: {
+            tenantId: ctx.tenantId,
+            storeId: input.storeId,
+            userId: ctx.userId,
+            customerId: input.customerId,
+            eventId: input.eventId,
+            receiptNo,
+            soldAt,
+            subtotal: input.subtotal,
+            discount: input.discount,
+            total: input.total,
+            notes: input.notes,
+            loyaltyPrevious,
+            loyaltyUsed,
+            loyaltyEarned,
+            items: { create: itemCreates },
+            payments: {
+              create: input.payments.map((p) => ({
+                tenantId: ctx.tenantId,
+                method: p.method,
+                amount: p.amount,
+                reference: p.reference,
+              })),
+            },
+            inventoryEvents: { create: eventCreates },
+          } as Prisma.SaleUncheckedCreateInput,
+          include: saleInclude,
+        });
+
+        return { sale, idempotent: false as const };
       });
 
-      return { sale, idempotent: false as const };
-    });
-
-    return {
-      sale: serializeSale(created.sale, ctx.role),
-      idempotent: created.idempotent,
-    };
-  } catch (err: unknown) {
-    if (
-      err &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code: string }).code === "P2002"
-    ) {
-      const again = await loadSaleByEventId(input.eventId, ctx.tenantId);
-      if (again) {
-        return {
-          sale: serializeSale(again, ctx.role),
-          idempotent: true,
-        };
+      return {
+        sale: serializeSale(created.sale, ctx.role),
+        idempotent: created.idempotent,
+      };
+    } catch (err: unknown) {
+      const target = p2002Target(err);
+      if (isEventIdConflict(target)) {
+        const again = await loadSaleByEventId(input.eventId, ctx.tenantId);
+        if (again) {
+          return {
+            sale: serializeSale(again, ctx.role),
+            idempotent: true,
+          };
+        }
       }
+      if (isReceiptNoConflict(target) && receiptRetry < 2) {
+        receiptRetry += 1;
+        continue;
+      }
+      throw err;
     }
-    throw err;
   }
+}
+
+const saleReadInclude = {
+  items: {
+    include: {
+      product: {
+        select: {
+          id: true,
+          name: true,
+          genericName: true,
+          sku: true,
+          manufacturer: true,
+          strength: true,
+          form: true,
+        },
+      },
+      batch: {
+        select: {
+          id: true,
+          batchNumber: true,
+          expiryDate: true,
+        },
+      },
+    },
+  },
+  payments: true,
+  customer: { select: { id: true, name: true, phone: true } },
+  user: { select: { id: true, name: true } },
+} satisfies Prisma.SaleInclude;
+
+type SaleReadRow = Prisma.SaleGetPayload<{ include: typeof saleReadInclude }>;
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function canSeeSaleCost(role: Role): boolean {
+  return role === "OWNER";
+}
+
+function isUtcMidnight(d: Date): boolean {
+  return (
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0 &&
+    d.getUTCMilliseconds() === 0
+  );
+}
+
+function endOfUtcDay(d: Date): Date {
+  return new Date(
+    Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
+  );
+}
+
+function saleStoreScope(ctx: TenantContext): Prisma.SaleWhereInput {
+  if (ctx.role === "CASHIER" && ctx.storeId) {
+    return { storeId: ctx.storeId };
+  }
+  return {};
+}
+
+function serializeSaleRead(sale: SaleReadRow, role: Role) {
+  const header = withSaleM6(sale);
+  const showCost = canSeeSaleCost(role);
+  let cogs = 0;
+
+  const items = header.items.map((item) => {
+    const line = withSaleItemM6(item);
+    const lineTotal = toNumber(line.lineTotal);
+    const costSnapshot =
+      line.costPerBaseAtSale != null ? toNumber(line.costPerBaseAtSale) : null;
+    const lineCogs =
+      costSnapshot == null ? 0 : round2(costSnapshot * line.quantityBase);
+    cogs = round2(cogs + lineCogs);
+
+    const row: Record<string, unknown> = {
+      id: line.id,
+      productId: line.productId,
+      batchId: line.batchId,
+      unitType: line.unitType,
+      unitQty: line.unitQty,
+      quantityBase: line.quantityBase,
+      unitPrice: toNumber(line.unitPrice),
+      lineTotal,
+      fefoOverride: line.fefoOverride,
+      fefoAuthorizedByName: line.fefoAuthorizedByName,
+      product: {
+        id: line.product.id,
+        name: line.product.name,
+        genericName: line.product.genericName,
+        sku: line.product.sku,
+        manufacturer: line.product.manufacturer,
+        strength: line.product.strength,
+        form: line.product.form,
+      },
+      batch: {
+        id: line.batch.id,
+        batchNumber: line.batch.batchNumber,
+        expiryDate: line.batch.expiryDate,
+      },
+    };
+
+    if (showCost) {
+      row.costPerBaseAtSale = costSnapshot;
+      row.lineCogs = lineCogs;
+      row.lineMargin = round2(lineTotal - lineCogs);
+    }
+
+    return row;
+  });
+
+  const total = toNumber(header.total);
+  const result: Record<string, unknown> = {
+    id: header.id,
+    eventId: header.eventId,
+    receiptNo: header.receiptNo,
+    tenantId: header.tenantId,
+    storeId: header.storeId,
+    userId: header.userId,
+    customerId: header.customerId,
+    soldAt: header.soldAt,
+    subtotal: toNumber(header.subtotal),
+    discount: toNumber(header.discount),
+    total,
+    notes: header.notes,
+    loyaltyPrevious: header.loyaltyPrevious,
+    loyaltyUsed: header.loyaltyUsed,
+    loyaltyEarned: header.loyaltyEarned,
+    createdAt: header.createdAt,
+    customer: header.customer
+      ? {
+          id: header.customer.id,
+          name: header.customer.name,
+          phone: header.customer.phone,
+        }
+      : null,
+    cashier: {
+      id: header.user.id,
+      name: header.user.name,
+    },
+    items,
+    payments: header.payments.map((p) => ({
+      id: p.id,
+      method: p.method,
+      amount: toNumber(p.amount),
+      reference: p.reference,
+      createdAt: p.createdAt,
+    })),
+  };
+
+  if (showCost) {
+    result.cogs = cogs;
+    result.netProfit = round2(total - cogs);
+  }
+
+  return result;
+}
+
+function listWhere(
+  ctx: TenantContext,
+  query: SaleListQuery,
+): Prisma.SaleWhereInput {
+  const q = query.q?.trim();
+  const from = query.from;
+  const to =
+    query.to && isUtcMidnight(query.to) ? endOfUtcDay(query.to) : query.to;
+  return {
+    tenantId: ctx.tenantId,
+    ...saleStoreScope(ctx),
+    ...(query.userId ? { userId: query.userId } : {}),
+    ...(from || to
+      ? {
+          soldAt: {
+            ...(from ? { gte: from } : {}),
+            ...(to ? { lte: to } : {}),
+          },
+        }
+      : {}),
+    ...(query.paymentMethod
+      ? { payments: { some: { method: query.paymentMethod } } }
+      : {}),
+    ...(q
+      ? {
+          OR: [
+            { receiptNo: { contains: q, mode: "insensitive" } },
+            { eventId: { contains: q, mode: "insensitive" } },
+            { customer: { name: { contains: q, mode: "insensitive" } } },
+            { customer: { phone: { contains: q, mode: "insensitive" } } },
+            { user: { name: { contains: q, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  } as Prisma.SaleWhereInput;
+}
+
+export async function listSales(ctx: TenantContext, query: SaleListQuery) {
+  const where = listWhere(ctx, query);
+  const [rows, total] = await Promise.all([
+    prisma.sale.findMany({
+      where,
+      include: saleReadInclude,
+      orderBy: { soldAt: "desc" },
+      take: query.limit,
+      skip: query.offset,
+    }),
+    prisma.sale.count({ where }),
+  ]);
+
+  return {
+    items: rows.map((row) => serializeSaleRead(row, ctx.role)),
+    total,
+    limit: query.limit,
+    offset: query.offset,
+  };
+}
+
+export async function getSale(ctx: TenantContext, saleId: string) {
+  const sale = await prisma.sale.findFirst({
+    where: {
+      id: saleId,
+      tenantId: ctx.tenantId,
+      ...saleStoreScope(ctx),
+    },
+    include: saleReadInclude,
+  });
+  if (!sale) {
+    throw new AppError("Sale not found", 404);
+  }
+  return serializeSaleRead(sale, ctx.role);
 }

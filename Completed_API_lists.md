@@ -4,8 +4,8 @@
 **Package:** `@r2a/server` (`apps/server`)  
 **Base URL (dev):** `http://localhost:8787` (override with `PORT` / `BASE_URL`)  
 **API prefix:** `/api/v1`  
-**Last updated:** 2026-08-14  
-**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (§19) + **M5 MVP hardening DONE** (**§20 — M5**)
+**Last updated:** 2026-08-16  
+**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (§19) + **M5 MVP hardening DONE** (**§20 — M5**) + **M6 Slice 1 K** (`GET /sales` + Owner dashboard APIs + live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details; catalog §21 at Slice 1 exit)
 
 > **Source of truth for contracts:** Zod schemas in `@r2a/shared-types`.  
 > **Live status:** [`Current_Status.md`](Current_Status.md).  
@@ -19,6 +19,14 @@
 > **M3 closed (2026-08-13):** Desktop POS shell complete. Later screens → Slice 7+. No new cloud routes in M3.  
 > **M4 closed (2026-08-14):** One-way offline→cloud sync. New cloud route `POST /api/v1/sync/ingest` (reuses `ingestSale`). Desktop 15s worker + Sync Queue panel. See **§19**.  
 > **M5 closed (2026-08-14):** **§20 — M5** — PATCH RBAC, desktop Receive stock (no new routes), Sync Queue 409 copy, paged catalog pull. Print / FEFO PIN stay stubs. See **§20**.  
+> **M6 Batch D (2026-08-15):** `POST /sales/ingest` and `/sync/ingest` persist `receiptNo`, `costPerBaseAtSale`, optional loyalty snapshots, FEFO flags, and `InventoryEvent` SALE. `POST /batches` → RECEIVE; `PATCH` qty → ADJUST. Old payloads still work. No new routes. Catalog §21 at Slice 1 exit.  
+> **M6 Batch E (2026-08-15):** `GET /api/v1/sales` + `GET /api/v1/sales/:id` (`:id` = `Sale.id`). Any authenticated. Owner sees `costPerBaseAtSale` / `lineCogs` / `cogs` / `netProfit` (`sale.total − COGS`). Manager/Cashier omit those keys. Full §21 at Slice 1 exit.  
+> **M6 Batch F (2026-08-16):** `GET /api/v1/owner/dashboard`, `GET /owner/inventory-summary`, `GET /owner/expiry`. **`restrictTo("OWNER")`** (Manager/Cashier 403). Net profit = `sum(sale.total) − sum(costPerBaseAtSale * quantityBase)`. Dashboard UI = Batch G. Full §21 at Slice 1 exit.
+> **M6 Batch G (2026-08-16):** Owner web Dashboard consumes `GET /owner/dashboard`. Live KPIs (no mock ৳124,850). Recent row → `/sales/:id` (detail = Batch I).
+> **M6 Batch H (2026-08-16):** Owner web Sales list consumes `GET /sales` + dashboard `salesKpis` / `paymentMix` / `topCashier` / `cashiers`. Net sales = gross − discounts (no returns). Date `to` on list is end-of-UTC-day when date-only. Detail layout = Batch I.  
+> **M6 Batch I (2026-08-16):** Owner web Transaction Details consumes `GET /sales/:id`. FEFO OVERRIDE from `fefoOverride`. Loyalty grid from snapshots (hidden for walk-in). Reprint = on-screen preview from sale JSON (no Tauri). Amount Due ৳0. More Actions disabled. No void.  
+> **M6 Batch J (2026-08-16):** `GET /api/v1/owner/inventory` OWNER-only paged list (tabs, search, cost/sell/margin). Owner web Inventory list live. Product Details = Batch K. Full §21 at Slice 1 exit.  
+> **M6 Batch K (2026-08-16):** `GET /api/v1/owner/products/:id` OWNER-only product detail (lots, FEFO rank on sellable lots, units, recent InventoryEvents). Owner web Product Details live. Edit Product stays disabled. Add Product = Batch L. Full §21 at Slice 1 exit.  
 > **M5 Batch A (2026-08-14):** `PATCH /customers/:id` and `PATCH /batches/:id` are **`OWNER`, `MANAGER`** (cashier `403`, including batch qty). No new routes.  
 > **M5 Batch C (2026-08-14):** Desktop Settings → Receive stock (Owner/Manager, online only) uses existing `POST /api/v1/batches` and `PATCH /api/v1/batches/:id` (`quantityOnHand`). No new cloud routes.  
 > **M5 Batch E (2026-08-14):** Desktop `catalogPull` pages `GET /products` and `GET /batches` (`limit=100` + `offset` until `meta.total`, cap 50 pages / 5000 rows). Still **no** `costPerBase` in the local cache. No new cloud routes. No CSV.  
@@ -176,6 +184,12 @@ Owners / managers see `costPerBase` on batch payloads.
 | GET | `/api/v1/customers/:id` | Bearer | Any authenticated |
 | PATCH | `/api/v1/customers/:id` | Bearer | `OWNER`, `MANAGER` (cashier `403`) |
 | POST | `/api/v1/sales/ingest` | Bearer | Any authenticated |
+| GET | `/api/v1/sales` | Bearer | Any authenticated. Cost/COGS/netProfit **OWNER only** |
+| GET | `/api/v1/sales/:id` | Bearer | Any authenticated. `:id` = `Sale.id`. Same redaction |
+| GET | `/api/v1/owner/dashboard` | Bearer | **`OWNER` only** |
+| GET | `/api/v1/owner/inventory-summary` | Bearer | **`OWNER` only** |
+| GET | `/api/v1/owner/expiry` | Bearer | **`OWNER` only** |
+| GET | `/api/v1/owner/inventory` | Bearer | **`OWNER` only** |
 | POST | `/api/v1/sync/ingest` | Bearer | Any authenticated |
 
 Cashier GET still omits `costPerBase`. Price-field `403` remains defense-in-depth on PATCH; the route itself is Owner/Manager only (M5 Batch A).
@@ -301,12 +315,14 @@ Revokes the presented refresh token (idempotent if already revoked/missing).
     "userId": "...",
     "tenantId": "...",
     "storeId": "...",
-    "role": "OWNER"
+    "role": "OWNER",
+    "tenantName": "Demo Pharmacy",
+    "storeName": "Main Counter"
   }
 }
 ```
 
-Use this to confirm JWT tenancy wiring. Domain queries always filter by `tenantId` from here / JWT — never from body.
+`storeId` is JWT-canonical (display-only on Owner web; not a branch switch). `tenantName` / `storeName` are additive labels for chrome. Domain queries always filter by `tenantId` from here / JWT — never from body.
 
 ---
 
@@ -368,24 +384,34 @@ Sending `tenantId` in the body has **no effect** (stripped).
 
 **Body**
 
-| Field | Type | Required |
-|-------|------|----------|
-| `name` | string | yes |
-| `genericName` | string | no |
-| `sku` | string | no |
-| `barcode` | string | no |
-| `description` | string | no |
-| `units` | array | yes (min 1) |
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `name` | string | yes | Medicine name |
+| `genericName` | string | no | Active ingredient |
+| `manufacturer` | string | no | Free text; no Supplier table |
+| `strength` | string | no | e.g. "500 mg" |
+| `form` | string | no | e.g. "Tablet", "Capsule" |
+| `sku` | string | no | Tenant-unique internal identifier |
+| `barcode` | string | no | UPC / EAN barcode |
+| `category` | string | no | e.g. "Analgesic" |
+| `description` | string | no | Free text |
+| `requiresPrescription` | boolean | no | `false` = OTC; `true` = Rx. Default `false` |
+| `coldChain` | boolean | no | Requires cold-chain storage. Default `false` |
+| `storageNotes` | string | no | e.g. "Store below 25°C" |
+| `reorderLevel` | int ≥ 0 | no | Low-stock alert threshold (PIECE units) |
+| `units` | array | yes (min 1) | Packaging hierarchy |
 
 Each unit:
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `unitType` | `BOX` \| `STRIP` \| `PIECE` | yes | |
-| `factorToBase` | positive int | yes | e.g. STRIP=10, BOX=100, PIECE=1 |
+| `factorToBase` | positive int | yes | e.g. PIECE=1, STRIP=10, BOX=100 |
 | `label` | string | no | Display override |
 
-**Success `201`**. **Errors:** `409` duplicate sku/barcode in tenant.
+**Success `201`**. **Errors:** `409` duplicate sku/barcode in tenant; `403` Cashier.
+
+> **M6L lock:** `POST /products` creates a **catalog entry only** — zero initial stock, zero batches. Stock is added exclusively via `POST /api/v1/batches` (Batch M, desktop Receive stock). Do not add stock creation logic here.
 
 ### 8.3 `GET /api/v1/products/:id`
 
@@ -393,9 +419,9 @@ Each unit:
 
 ### 8.4 `PATCH /api/v1/products/:id`
 
-**Auth:** Bearer · **RBAC:** `OWNER` \| `MANAGER`  
+**Auth:** Bearer · **RBAC:** `OWNER` \| `MANAGER`
 
-Partial update; if `units` provided, existing unit rows are replaced.
+Partial update; all M6L fields are patchable. If `units` provided, existing unit rows are replaced.
 
 ### 8.5 `GET /api/v1/products/:productId/fefo-batch`
 
@@ -519,7 +545,7 @@ Response objects may include `loyaltyPoints` and `creditBalance`. Desktop Select
 
 ---
 
-## 11. Sales ingest (`/api/v1/sales`)
+## 11. Sales (`/api/v1/sales`)
 
 ### `POST /api/v1/sales/ingest`
 
@@ -537,7 +563,9 @@ Response objects may include `loyaltyPoints` and `creditBalance`. Desktop Select
 | `subtotal` | number ≥ 0 | yes | Must equal sum of `lineTotal`s |
 | `discount` | number ≥ 0 | no | Default `0`; `total` must equal `subtotal − discount` |
 | `total` | number ≥ 0 | yes | Must equal sum of payment `amount`s |
-| `notes` | string | no | |
+| `notes` | string | no | Card/MFS meta still live here |
+| `loyaltyUsed` | int ≥ 0 | no | **M6 D.** With `customerId`, snapshot + subtract from `Customer.loyaltyPoints`. Omit → snapshots 0, **no** point change |
+| `loyaltyEarned` | int ≥ 0 | no | **M6 D.** With `customerId` and loyalty fields present, add to customer balance |
 | `items` | array | yes | Min 1 |
 | `payments` | array | yes | Min 1; methods `CASH`\|`CARD`\|`MFS` |
 
@@ -552,16 +580,23 @@ Response objects may include `loyaltyPoints` and `creditBalance`. Desktop Select
 | `quantityBase` | positive int | yes | Must equal `unitQty × factorToBase` |
 | `unitPrice` | number ≥ 0 | yes | Price per sold unit |
 | `lineTotal` | number ≥ 0 | yes | Must equal `unitQty × unitPrice` (cent-rounded) |
+| `fefoOverride` | boolean | no | **M6 D.** Default false when omitted |
+| `fefoAuthorizedByName` | string | no | Persisted only when `fefoOverride` is true |
 
 **Payment line:** `{ "method": "CASH"|"CARD"|"MFS", "amount": number, "reference"?: string }`
 
 #### Server behavior (transaction)
 
-1. If `eventId` already exists for tenant → return existing sale (**no** stock change).
+1. If `eventId` already exists for tenant → return existing sale (**no** stock change, **no** second loyalty or `InventoryEvent`).
 2. Validate store access, payment sum, math, product units.
 3. Resolve each batch (explicit or FEFO); reject insufficient stock (`409`).
 4. Create `Sale` + `SaleItem`s + `Payment`s; decrement each batch `quantityOnHand`.
-5. No sale delete endpoint.
+5. **M6 D:** server generates `receiptNo` (`TXN-YYMMDD-HHmm`, suffix from `eventId` on collision). Never client-supplied.
+6. **M6 D:** fill `costPerBaseAtSale` from the batch (never trust client cost). Cashiers omit this key on the ingest response.
+7. **M6 D:** persist line `fefoOverride` / `fefoAuthorizedByName`.
+8. **M6 D:** if `customerId` **and** loyalty fields present → snapshot `loyaltyPrevious`, apply used/earned, update `Customer.loyaltyPoints`. Omitted fields → snapshots 0, no point change.
+9. **M6 D:** write `InventoryEvent` `SALE` per line (`quantityBaseChange` negative). `POST /batches` writes `RECEIVE`; `PATCH` qty writes `ADJUST` (delta).
+10. No sale delete endpoint.
 
 #### Responses
 
@@ -587,7 +622,7 @@ Response objects may include `loyaltyPoints` and `creditBalance`. Desktop Select
 }
 ```
 
-Nested `items[].batch` is margin-safe for cashiers (`sellPerBase` ok; no `costPerBase`).
+Nested `items[].batch` is margin-safe for cashiers (`sellPerBase` ok; no `costPerBase`). **M6 D:** cashiers also omit `items[].costPerBaseAtSale`. Response includes `receiptNo` and loyalty snapshot ints.
 
 #### Zero-pay (loyalty full cover) — M3 Slice 2
 
@@ -625,6 +660,69 @@ M2 already accepts `total: 0` and payment `amount: 0` (`nonnegative`). Desktop m
   "payments": [{ "method": "CASH", "amount": 12 }]
 }
 ```
+
+### `GET /api/v1/sales`
+
+**Auth:** Bearer (any authenticated). No `restrictTo`.  
+**Purpose:** Paged tenant sales list. **M6 E.** Owner web Sales table = **Batch H** (live).
+
+**Query:** `q` (receiptNo / eventId / customer name|phone / cashier name), `paymentMethod` (`CASH`\|`CARD`\|`MFS`), `userId`, `from`, `to`, `limit` (default 25, max 100), `offset` (default 0). Date-only `to` (UTC midnight) is treated as **end of that UTC day**.
+
+**Envelope:** `{ status, message, data: Sale[], meta: { total, limit, offset } }`.
+
+Each row includes `id`, `receiptNo`, customer `{ id, name, phone }` (null = walk-in), cashier `{ id, name }`, items (product names + `fefoOverride`), payments, loyalty snapshots.
+
+**Owner only** (omitted for Manager/Cashier, not null): `costPerBaseAtSale`, `lineCogs`, `lineMargin` on lines; `cogs`, `netProfit` on the sale (`netProfit` = `total − cogs`; discounts already in `total`).
+
+Cashiers are store-scoped when JWT `storeId` is set.
+
+### `GET /api/v1/sales/:id`
+
+**Auth:** Same as list. **`:id` is Prisma `Sale.id`** (list returns both `id` and `receiptNo`; `receiptNo` as the path param is **404**).
+
+Same payload shape and redaction as a list row. **404** if missing / other tenant. Owner web Transaction Details = **M6 I** (live).
+
+### `GET /api/v1/owner/dashboard`
+
+**Auth:** Bearer · **`restrictTo("OWNER")`** (Manager/Cashier **403**). **M6 F.** Dashboard widgets = Batch G (live). Sales Overview KPIs / payment mix / top cashier = Batch H (live).
+
+**Query:** `from`, `to` (ISO dates; default last **7 UTC days** including today).
+
+**Envelope:** `{ status, message, data }`.
+
+`data` includes: `range`, `netProfitFormula`, `kpis` (today / yesterday / vsYesterday trend `up|down|steady` / period), `dailyBars`, `paymentMix` (`CASH`/`CARD`/`MFS` amounts in range), **`salesKpis`** (period `grossSales` = sum(`subtotal`), `netSales` = sum(`total`) = gross − discounts, `discountTotal`, `txnCount`, `avgSale`, `vsPrev` vs equal-length prior window), **`topCashier`** (`userId`, `name`, `sales`, `txnCount` or `null`), **`cashiers`** (filter options: active CASHIER/MANAGER/OWNER + anyone who sold in range), `inventoryHealth` (low / out / expiring30d / expiring90d / expired **product** counts), `fefoOverrides` (item counts today + last 7 days), `expiringStockValue` (on-hand cost of lots expiring in 0–90 days, qty > 0), `staff.activeCashiers` (live CASHIER count; `openShifts` / `cashVarianceToday` are `null` until cloud shift), `recentSales` (last 8 in range; `id` + `receiptNo`).
+
+**Net profit:** `sum(sale.total) − sum(costPerBaseAtSale * quantityBase)` for the window (discounts already in `total`). Missing cost snapshots contribute 0 COGS.
+
+**Low stock:** `reorderLevel != null` AND `0 < onHand ≤ reorderLevel`. **Out of stock:** active product, onHand = 0. **Expiry buckets:** qty > 0; 0–30 / 31–60 / 61–90 days; Expired = expiry < today UTC.
+
+### `GET /api/v1/owner/inventory-summary`
+
+**Auth:** Same OWNER-only. Snapshot for Inventory cards (Batch J).
+
+`data.totals`: `productCount` (active), `onHandPieces`, `costValue` (`qty * costPerBase`). Counts: `lowStockCount`, `outOfStockCount`, `expiring30dCount`, `expiring90dCount`, `expiredCount` (product-level).
+
+### `GET /api/v1/owner/inventory`
+
+**Auth:** Same OWNER-only. **M6 J.** Inventory list UI = live.
+
+**Query:** `q` (name / generic / SKU / barcode), `tab` = `all` \| `low` \| `out` \| `expiring30` \| `expiring90` \| `expired` (default `all`), `limit` (max 100, default 25), `offset`.
+
+**Envelope:** `{ status, message, data, meta }`. `meta.total` / `limit` / `offset` required.
+
+`data.items[]`: `productId`, `name`, `genericName`, `manufacturer` (null if unset — never invented), `sku`, `barcode`, `coldChain`, `quantityOnHand`, `nearestExpiry`, `batchCount` (lots with qty > 0), `costPerBase`, `sellPerBase`, `marginPct` (`(sell − cost) / sell`), `status` (`healthy` \| `low` \| `out` \| `expiring` \| `expired`).
+
+`data.tabs`: All / Low / Out are **product** counts; Expiring 30d / 90d / Expired are **in-stock batch** counts. `data.summary` / `data.attention` drive the Inventory cards + right rail.
+
+**Low / out / expiry rules:** same as inventory-summary / dashboard. Cost columns are Owner-only because the route is Owner-only.
+
+### `GET /api/v1/owner/expiry`
+
+**Auth:** Same OWNER-only. **M6 F.** Expiry Management UI = Batch N.
+
+**Query:** `bucket` = `0_30` \| `31_60` \| `61_90` \| `expired` (optional; omit = all four). Always returns `counts` for every bucket.
+
+**Rows:** `productName`, `genericName`, `batchNumber`, `expiryDate`, `quantityOnHand`, `costValue`, `fefoRank` (1 = earliest expiry among in-stock lots of that product). **No** supplier column. **No** return eligibility. Max 500 rows.
 
 ---
 
@@ -672,7 +770,7 @@ POST /products → POST /batches → POST /users (cashier)
 | Products / FEFO / substitutes | `apps/server/src/modules/product/` |
 | Batches | `apps/server/src/modules/batch/` |
 | Customers | `apps/server/src/modules/customer/` |
-| Sales ingest | `apps/server/src/modules/sale/` |
+| Sales ingest + list/detail | `apps/server/src/modules/sale/` |
 | Sync ingest | `apps/server/src/modules/sync/` |
 | Zod contracts | `packages/shared-types/src/` |
 | Prisma schema | `packages/database/prisma/schema.prisma` |
@@ -681,6 +779,7 @@ POST /products → POST /batches → POST /users (cashier)
 | Slice 3 exit smoke | `apps/desktop/scripts/smoke-m3z.ts` (`npm run smoke:m3z -w @r2a/desktop`) |
 | Slice 4 exit smoke | `apps/desktop/scripts/smoke-m3ae.ts` (`npm run smoke:m3ae -w @r2a/desktop`) |
 | M4 cloud ingest smoke | `apps/server/scripts/m4b-smoke.mjs` (`npm run smoke:m4b -w @r2a/server`) |
+| M6 GET sales smoke | `apps/server/scripts/m6e-smoke.ts` (`npm run smoke:m6e -w @r2a/server`) |
 | M4 desktop exit smoke | `apps/desktop/scripts/smoke-m4.ts` (`npm run smoke:m4 -w @r2a/desktop`; composes m4a/c/d/e + m3ap) |
 
 ---
@@ -1076,7 +1175,7 @@ i18n: `en.ts` + `bn-BD.ts`. Domain `eventId` / ৳ / `last_error` stay as data.
 |------|-------|
 | **409 conflict UX** | **DONE** in M5 (**§20 — M5**). Failed Sync Queue rows show i18n copy + raw `last_error`; Enter Retry. Still **no** void — do not invent void here |
 | Bi-directional catalog/stock sync | **M6** |
-| Cloud `GET /sales` / cloud shift | Still open (§17.3) |
+| Cloud `GET /sales` / cloud shift | **GET /sales live (M6 E)**. Cloud shift still open (§17.3) |
 | Hard reservation / cloud hold | Still open (§18.3) |
 | Real printer IPC / card SDK / MFS APIs | Still open (§16.3); MFS = backend-confirmed status, no cashier Trx |
 | Baki tender | Not a payment method |
@@ -1171,3 +1270,10 @@ Dev runbook: [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md).
 | 2026-08-13 | **M3 FULL EXIT:** desktop POS shell closed; no new cloud routes; later screens → Slice 7+; M4 flush not started |
 | 2026-08-14 | **M4 Batch F (M4 exit):** §19 `POST /api/v1/sync/ingest` + desktop queue/worker/Sync Queue panel; `smoke:m4`; M4 DONE |
 | 2026-08-14 | **M5 Batch F (M5 exit):** §20 PATCH RBAC + desktop Receive stock + 409 copy + paged catalog pull; `docs/DEV_RUNBOOK.md`; `smoke:m5`; user pilot walkthrough **PASS**; M5 DONE |
+| 2026-08-16 | **M6 Batch F:** `GET /owner/dashboard` + `/owner/inventory-summary` + `/owner/expiry` OWNER-only; net profit = `sale.total − COGS`; `smoke:m6f`; Dashboard UI still Batch G |
+| 2026-08-16 | **M6 Batch G:** Owner web Dashboard live on `GET /owner/dashboard`; `inventoryHealth.expiring90d`; `smoke:m6g` |
+| 2026-08-16 | **M6 Batch H:** Owner web Sales list live on `GET /sales`; dashboard `salesKpis` / `topCashier` / `cashiers`; date-only `to` = end of UTC day; `smoke:m6h` |
+| 2026-08-16 | **M6 Batch I:** Owner web Transaction Details live on `GET /sales/:id`; FEFO OVERRIDE; reprint preview; `smoke:m6i` |
+| 2026-08-16 | **M6 Batch J:** `GET /owner/inventory` OWNER-only paged list + live Inventory UI; `smoke:m6j`; Product Details still Batch K |
+| 2026-08-16 | **M6 Batch K:** `GET /owner/products/:id` OWNER-only product detail + live Product Details UI; FEFO rank; InventoryEvent; `smoke:m6k`; Add Product still Batch L |
+| 2026-08-16 | **M6 Batch L:** Extended `POST /products` + `PATCH /products/:id` — added `manufacturer`, `strength`, `form`, `category`, `requiresPrescription`, `coldChain`, `storageNotes`, `reorderLevel`; live Add Product form in `apps/web` with Piece→Strip→Box unit hierarchy, Rx / cold chain toggles, 0 initial stock notice, and auto-redirect to Product Details on create; `smoke:m6l` 7/7 server + 4/4 web; no batch creation in Add Product form |

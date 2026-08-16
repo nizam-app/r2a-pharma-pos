@@ -37,6 +37,8 @@ type SeedProduct = {
   form: string;
   sku: string;
   barcode: string;
+  /** Optional Owner-web low-stock threshold (Napa only for later demo). */
+  reorderLevel?: number;
   units: { unitType: UnitType; factorToBase: number }[];
   /** One or more lots — Napa matches Select Batch mock (FEFO + standard + expired). */
   batches: SeedBatch[];
@@ -51,6 +53,7 @@ const PRODUCTS: SeedProduct[] = [
     form: "Tablet",
     sku: "NAPA-500",
     barcode: "8901001100011",
+    reorderLevel: 50,
     units: [
       { unitType: UnitType.PIECE, factorToBase: 1 },
       { unitType: UnitType.STRIP, factorToBase: 10 },
@@ -305,6 +308,9 @@ async function main() {
         form: item.form,
         barcode: item.barcode,
         isActive: true,
+        ...(item.reorderLevel !== undefined
+          ? { reorderLevel: item.reorderLevel }
+          : {}),
       },
       create: {
         tenantId: tenant.id,
@@ -316,6 +322,7 @@ async function main() {
         sku: item.sku,
         barcode: item.barcode,
         isActive: true,
+        reorderLevel: item.reorderLevel,
       },
     });
 

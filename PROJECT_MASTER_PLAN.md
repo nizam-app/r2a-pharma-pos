@@ -3,7 +3,7 @@
 **Document type:** Single source of truth for Cursor agents and engineers  
 **Project:** Multi-Tenant Pharmacy POS & Inventory SaaS  
 **Version:** 1.0.0  
-**Last updated:** 2026-08-14  
+**Last updated:** 2026-08-16  
 
 > **How to use in a fresh chat:** Attach or `@` this file (`PROJECT_MASTER_PLAN.md`) plus relevant docs under `docs/`. Follow milestones in order. Do not introduce MongoDB, Mongoose, or any stack outside the Tech Stack below.
 
@@ -206,7 +206,7 @@ Track status in this table. Agents must only implement the milestone the user au
 | M3 | Desktop POS shell | **DONE** | Slice 1–6; later screens → Slice 7+. See `MILESTONE_3_EXECUTION.md` |
 | M4 | One-way sync | **DONE** | Batches A–F (queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue UI + catalog §19) |
 | M5 | MVP hardening | **DONE** | RBAC E2E, Receive stock, 409 copy, paged catalog, print stub, `smoke:m5`, runbook |
-| M6 | Growth (Phase 2) | PENDING | Bi-di sync, loyalty, n8n, owner web, RLS |
+| M6 | Growth (Phase 2) | **IN PROGRESS** | Slice 1 A–L (Owner web login + chrome + live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details + live Add Product; Prisma extras + ingest snapshots + sales/owner/product APIs). Full M6 (bi-di, n8n, RLS) later |
 | M7 | Scale (Phase 3) | PENDING | Multi-branch, transfers, enterprise RBAC |
 
 ---
@@ -352,11 +352,13 @@ Runbook: [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md).
 
 ### Milestone 6 — Growth (PRD Phase 2)
 
+Detailed batches (Slice 1): [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) — **A–L DONE**; M–O not started. Full M6 is **not** this slice.
+
 - Bi-directional sync (cloud catalog/stock → local)
-- Loyalty points earn/redeem; refill events
+- Loyalty points earn/redeem — ingest snapshots live (M6 D); refill events later
 - Supplier return bucket (≈90 days to expiry)
 - API webhooks → n8n (WhatsApp/SMS, PO dispatch)
-- `apps/web` owner analytics, staff, automation settings
+- `apps/web` owner analytics, staff, automation settings — Slice 1 login + chrome + live Dashboard + live Sales list + live Inventory + live Product Details + live Add Product
 - Postgres RLS policies
 
 ---
@@ -388,7 +390,7 @@ Follow @PROJECT_MASTER_PLAN.md @Current_Status.md @ROLES_AND_PERMISSIONS.md @Com
 M0–M5 are DONE. Do not start M6 / Slice 7+ / hardware unless the user authorizes it in a new chat.
 ```
 
-M0–M5 are complete. Next = **M6 when authorized**. Do not start M6 from this file alone.
+M0–M5 are complete. **M6 Slice 1 Batches A–L DONE.** Next = **Authorize M6 Batch M** in a new chat. Do not start Batch M+ from this file alone.
 
 ---
 
@@ -406,48 +408,64 @@ M0–M5 are complete. Next = **M6 when authorized**. Do not start M6 from this f
 | 2026-08-09 | **M3 Batch E completed:** pos_local.db + lean catalog/queue + cache pull; next = Batch F Counter Ready |
 | 2026-08-09 | **M3 Batch F completed:** Counter Ready content + F2 → Empty POS placeholder; next = Batch G Empty POS |
 | 2026-08-09 | **M3 Batch G completed:** Empty POS New Sale shell (search + empty cart body; Ctrl+K; Esc cancel); next = Batch H Search Results |
-| 2026-08-09 | **M3 Batch H completed:** Search Results - Napa; online/offline search; FEFO/EXPIRED; next = Batch I Select Batch |
-| 2026-08-09 | **M3 Batch I completed:** Select Batch modal; FEFO highlight; expired blocked; next = Batch J Quantity & Packaging |
-| 2026-08-11 | Demo seed Napa 4 lots; desktop search FEFO = sellable preferred; `Completed_API_lists.md` §8.5 cloud vs desktop FEFO note |
-| 2026-08-09 | **M3 Batch J completed:** Quantity & Packaging modal; stock-aware units; Add→cart line; next = Batch K Current Sale |
-| 2026-08-09 | Deferred (not Slice 1): cashier Force Offline override; Owner/Manager per-terminal online/offline presence (see `Current_Status.md` §12) |
-| 2026-08-11 | **M3 Batch K completed:** Active Cart table (~40/60); Edit + Del; ConfirmDialog Clear/Cancel; Proceed toast; next = Batch L |
-| 2026-08-11 | Active Cart **Figma override** locked in status §12 + M3 chrome rule — keep ~40/60 table; ignore conflicting later Figma |
-| 2026-08-11 | **M3 Batch M completed:** Edit Sale Item modal; Change Batch stub; next = Batch N |
-| 2026-08-11 | **M3 Batch N completed:** Change Batch + Manual FEFO Override warn; Request Auth stub; next = Batch O |
-| 2026-08-11 | **M3 Batch O completed:** Manager Authorization stub (4-digit PIN + Authorized By); staged override for P; next = Batch P |
+| 2026-08-09 | **M3 Batch H completed:** Search Results - Napa; next = Batch I Select Batch |
+| 2026-08-09 | **M3 Batch I completed:** Select Batch (FEFO recommendation); next = Batch J Quantity |
+| 2026-08-09 | **M3 Batch J completed:** Quantity & Packaging unit conversion; next = Batch K Cart |
+| 2026-08-11 | **M3 Batch K completed:** Current Sale / Active Cart; next = Batch L exit |
+| 2026-08-11 | **M3 Slice 1 completed:** Batch L exit verification; next = Slice 2 |
+| 2026-08-11 | **M3 Batch M completed:** Edit Sale Item modal; next = Batch N |
+| 2026-08-11 | **M3 Batch N completed:** Change Batch modal + FEFO override warn; next = Batch O |
+| 2026-08-11 | **M3 Batch O completed:** Manager Authorization stub; next = Batch P |
 | 2026-08-11 | **M3 Batch P completed:** Override Authorized Edit + cart Override badge/toast; next = Batch Q |
-| 2026-08-11 | **M3 Batch Q completed:** Remove Item Confirm (reusable ConfirmDialog); Clear/Cancel migrated; next = Batch R |
-| 2026-08-11 | **M3 Batch R completed:** Select Customer F8 (no Baki; Create stub toast; walk-in; M2 search); next = Batch S |
-| 2026-08-11 | **M3 Batch S completed:** Redeem Loyalty + OTP stub; Continue without = right primary; any 6-digit OTP; next = Batch T |
-| 2026-08-11 | **Keyboard lock:** Tab never a POS navigator (ignore Figma); modal CTAs use ←/→ |
-| 2026-08-11 | **M3 Batch T completed:** Complete Sale zero-pay + Sale Completed; loyaltyCalc; ingest zero-pay; teal pill toasts; next = Batch U |
-| 2026-08-11 | **M3 Batch V completed:** Payment - Select Method; Cash → W; Card/MFS gated; next = Batch W |
-| 2026-08-11 | **M3 Batch W completed:** Cash Payment Empty + With Change; Exact Amount; settlement draft for X; next = Batch X |
-| 2026-08-11 | **M3 Batch X completed:** Shared Sale Completed shell + cash settlement; Cash ingest CASH=due; walk-in OK; next = Batch Y |
-
-| 2026-08-11 | **M3 Batch Y completed:** Print stub states + 58mm sample TODO; real IPC deferred; next = Batch Z |
-| 2026-08-11 | **M3 Batch Z completed:** Slice 3 exit; `Completed_API_lists.md` §15; `smoke:m3z` |
-| 2026-08-12 | **M3 Slice 4 AA–AE completed:** Receipt Preview; Card stub + CARD ingest; MFS invent + MFS ingest; §16 + `smoke:m3ae` |
-| 2026-08-12 | Status/master plan synced to Slice 4; next = Slice 5+ when screens shared; MFS real path = backend-confirmed (no cashier Trx) |
-| 2026-08-12 | **M3 Slice 5 AF–AL completed:** F4; Settings pharmacy header; Force Offline; Transactions; Shift + §17 + `smoke:m3al` |
-| 2026-08-13 | Shift soft gate (New Sale requires open shift; badge independent); status + master plan synced through Slice 5 |
-| 2026-08-13 | **M3 Slice 6 planned:** Hold / Park Sale (AM–AP); soft hold max 3; see `MILESTONE_3_EXECUTION.md` |
-| 2026-08-13 | **M3 Batch AM completed:** `heldSaleStore` + `HeldSaleSnapshot`; max 3; localStorage; next = Batch AN |
-| 2026-08-13 | **M3 Batch AN completed:** Hold F6 + Held Sales list (park/resume/discard); stub recheck toast; next = Batch AO |
-| 2026-08-13 | **M3 Batch AO completed:** soft resume recheck (strip/clamp); Hold aborts card/MFS stubs; next = Batch AP |
-| 2026-08-13 | **M3 Batch AP completed:** Slice 6 exit; §18 + `smoke:m3ap`; **F7** Held list; status + master plan synced |
-| 2026-08-13 | **Milestone 3 completed:** user all-screens-done; POS shell closed; later finds → Slice 7+; next = M4 when authorized |
-| 2026-08-13 | **M4 Batch A completed:** queue schema + IPC + memory parity (`smoke:m4a`); next = Batch B |
-| 2026-08-13 | **M4 Batch B completed:** `POST /api/v1/sync/ingest` reuses `ingestSale`; `smoke:m4b` 13/13; next = Batch C |
-| 2026-08-13 | **M4 Batch C completed:** offline/Force Offline complete → queue + local stock delta; `smoke:m4c`; next = Batch D |
-| 2026-08-13 | **M4 Batch D completed:** 15s TS flush worker + badge pending/syncing/error; `smoke:m4d`; next = Batch E |
-| 2026-08-14 | **M4 Batch E completed:** Sync Queue panel + badge/Settings entry; i18n en + bn-BD; `smoke:m4e`; next = Batch F |
-| 2026-08-14 | **Milestone 4 completed:** catalog §19; `smoke:m4`; user reconnect walkthrough **PASS**; next = M5 when authorized |
-| 2026-08-14 | **M5 execution file created:** `MILESTONE_5_EXECUTION.md` (A–F not started); on-account wording removed from M5 bullets; print/PIN stay stubs; next = Authorize M5 Batch A |
-| 2026-08-14 | **M5 Batch A completed:** PATCH customers/batches OWNER+MANAGER (cashier 403 incl. qty); `smoke:m2` + `smoke:m5a`; M5 stays PENDING until F; next = Authorize M5 Batch B |
-| 2026-08-14 | **M5 Batch B completed:** Settings Receive stock placeholder Owner/Manager only; Create/PATCH customer still off POS; `smoke:m5b`; M5 stays PENDING until F; next = Authorize M5 Batch C |
-| 2026-08-14 | **M5 Batch C completed:** Settings Receive stock Add lot + Adjust qty (online `POST`/`PATCH /batches`); `catalogPull`; `smoke:m5c`; user walkthrough **PASS**; M5 stays PENDING until F; next = Authorize M5 Batch D |
-| 2026-08-14 | **M5 Batch D completed:** Sync Queue Failed i18n conflict copy + raw `last_error`; Enter Retry; no void; `smoke:m5d`; user walkthrough **PASS**; M5 stays PENDING until F; next = Authorize M5 Batch E |
-| 2026-08-14 | **M5 Batch E completed:** paged `catalogPull` (`limit=100` + `offset` until `meta.total`, cap 50 pages); `costPerBase` still dropped; `smoke:m5e`; user walkthrough **PASS**; M5 stays PENDING until F; next = Authorize M5 Batch F |
-| 2026-08-14 | **Milestone 5 completed:** `docs/DEV_RUNBOOK.md`; catalog §20; `smoke:m5`; user pilot walkthrough **PASS**; M5 **DONE**; next = M6 when authorized |
+| 2026-08-11 | **M3 Batch Q completed:** Remove Item Confirm dialog; next = Batch R |
+| 2026-08-11 | **M3 Batch R completed:** Select Customer F8; next = Batch S |
+| 2026-08-11 | **M3 Batch S completed:** Redeem Loyalty + OTP stub; next = Batch T |
+| 2026-08-11 | **M3 Batch T completed:** Complete Sale zero-pay + Sale Completed; next = Batch U |
+| 2026-08-11 | **M3 Slice 2 completed:** Batch U exit; next = Slice 3 |
+| 2026-08-11 | **M3 Batch V completed:** Payment Select Method; next = Batch W |
+| 2026-08-11 | **M3 Batch W completed:** Cash Payment modal; next = Batch X |
+| 2026-08-11 | **M3 Batch X completed:** Sale Completed cash settlement; next = Batch Y |
+| 2026-08-11 | **M3 Batch Y completed:** Print stub states; next = Batch Z |
+| 2026-08-11 | **M3 Slice 3 completed:** Batch Z exit; next = Slice 4 |
+| 2026-08-12 | **M3 Batch AA completed:** Receipt Preview (80/58); next = Batch AB |
+| 2026-08-12 | **M3 Batch AB completed:** Card Payment stub; next = Batch AC |
+| 2026-08-12 | **M3 Batch AC completed:** Sale Completed Card; next = Batch AD |
+| 2026-08-12 | **M3 Batch AD completed:** MFS bKash/Nagad/Rocket + invented confirm; next = Batch AE |
+| 2026-08-12 | **M3 Slice 4 completed:** Batch AE exit; next = Slice 5 |
+| 2026-08-12 | **M3 Batch AF completed:** Create Customer removed from POS; POST customers OWNER-only; next = Batch AG |
+| 2026-08-12 | **M3 Batch AG completed:** Generic Substitutes [F4]; next = Batch AH |
+| 2026-08-12 | **M3 Batch AH completed:** Settings Pharmacy / Receipt Header; next = Batch AI |
+| 2026-08-12 | **M3 Batch AI completed:** Force Offline / Stay Offline; next = Batch AJ |
+| 2026-08-12 | **M3 Batch AJ completed:** Transactions List; next = Batch AK |
+| 2026-08-12 | **M3 Batch AK completed:** Transactions Detail + Reprint; next = Batch AL |
+| 2026-08-12 | **M3 Batch AL completed:** Shift Open/Close; Slice 5 exit; next = Batch AM |
+| 2026-08-13 | **M3 Batch AM completed:** heldSaleStore + HeldSaleSnapshot; next = Batch AN |
+| 2026-08-13 | **M3 Batch AN completed:** Hold F6 + Held Sales list; next = Batch AO |
+| 2026-08-13 | **M3 Batch AO completed:** soft resume recheck; Hold aborts card/MFS; next = Batch AP |
+| 2026-08-13 | **M3 Batch AP completed:** Slice 6 exit; F7 Held list toggle; next = M4 |
+| 2026-08-13 | **Milestone 3 completed:** POS shell closed; next = M4 when authorized |
+| 2026-08-13 | **M4 Batch A completed:** queue schema + IPC + memory parity; next = Batch B |
+| 2026-08-13 | **M4 Batch B completed:** POST /sync/ingest; next = Batch C |
+| 2026-08-13 | **M4 Batch C completed:** offline complete → queue + local stock delta; next = Batch D |
+| 2026-08-13 | **M4 Batch D completed:** 15s TS flush worker; next = Batch E |
+| 2026-08-14 | **M4 Batch E completed:** Sync Queue panel; next = Batch F |
+| 2026-08-14 | **Milestone 4 completed:** catalog §19; smoke:m4; user reconnect walkthrough PASS; next = M5 |
+| 2026-08-14 | **M5 execution file created:** MILESTONE_5_EXECUTION.md; next = Authorize M5 Batch A |
+| 2026-08-14 | **M5 Batch A completed:** PATCH customers/batches OWNER+MANAGER; next = Authorize M5 Batch B |
+| 2026-08-14 | **M5 Batch B completed:** Settings Receive stock placeholder; next = Authorize M5 Batch C |
+| 2026-08-14 | **M5 Batch C completed:** Settings Receive stock Add lot + Adjust qty; next = Authorize M5 Batch D |
+| 2026-08-14 | **M5 Batch D completed:** Sync Queue Failed conflict copy; next = Authorize M5 Batch E |
+| 2026-08-14 | **M5 Batch E completed:** paged catalogPull; next = Authorize M5 Batch F |
+| 2026-08-14 | **Milestone 5 completed:** runbook; catalog §20; smoke:m5; user pilot PASS; M5 DONE; next = M6 |
+| 2026-08-15 | **M6 Batch A completed:** @r2a/web Vite + Owner Login + OWNER session; next = Authorize M6 Batch B |
+| 2026-08-15 | **M6 Batch B completed:** Owner chrome lock; next = Authorize M6 Batch C |
+| 2026-08-15 | **M6 Batch C completed:** Additive Prisma (InventoryEvent + sale/product extras); next = Authorize M6 Batch D |
+| 2026-08-15 | **M6 Batch D completed:** ingest receiptNo + cost snapshot + loyalty/FEFO + InventoryEvent; next = Authorize M6 Batch E |
+| 2026-08-15 | **M6 Batch E completed:** GET /sales + GET /sales/:id; next = Authorize M6 Batch F |
+| 2026-08-16 | **M6 Batch F completed:** GET /owner/dashboard + inventory-summary + expiry; next = Authorize M6 Batch G |
+| 2026-08-16 | **M6 Batch G completed:** live Owner Dashboard; smoke:m6g; next = Authorize M6 Batch H |
+| 2026-08-16 | **M6 Batch H completed:** live Sales Overview & Transactions; smoke:m6h; next = Authorize M6 Batch I |
+| 2026-08-16 | **M6 Batch I completed:** live Transaction Details; smoke:m6i; next = Authorize M6 Batch J |
+| 2026-08-16 | **M6 Batch J completed:** live Inventory list; smoke:m6j; next = Authorize M6 Batch K |
+| 2026-08-16 | **M6 Batch K completed:** live Product Details; smoke:m6k; next = Authorize M6 Batch L |
+| 2026-08-16 | **M6 Batch L completed:** live Add Product (POST /products + unit hierarchy Piece→Strip→Box + Rx, cold chain, reorder level, storage notes; 0 initial stock notice); smoke:m6l; next = Authorize M6 Batch M |

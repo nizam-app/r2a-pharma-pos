@@ -18,6 +18,11 @@ export const productCreateSchema = z.object({
   sku: z.string().min(1).optional(),
   barcode: z.string().min(1).optional(),
   description: z.string().optional(),
+  category: z.string().min(1).optional(),
+  requiresPrescription: z.boolean().optional(),
+  coldChain: z.boolean().optional(),
+  storageNotes: z.string().optional(),
+  reorderLevel: z.number().int().nonnegative().optional(),
   units: z.array(productUnitInputSchema).min(1),
 });
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
@@ -31,6 +36,11 @@ export const productUpdateSchema = z.object({
   sku: z.string().min(1).nullable().optional(),
   barcode: z.string().min(1).nullable().optional(),
   description: z.string().nullable().optional(),
+  category: z.string().min(1).nullable().optional(),
+  requiresPrescription: z.boolean().optional(),
+  coldChain: z.boolean().optional(),
+  storageNotes: z.string().nullable().optional(),
+  reorderLevel: z.number().int().nonnegative().nullable().optional(),
   isActive: z.boolean().optional(),
   units: z.array(productUnitInputSchema).min(1).optional(),
 });

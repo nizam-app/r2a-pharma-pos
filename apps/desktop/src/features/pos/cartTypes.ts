@@ -2,7 +2,7 @@ import type { PackagingUnitType } from "@/lib/qtyPackaging";
 
 /**
  * FEFO override metadata on a cart line (Batch P).
- * TODO(real integration): map onto sale-line / ingest FEFO override flag + audit API.
+ * Mapped onto ingest `fefoOverride` + `fefoAuthorizedByName` (M6 Batch D).
  */
 export type CartLineFefoOverride = {
   authorizedById: string;

@@ -33,6 +33,13 @@ enum PaymentMethod {
   MFS
 }
 
+/// Append-only stock movement kinds. Written on receive, qty adjust, and sale ingest (Batch D).
+enum InventoryEventType {
+  RECEIVE
+  ADJUST
+  SALE
+}
+
 // --- Tenancy & access ---
 
 model Tenant {
@@ -50,9 +57,10 @@ model Tenant {
   productUnits   ProductUnit[]
   batches        Batch[]
   customers      Customer[]
-  sales          Sale[]
-  saleItems      SaleItem[]
-  payments       Payment[]
+  sales            Sale[]
+  saleItems        SaleItem[]
+  payments         Payment[]
+  inventoryEvents  InventoryEvent[]
 }
 
 model Store {
@@ -65,10 +73,11 @@ model Store {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  users   User[]
-  batches Batch[]
-  sales   Sale[]
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users            User[]
+  batches          Batch[]
+  sales            Sale[]
+  inventoryEvents  InventoryEvent[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -86,10 +95,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  store         Store?         @relation(fields: [storeId], references: [id], onDelete: SetNull)
-  sales         Sale[]
-  refreshTokens RefreshToken[]
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store            Store?           @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  sales            Sale[]
+  refreshTokens    RefreshToken[]
+  inventoryEvents  InventoryEvent[] @relation("InventoryEventActor")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -132,14 +142,22 @@ model Product {
   sku         String?
   barcode     String?
   description String?
+  /// Optional shelf category (Owner web Add Product).
+  category    String?
+  requiresPrescription Boolean @default(false)
+  coldChain   Boolean  @default(false)
+  storageNotes String?
+  /// When set, low stock = 0 < on-hand ≤ reorderLevel.
+  reorderLevel Int?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  units     ProductUnit[]
-  batches   Batch[]
-  saleItems SaleItem[]
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  units            ProductUnit[]
+  batches          Batch[]
+  saleItems        SaleItem[]
+  inventoryEvents  InventoryEvent[]
 
   @@unique([tenantId, sku])
   @@unique([tenantId, barcode])
@@ -184,10 +202,11 @@ model Batch {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  store     Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
-  saleItems SaleItem[]
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store            Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product          Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  saleItems        SaleItem[]
+  inventoryEvents  InventoryEvent[]
 
   @@unique([tenantId, storeId, productId, batchNumber])
   @@index([tenantId])
@@ -229,21 +248,28 @@ model Sale {
   customerId String?
   /// Offline sync / ingest idempotency key (global unique).
   eventId    String   @unique
+  /// Server-generated display id (`TXN-YYMMDD-HHmm`). Filled on ingest (M6 Batch D).
+  receiptNo  String?
   soldAt     DateTime @default(now())
   subtotal   Decimal  @db.Decimal(12, 2)
   discount   Decimal  @default(0) @db.Decimal(12, 2)
   total      Decimal  @db.Decimal(12, 2)
   notes      String?
+  loyaltyPrevious Int @default(0)
+  loyaltyUsed     Int @default(0)
+  loyaltyEarned   Int @default(0)
   createdAt  DateTime @default(now())
   // No updatedAt — sales are append-only.
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  store    Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
-  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  items    SaleItem[]
-  payments Payment[]
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store            Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  customer         Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items            SaleItem[]
+  payments         Payment[]
+  inventoryEvents  InventoryEvent[]
 
+  @@unique([tenantId, receiptNo])
   @@index([tenantId])
   @@index([tenantId, storeId, soldAt])
   @@index([storeId, soldAt])
@@ -263,6 +289,10 @@ model SaleItem {
   /// Price charged per sold unit at time of sale.
   unitPrice    Decimal  @db.Decimal(12, 4)
   lineTotal    Decimal  @db.Decimal(12, 2)
+  fefoOverride Boolean  @default(false)
+  fefoAuthorizedByName String?
+  /// Server-filled from the batch at ingest (M6 Batch D). Never trust client cost.
+  costPerBaseAtSale Decimal? @db.Decimal(12, 4)
   createdAt    DateTime @default(now())
   // No updatedAt — line items are immutable with the parent sale.
 
@@ -293,4 +323,34 @@ model Payment {
 
   @@index([tenantId])
   @@index([saleId])
+}
+
+/// Append-only stock ledger. Written from POST /batches (RECEIVE), PATCH qty (ADJUST), sale ingest (SALE) — Batch D.
+model InventoryEvent {
+  id                   String              @id @default(cuid())
+  tenantId             String
+  storeId              String
+  productId            String
+  batchId              String?
+  saleId               String?
+  actorUserId          String?
+  type                 InventoryEventType
+  /// Signed PIECE delta (SALE lines are negative).
+  quantityBaseChange   Int
+  note                 String?
+  createdAt            DateTime            @default(now())
+  // No updatedAt — inventory events are append-only.
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store     Store   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  batch     Batch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  sale      Sale?   @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  actorUser User?   @relation("InventoryEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([saleId])
+  @@index([productId])
+  @@index([storeId])
+  @@index([batchId])
 }

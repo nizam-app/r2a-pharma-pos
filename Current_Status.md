@@ -1,6 +1,6 @@
 # R2A Pharmacy POS — Current Status
 
-**Last updated:** 2026-08-14  
+**Last updated:** 2026-08-16  
 **Purpose:** Single place to understand where the project stands when you return. Read this first in a new chat, then open the linked source-of-truth docs as needed.  
 **Maintainer note:** Update this file at the end of every completed milestone (or significant mid-milestone change).
 
@@ -13,13 +13,13 @@
 | **Product** | Offline-first, multi-tenant Pharmacy POS + Inventory SaaS (Bangladesh / emerging markets) |
 | **Phase** | Phase 1 MVP — DB + cloud API + desktop **M3 POS shell DONE**; **M4 DONE** (one-way sync). **M5 DONE** (RBAC + Receive stock + 409 copy + paged catalog + runbook) |
 | **Latest completed milestone** | **M5 — MVP hardening** |
-| **Next authorized work** | **M6** only when authorized in a new chat. Do not start M6 / Slice 7+ / hardware from status alone. |
+| **Next authorized work** | **M6 Slice 1 Batch M** (Receive Stock) in a new chat after Batch L PASS. Do not start Batch M+ from status alone. |
 | **Cloud database** | Neon PostgreSQL (Prisma migrate + seed applied; `RefreshToken` migration applied in M2) |
-| **Cloud API** | Express + TypeScript in `apps/server` — **real** (auth, tenant guard, inventory, FEFO, sales ingest, **M4B** `POST /api/v1/sync/ingest`) |
+| **Cloud API** | Express + TypeScript in `apps/server` — **real** (auth, tenant guard, inventory, FEFO, sales ingest, **M4B** `POST /api/v1/sync/ingest`, **M6E** `GET /sales` + `GET /sales/:id`, **M6F** `GET /owner/dashboard` + inventory-summary + expiry, **M6J** `GET /owner/inventory`, **M6K** `GET /owner/products/:id`, **M6L** extended `POST /products` + `PATCH /products/:id`) |
 | **Local desktop / SQLite / Tauri** | **Login + chrome + connectivity + SQLite + Counter Ready → … → Cash / Card / MFS + Receipt Preview + print stub + F4 + Settings pharmacy header + Force Offline + Transactions List/Detail/Reprint + Shift Open/Close + Hold [F6] / Held list [F7] + Sync Queue panel (badge / Settings) + 15s queue flush** (M3 A–Z + AA–AE + AF–AL + AM–AP; **M4 A–F DONE**); **soft gate:** New Sale [F2] requires open shift (badge stays connectivity-only); Card = terminal stub; MFS = invented confirm |
 | **MongoDB / Mongoose** | Removed; do not reintroduce |
 
-**Bottom line:** Schema, shared Zod, and the cloud Express API are smoke-verified (`npm run smoke:m2 -w @r2a/server` — cashier PATCH 403s in M5 A). Desktop **M3 POS shell DONE** (Slices 1–6; Hold F6 / Held list F7; `smoke:m3ap`). **M4 DONE** (queue IPC `smoke:m4a`; `POST /api/v1/sync/ingest` `smoke:m4b` 13/13; offline complete `smoke:m4c`; 15s flush `smoke:m4d`; Sync Queue UI `smoke:m4e`; exit `smoke:m4`). **M5 DONE** (`smoke:m5` composes `m5a`–`m5e` + `smoke:m4`; Receive stock; 409 copy; paged catalog; [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md)). Next = **M6 when authorized**.
+**Bottom line:** Schema, shared Zod, and the cloud Express API are smoke-verified (`npm run smoke:m2 -w @r2a/server` — cashier PATCH 403s in M5 A). Desktop **M3 POS shell DONE** (Slices 1–6; Hold F6 / Held list F7; `smoke:m3ap`). **M4 DONE** (queue IPC `smoke:m4a`; `POST /api/v1/sync/ingest` `smoke:m4b` 13/13; offline complete `smoke:m4c`; 15s flush `smoke:m4d`; Sync Queue UI `smoke:m4e`; exit `smoke:m4`). **M5 DONE** (`smoke:m5` composes `m5a`–`m5e` + `smoke:m4`; Receive stock; 409 copy; paged catalog; [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md)). **M6 IN PROGRESS** — Slice 1 Batches A–L DONE (`@r2a/web` Owner login + chrome + live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details + live Add Product with unit hierarchy Piece→Strip→Box, Rx, cold chain, reorder level, storage notes, 0 stock notice, and `POST /products`; Prisma extras; ingest loyalty/FEFO/`receiptNo`/`InventoryEvent`; `GET /sales` + `GET /sales/:id`; OWNER-only dashboard / inventory-summary / expiry / inventory / product detail). Next = **Authorize M6 Batch M**.
 ---
 
 ## 2. Milestone board (authoritative progress)
@@ -34,7 +34,7 @@ Source of truth for milestone status: [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_
 | **M3** | Desktop POS shell | **DONE** | Slice 1–6 (A–AP). Later screens → Slice 7+ when authorized. See `MILESTONE_3_EXECUTION.md` |
 | **M4** | One-way sync | **DONE** | Batches A–F. Queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue panel + catalog §19. See `MILESTONE_4_EXECUTION.md` |
 | **M5** | MVP hardening | **DONE** | Batches A–F. RBAC API + desktop Settings Receive stock + Sync Queue 409 copy + paged catalog pull + runbook + catalog §20. Print/PIN stay stubs. See `MILESTONE_5_EXECUTION.md`. |
-| **M6** | Growth (Phase 2) | **PENDING** | Bi-di sync, loyalty, n8n, owner web, RLS |
+| **M6** | Growth (Phase 2) | **IN PROGRESS** | Slice 1 Batches **A–L DONE** (Owner web login + chrome + live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details + live Add Product; Prisma extras; ingest loyalty/FEFO/`receiptNo`/`InventoryEvent`; `GET /sales` + `GET /sales/:id`; OWNER-only dashboard / inventory-summary / expiry / inventory / product detail; extended `POST /products`). M–O not started. Full M6 (bi-di, n8n, RLS) still later. |
 | **M7** | Scale (Phase 3) | **PENDING** | Multi-branch, transfers, enterprise RBAC |
 
 ### Milestone 1 execution batches (all green)
@@ -169,7 +169,27 @@ Detailed batch plan: [`MILESTONE_5_EXECUTION.md`](MILESTONE_5_EXECUTION.md).
 | E | Paged catalog pull | **DONE** | 2026-08-14 |
 | F | Runbook + M5 exit | **DONE** | 2026-08-14 |
 
-**M5 exit (verified):** Owner/Manager receive stock on desktop; cashier sells online/offline with FEFO; cloud holds sales via ingest/sync; print/PIN stubs; `smoke:m5`. Owner UI waits for M6.
+**M5 exit (verified):** Owner/Manager receive stock on desktop; cashier sells online/offline with FEFO; cloud holds sales via ingest/sync; print/PIN stubs; `smoke:m5`. Owner UI = M6 Slice 1 (login + chrome + live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details).
+
+### Milestone 6 execution batches (Slice 1)
+
+Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md).
+
+| Batch | Title | Status | Date |
+|-------|-------|--------|------|
+| A | Web scaffold + OWNER session | **DONE** | 2026-08-15 |
+| B | Owner chrome lock | **DONE** | 2026-08-15 |
+| C | Prisma + shared-types | **DONE** | 2026-08-15 |
+| D | Ingest + POS wire-up | **DONE** | 2026-08-15 |
+| E | `GET /sales` + `GET /sales/:id` | **DONE** | 2026-08-15 |
+| F | Owner dashboard / summary / expiry APIs | **DONE** | 2026-08-16 |
+| G | Dashboard screen | **DONE** | 2026-08-16 |
+| H | Sales list | **DONE** | 2026-08-16 |
+| I | Transaction Details | **DONE** | 2026-08-16 |
+| J | Inventory list | **DONE** | 2026-08-16 |
+| K | Product Details | **DONE** | 2026-08-16 |
+| L | Add Product | **DONE** | 2026-08-16 |
+| M–O | Receive Stock → Slice 1 exit | not started | — |
 
 ## 3. Locked product & stack decisions
 
@@ -200,9 +220,9 @@ Do not drift from these unless the user explicitly changes them.
 ```text
 R2A-Pharmacy-POS/
 ├── apps/
-│   ├── server/          # REAL — Milestone 2 Express API
+│   ├── server/          # REAL — Milestone 2 Express API + M6 extended products
 │   ├── desktop/         # REAL — M3 POS shell DONE (A–AP; Hold F6 / Held list F7)
-│   └── web/             # PLACEHOLDER only — Phase 2 / M6
+│   └── web/             # REAL — M6 Batch L (Owner login + chrome + Dashboard + Sales + Inventory + Product Details + Add Product)
 ├── packages/
 │   ├── database/        # REAL — Prisma schema, migrations, seed, client export
 │   ├── shared-types/    # REAL — Zod auth/product/batch/customer/sale/sync + enums
@@ -230,7 +250,7 @@ R2A-Pharmacy-POS/
 | UI | `@r2a/ui` | Bootstrap (M3A) |
 | Server | `@r2a/server` | **Implemented (M2)** |
 | Desktop | `@r2a/desktop` | **M3 DONE** — Slice 1–6 (Hold [F6] / Held list [F7]); later screens → Slice 7+ |
-| Web | `@r2a/web` | Stub |
+| Web | `@r2a/web` | **M6 Batch K** — login + chrome + live Dashboard + Sales + Inventory + Product Details; Add Product still Batch L |
 
 ---
 
@@ -243,6 +263,7 @@ R2A-Pharmacy-POS/
 - `Role`: `SUPER_ADMIN`, `OWNER`, `MANAGER`, `CASHIER`
 - `UnitType`: `BOX`, `STRIP`, `PIECE`
 - `PaymentMethod`: `CASH`, `CARD`, `MFS`
+- `InventoryEventType`: `RECEIVE`, `ADJUST`, `SALE` (**M6 Batch C**)
 
 **Models**
 
@@ -252,13 +273,14 @@ R2A-Pharmacy-POS/
 | `Store` | Store under tenant (MVP: single-store ops enough) |
 | `User` | Auth identity; `passwordHash`; optional `storeId` |
 | `RefreshToken` | Opaque refresh tokens (SHA-256 hash only); rotate on use (**added M2**) |
-| `Product` | Catalog; searchable `name`, `genericName`, `manufacturer`, `strength`, `form`, `sku`, `barcode` |
+| `Product` | Catalog; searchable `name`, `genericName`, `manufacturer`, `strength`, `form`, `sku`, `barcode`; **M6 C:** optional `category`, `requiresPrescription`, `coldChain`, `storageNotes`, `reorderLevel` |
 | `ProductUnit` | Conversion factors to base unit (`factorToBase`) |
 | `Batch` | FEFO-ready lot: expiry, qty in base units, cost/sell per base |
 | `Customer` | Optional phone/email; loyalty/credit fields reserved for later |
-| `Sale` | Immutable header; unique `eventId` for sync idempotency |
-| `SaleItem` | Line items tied to product + batch + unit |
+| `Sale` | Immutable header; unique `eventId` for sync idempotency; **M6 D:** `receiptNo` (`@@unique([tenantId, receiptNo])`), loyalty snapshot ints |
+| `SaleItem` | Line items tied to product + batch + unit; **M6 D:** `fefoOverride`, `fefoAuthorizedByName`, `costPerBaseAtSale` (server-filled) |
 | `Payment` | Cash / Card / MFS lines on a sale |
+| `InventoryEvent` | **M6 D:** append-only stock ledger — SALE on ingest, RECEIVE on `POST /batches`, ADJUST on `PATCH` qty |
 
 **Important behaviors encoded in schema**
 
@@ -271,6 +293,7 @@ R2A-Pharmacy-POS/
 - Path: `packages/database/prisma/migrations/20260808144500_init/`
 - M2 add-on: `packages/database/prisma/migrations/20260808183000_refresh_tokens/`
 - Catalog fields: `packages/database/prisma/migrations/20260811013000_product_catalog_fields/` (`manufacturer`, `strength`, `form`)
+- **M6 Batch C:** `packages/database/prisma/migrations/20260815160000_m6_batch_c_schema/` (`receiptNo`, loyalty snapshots, FEFO/cost-at-sale, product extras, `InventoryEvent`)
 - Applied successfully to Neon (`prisma migrate deploy`).
 
 ### 5.3 Seed (`packages/database/prisma/seed.ts`)
@@ -287,7 +310,7 @@ Idempotent **upserts** by stable keys (tenant slug, store code, email, product s
 | Manager | email `manager@demo.local`, role `MANAGER` |
 | Cashier | email `cashier@demo.local`, role `CASHIER` |
 | Default password | `ChangeMe123!` (override with `SEED_OWNER_EMAIL` / `SEED_OWNER_PASSWORD`; staff emails via `SEED_MANAGER_EMAIL` / `SEED_CASHIER_EMAIL`; staff password via `SEED_STAFF_PASSWORD` or same as owner) |
-| Products | 5 BD-familiar OTCs with manufacturer / strength / form (e.g. Napa 500mg ? Beximco ? Tablet) |
+| Products | 5 BD-familiar OTCs with manufacturer / strength / form (e.g. Napa 500mg ? Beximco ? Tablet). **M6 C:** Napa `reorderLevel=50` only |
 | Per product | Unit rows (Box/Strip/Piece as applicable) + batches |
 | Napa lots | **4 demo lots** for Select Batch / FEFO UX (see table below). Re-seed zeros retired `NP-2408-A` |
 | Customer | Karim Ahmed, phone `01700000000`, **120** loyalty pts (eligible redeem) |
@@ -308,12 +331,13 @@ Idempotent **upserts** by stable keys (tenant slug, store code, email, product s
 
 | Module | Contents |
 |--------|----------|
-| `enums.ts` | Role, UnitType, PaymentMethod |
+| `enums.ts` | Role, UnitType, PaymentMethod, **InventoryEventType** |
 | `auth.ts` | login / register / staff create / refresh / JWT claims / safe user |
-| `product.ts` | create / update / search + unit inputs + id params |
+| `product.ts` | create / update / search + unit inputs + id params; **M6 C:** `category`, Rx, cold chain, storage, `reorderLevel` |
 | `batch.ts` | create / update / list (M2) |
 | `customer.ts` | create / update / search (M2) |
-| `sale.ts` | sale ingest; **`batchId` optional** for server FEFO fill |
+| `sale.ts` | sale ingest; **`batchId` optional** for server FEFO fill; **M6 D:** optional `loyaltyUsed` / `loyaltyEarned` + line `fefoOverride` (persisted); `saleListQuerySchema` stub |
+| `owner.ts` | **M6 F:** owner dashboard / expiry query DTOs (wired on `GET /owner/*`) |
 | `sync.ts` | queue envelope: `event_id`, `entity_type`, `action`, `payload` (snake_case) |
 
 **Naming rule:** Domain API DTOs = camelCase (Prisma-aligned). Sync queue envelope = snake_case (desktop queue contract). Map at the sync boundary later.
@@ -375,7 +399,11 @@ Locked modular tree: `router ? controller ? service` under `src/modules/*`; moun
 | * | `/products`, `/batches`, `/customers` | Tenant-scoped CRUD; **M5 A:** PATCH customers/batches = OWNER/MANAGER |
 | GET | `/products/:productId/fefo-batch` | FEFO pick (cloud: earliest in-stock; see desktop sellable preference) |
 | GET | `/products/:productId/substitutes` | Same `genericName` |
-| POST | `/sales/ingest` | Online sale path only ? **not** M4 `/sync/ingest` |
+| POST | `/sales/ingest` | Online sale path only — **not** M4 `/sync/ingest` |
+| GET | `/sales`, `/sales/:id` | **M6 E** — any authenticated; `:id` = `Sale.id`; Owner sees cost/COGS/netProfit; Manager/Cashier redacted |
+| GET | `/owner/dashboard`, `/owner/inventory-summary`, `/owner/expiry` | **M6 F** — `OWNER` only (Manager/Cashier 403). Net profit = `sum(sale.total) − period COGS` |
+| GET | `/owner/inventory` | **M6 J** — `OWNER` only paged inventory list (cost/sell/margin). Full catalog §21 at Slice 1 exit |
+| GET | `/owner/products/:id` | **M6 K** — `OWNER` only product detail (lots, FEFO rank, units, InventoryEvents). Full catalog §21 at Slice 1 exit |
 
 ### 6.3 Explicitly out of M2 (do not regress)
 
@@ -518,7 +546,7 @@ Do **not** start these unless the user authorizes the matching milestone:
 
 1. Read this file (`Current_Status.md`).
 2. Confirm M0–**M5** are **DONE**.
-3. **M6** only when authorized in a **new chat**. Do **not** start M6 / hardware / Slice 7+ from status alone.
+3. **M6 Slice 1 Batches A–K DONE.** Next = **Authorize M6 Batch L** in a **new chat**. Do **not** start Batch L+ / hardware / Slice 7+ from status alone.
 4. Attach/reference:
    - `PROJECT_MASTER_PLAN.md`
    - `Current_Status.md`
@@ -630,7 +658,7 @@ Tracked so returning chats don?t re-learn tribal knowledge:
 7. **Refresh tokens (M2):** Hashed in `RefreshToken`; rotate on refresh; reuse of revoked token revokes all user sessions.
 8. **Sale `batchId`:** Optional on ingest ? omitted ? server FEFO; provided ? validate tenant/store/stock.
 9. **Force Offline / Stay Offline (desktop) — DONE Batch AI:** Cashier can override auto health on this terminal (badge menu or Settings → Connectivity). Sticky via forceOfflineStore (localStorage) until explicit **Go Online**; health probes / browser online / header re-probe ignored while forced. Badge shows Offline · Forced. Owner/Manager **presence** across terminals remains deferred (note #10).
-9b. **Transactions List + Detail (desktop) — DONE Batch AJ–AK:** Sidebar Transactions opens invented list from local `transactionLogStore` (localStorage, tenant+store; append on Cash/Card/MFS/loyalty complete). No cloud `GET /sales` yet (TODO — ask before inventing). ↑/↓ · Enter detail · Esc. Detail shows items/totals/method/customer/loyalty + Receipt Preview; Reprint → print stub.
+9b. **Transactions List + Detail (desktop) — DONE Batch AJ–AK:** Sidebar Transactions opens invented list from local `transactionLogStore` (localStorage, tenant+store; append on Cash/Card/MFS/loyalty complete). Cloud `GET /sales` + `GET /sales/:id` are **live (M6 E)**; Owner web Sales list is **live (M6 H)**; Owner web Transaction Details is **live (M6 I)**; desktop list stays local. ↑/↓ · Enter detail · Esc. Detail shows items/totals/method/customer/loyalty + Receipt Preview; Reprint → print stub.
 9c. **Shift Open/Close (desktop) — DONE Batch AL + soft gate (2026-08-13):** Local `shiftStore` (tenant+store). Counter Ready Active Shift reads it. Connectivity badge stays **independent** (health / Force Offline only — do **not** couple badge to shift). **Soft gate:** New Sale [F2] (sidebar / Counter Ready / Sale Completed) requires an open shift → otherwise info toast + opens Shift panel. Closing shift mid-sale still allowed. No cloud shift API yet (TODO when authorized).
 9d. **Hold / Park Sale (desktop) — Slice 6 AP DONE:** `heldSaleStore` + Hold **F6** + Held list **F7** (toggle; cart Held n/3) + resume / discard confirm. Soft hold — no reservation. Resume rechecks live batch/expiry/qty (strip unsellable, clamp short stock; keep hold if none remain). Mid-payment Hold aborts card/MFS stubs and does not ingest / Sale Completed. **No** cloud hold / multi-terminal shared holds. See `MILESTONE_3_EXECUTION.md` Slice 6 + `Completed_API_lists.md` §18.
 10. **Deferred — Owner/Manager terminal presence:** Owner/Manager should see each cashier/terminal **online (green) / offline (red)** in real time. Needs cloud heartbeat/presence from desktop + owner/manager UI (likely **M6 owner web** or a later authorized slice). Do not invent presence APIs until authorized.
@@ -717,4 +745,15 @@ user-facing strings. Runtime/domain data and receipt content remain untranslated
 | 2026-08-14 | **M5 Batch D DONE** — Sync Queue Failed i18n conflict copy + raw `last_error`; Enter Retry; no void; `__r2aMarkHeadSyncDead()` defaults to 409; `smoke:m5d`; user walkthrough **PASS**; next = Authorize M5 Batch E |
 | 2026-08-14 | **M5 Batch E DONE** — paged `catalogPull` (`meta.total`, limit 100, cap 50 pages); `costPerBase` still dropped; truncated i18n toast; `smoke:m5e`; user walkthrough **PASS**; next = Authorize M5 Batch F |
 | 2026-08-14 | **M5 Batch F DONE** — `docs/DEV_RUNBOOK.md`; catalog §20; `smoke:m5`; user pilot walkthrough **PASS**; M5 **closed**; next = authorize M6 |
+| 2026-08-15 | **M6 Batch A DONE** — `@r2a/web` Vite scaffold + invented Owner Login; OWNER session; Manager/Cashier rejected; `smoke:m6a`; next = Authorize M6 Batch B |
+| 2026-08-15 | **M6 Batch B DONE** — Owner chrome lock (sidebar + header); live Dashboard/Sales/Inventory shells; later nav disabled; store name from `GET /tenant/context`; `smoke:m6b`; next = Authorize M6 Batch C |
+| 2026-08-15 | **M6 Batch C DONE** — Additive Prisma (`Sale.receiptNo` + loyalty snapshots, `SaleItem` FEFO/cost, `Product` extras, `InventoryEvent`); Zod ingest/product/owner query stubs; Napa `reorderLevel=50`; ingest unchanged; next = Authorize M6 Batch D |
+| 2026-08-15 | **M6 Batch D DONE** — ingest `receiptNo` + `costPerBaseAtSale` + loyalty/FEFO persist + `InventoryEvent` SALE/RECEIVE/ADJUST; desktop `saleIngest` wired; `smoke:m6d` + `smoke:m2`; next = Authorize M6 Batch E |
+| 2026-08-15 | **M6 Batch E DONE** — `GET /sales` + `GET /sales/:id`; Owner cost/COGS/netProfit; Manager/Cashier redacted; `smoke:m6e`; next = Authorize M6 Batch F |
+| 2026-08-16 | **M6 Batch F DONE** — `GET /owner/dashboard` + inventory-summary + expiry; OWNER-only; `smoke:m6f`; next = Authorize M6 Batch G |
+| 2026-08-16 | **M6 Batch G DONE** — live Owner Dashboard (KPIs / bars / inventory health / FEFO / recent sales); `smoke:m6g`; next = Authorize M6 Batch H |
+| 2026-08-16 | **M6 Batch H DONE** — live Sales Overview & Transactions (`GET /sales` + dashboard salesKpis / paymentMix / topCashier); Date filter; `smoke:m6h`; next = Authorize M6 Batch I |
+| 2026-08-16 | **M6 Batch I DONE** — live Transaction Details (`GET /sales/:id`); FEFO OVERRIDE badge; loyalty grid from snapshots (hidden for walk-in); Reprint = on-screen preview; `smoke:m6i`; next = Authorize M6 Batch J |
+| 2026-08-16 | **M6 Batch J DONE** — live Inventory list (`GET /owner/inventory`); Owner cost/sell/margin; tabs + attention; `smoke:m6j`; next = Authorize M6 Batch K |
+| 2026-08-16 | **M6 Batch K DONE** — live Product Details (`GET /owner/products/:id`); FEFO rank; InventoryEvent activity; `smoke:m6k`; next = Authorize M6 Batch L |
 

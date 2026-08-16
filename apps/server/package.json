@@ -11,6 +11,12 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "smoke:m2": "node scripts/m2-smoke.mjs",
     "smoke:m4b": "node scripts/m4b-smoke.mjs",
+    "smoke:m6d": "tsx scripts/m6d-smoke.ts",
+    "smoke:m6e": "tsx scripts/m6e-smoke.ts",
+    "smoke:m6f": "tsx scripts/m6f-smoke.ts",
+    "smoke:m6j": "tsx scripts/m6j-smoke.ts",
+    "smoke:m6k": "tsx scripts/m6k-smoke.ts",
+    "smoke:m6l": "tsx scripts/m6l-smoke.ts",
     "test": "echo \"@r2a/server test — not configured yet\"",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },

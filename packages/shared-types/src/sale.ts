@@ -22,6 +22,9 @@ export const saleItemInputSchema = z.object({
   quantityBase: z.number().int().positive(),
   unitPrice: z.number().nonnegative(),
   lineTotal: z.number().nonnegative(),
+  /** Optional. Omitted → `fefoOverride` false (old POS payloads). */
+  fefoOverride: z.boolean().optional(),
+  fefoAuthorizedByName: z.string().min(1).optional(),
 });
 export type SaleItemInput = z.infer<typeof saleItemInputSchema>;
 
@@ -35,7 +38,27 @@ export const saleIngestSchema = z.object({
   discount: z.number().nonnegative().default(0),
   total: z.number().nonnegative(),
   notes: z.string().optional(),
+  /** Optional. Omitted → snapshots 0 and do not change `Customer.loyaltyPoints`. */
+  loyaltyUsed: z.number().int().nonnegative().optional(),
+  loyaltyEarned: z.number().int().nonnegative().optional(),
   items: z.array(saleItemInputSchema).min(1),
   payments: z.array(salePaymentInputSchema).min(1),
 });
 export type SaleIngestInput = z.infer<typeof saleIngestSchema>;
+
+/** Query for `GET /sales`. */
+export const saleListQuerySchema = z.object({
+  q: z.string().min(1).optional(),
+  paymentMethod: paymentMethodSchema.optional(),
+  userId: z.string().min(1).optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  limit: z.coerce.number().int().positive().max(100).default(25),
+  offset: z.coerce.number().int().nonnegative().default(0),
+});
+export type SaleListQuery = z.infer<typeof saleListQuerySchema>;
+
+export const saleIdParamSchema = z.object({
+  id: z.string().min(1),
+});
+export type SaleIdParam = z.infer<typeof saleIdParamSchema>;

@@ -9,7 +9,6 @@
  * TODO(real integration):
  * - Send OTP via SMS/WhatsApp (n8n later)
  * - Server-side OTP verify + rate limit
- * - Persist earn/redeem on sale ingest (authoritative cloud mutation)
  * Do not ship this permissive OTP stub to pilot.
  */
 

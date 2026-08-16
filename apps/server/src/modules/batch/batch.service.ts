@@ -9,6 +9,25 @@ import { assertStoreAccess } from "../../utils/tenant";
 import { serializeBatch } from "../../utils/margin";
 import type { TenantContext } from "../../types/tenant";
 
+/** Editor PrismaClient can lag behind generate and omit `inventoryEvent` on `tx`. */
+type InventoryEventWriter = {
+  create: (args: {
+    data: {
+      tenantId: string;
+      storeId: string;
+      productId: string;
+      batchId: string;
+      actorUserId: string;
+      type: "RECEIVE" | "ADJUST" | "SALE";
+      quantityBaseChange: number;
+    };
+  }) => Promise<unknown>;
+};
+
+function inventoryEventOf(tx: object): InventoryEventWriter {
+  return (tx as { inventoryEvent: InventoryEventWriter }).inventoryEvent;
+}
+
 export async function createBatch(ctx: TenantContext, input: BatchCreateInput) {
   const storeId = input.storeId ?? ctx.storeId;
   if (!storeId) {
@@ -24,17 +43,31 @@ export async function createBatch(ctx: TenantContext, input: BatchCreateInput) {
   }
 
   try {
-    const batch = await prisma.batch.create({
-      data: {
-        tenantId: ctx.tenantId,
-        storeId,
-        productId: input.productId,
-        batchNumber: input.batchNumber,
-        expiryDate: input.expiryDate,
-        quantityOnHand: input.quantityOnHand,
-        costPerBase: input.costPerBase,
-        sellPerBase: input.sellPerBase,
-      },
+    const batch = await prisma.$transaction(async (tx) => {
+      const created = await tx.batch.create({
+        data: {
+          tenantId: ctx.tenantId,
+          storeId,
+          productId: input.productId,
+          batchNumber: input.batchNumber,
+          expiryDate: input.expiryDate,
+          quantityOnHand: input.quantityOnHand,
+          costPerBase: input.costPerBase,
+          sellPerBase: input.sellPerBase,
+        },
+      });
+      await inventoryEventOf(tx).create({
+        data: {
+          tenantId: ctx.tenantId,
+          storeId,
+          productId: input.productId,
+          batchId: created.id,
+          actorUserId: ctx.userId,
+          type: "RECEIVE",
+          quantityBaseChange: input.quantityOnHand,
+        },
+      });
+      return created;
     });
     return serializeBatch(batch, ctx.role);
   } catch (err: unknown) {
@@ -63,15 +96,37 @@ export async function updateBatch(
   }
 
   try {
-    const batch = await prisma.batch.update({
-      where: { id: batchId },
-      data: {
-        batchNumber: input.batchNumber,
-        expiryDate: input.expiryDate,
-        quantityOnHand: input.quantityOnHand,
-        costPerBase: input.costPerBase,
-        sellPerBase: input.sellPerBase,
-      },
+    const qtyDelta =
+      input.quantityOnHand !== undefined &&
+      input.quantityOnHand !== existing.quantityOnHand
+        ? input.quantityOnHand - existing.quantityOnHand
+        : null;
+
+    const batch = await prisma.$transaction(async (tx) => {
+      const updated = await tx.batch.update({
+        where: { id: batchId },
+        data: {
+          batchNumber: input.batchNumber,
+          expiryDate: input.expiryDate,
+          quantityOnHand: input.quantityOnHand,
+          costPerBase: input.costPerBase,
+          sellPerBase: input.sellPerBase,
+        },
+      });
+      if (qtyDelta !== null) {
+        await inventoryEventOf(tx).create({
+          data: {
+            tenantId: ctx.tenantId,
+            storeId: existing.storeId,
+            productId: existing.productId,
+            batchId: existing.id,
+            actorUserId: ctx.userId,
+            type: "ADJUST",
+            quantityBaseChange: qtyDelta,
+          },
+        });
+      }
+      return updated;
     });
     return serializeBatch(batch, ctx.role);
   } catch (err: unknown) {

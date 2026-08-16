@@ -1,13 +1,40 @@
 {
   "name": "@r2a/web",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "Owner web dashboard (React + TypeScript)",
+  "description": "Owner Admin Portal (React + TypeScript)",
+  "type": "module",
   "scripts": {
-    "dev": "echo \"@r2a/web not implemented yet — Milestone 6\"",
-    "build": "echo \"@r2a/web build stub\"",
-    "lint": "echo \"@r2a/web lint stub\"",
-    "test": "echo \"@r2a/web test stub\"",
-    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit -p tsconfig.json --pretty false",
+    "test": "echo \"@r2a/web test — not configured yet\"",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "smoke:m6a": "tsx scripts/smoke-m6a.ts",
+    "smoke:m6b": "tsx scripts/smoke-m6b.ts",
+    "smoke:m6g": "tsx scripts/smoke-m6g.ts",
+    "smoke:m6h": "tsx scripts/smoke-m6h.ts",
+    "smoke:m6i": "tsx scripts/smoke-m6i.ts",
+    "smoke:m6j": "tsx scripts/smoke-m6j.ts",
+    "smoke:m6k": "tsx scripts/smoke-m6k.ts",
+    "smoke:m6l": "tsx scripts/smoke-m6l.ts"
+  },
+  "dependencies": {
+    "@r2a/shared-types": "*",
+    "lucide-react": "^1.30.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "tailwindcss": "^4.1.11",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.6"
   }
 }

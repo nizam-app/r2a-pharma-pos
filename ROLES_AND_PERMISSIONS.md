@@ -3,7 +3,7 @@
 **Document type:** Canonical RBAC spec for the whole system (POS + future Owner/Manager surfaces)  
 **Product:** PharmaSync POS — Multi-Tenant Pharmacy POS & Inventory SaaS  
 **Version:** 2.0.0  
-**Last updated:** 2026-08-14  
+**Last updated:** 2026-08-16  
 **Audience:** Engineering, product, Cursor agents
 
 ---
@@ -54,7 +54,7 @@ Prisma / JWT roles (locked): `SUPER_ADMIN` \| `OWNER` \| `MANAGER` \| `CASHIER`.
 ### Pharmacy Owner
 
 * **Access:** Root authority for one tenant.
-* **Target UI:** Owner web (`apps/web`) — **M6**; placeholder today.
+* **Target UI:** Owner web (`apps/web`) — **M6**; login + chrome + live Dashboard + live Sales list + live Transaction Details + live Inventory + live Product Details (Slice 1 Batches A–B, G–K). Owner aggregate APIs live (Batch F / J / K).
 * **Until web exists:** Owner may log into desktop POS (`apps/desktop`) with the same JWT role. Desktop remains a **cashier workstation**, not the executive suite.
 * **Scope:** Financials and margins, staff, catalog/pricing, settings, audit, n8n (M6), multi-branch (M7).
 
@@ -85,11 +85,12 @@ Prisma / JWT roles (locked): `SUPER_ADMIN` \| `OWNER` \| `MANAGER` \| `CASHIER`.
 | Margin redaction (`costPerBase` omitted for cashier) | **Live** | — |
 | `POST /users` — Owner or Manager creates Cashier/Manager | **Live** | — |
 | `POST /customers` — **Owner only** | **Live** | Owner web UI = **M6** |
-| FEFO override on POS | **Stub** (any 4-digit PIN + local “Authorized By”) | Real PIN + audit when **authorized** (likely M5 RBAC) |
+| FEFO override on POS | **Stub PIN** (any 4-digit + local “Authorized By”). **M6 D:** ingest persists `fefoOverride` + authorizer name. | Real `pinHash` when **authorized** |
 | Shift open/close | **Local** `shiftStore` (no cash count, no cloud) | Cloud shift + blind count when **authorized** |
-| Purchase / GRN / stock entry UI | **Live** — desktop Settings Receive stock (Owner/Manager; online `POST`/`PATCH /batches`) | Owner web catalog = **M6** |
-| Owner web dashboard | Placeholder | **M6** |
-| Loyalty earn/redeem persistence | Session + ingest `discount` / `notes` | **M6** |
+| Purchase / GRN / stock entry UI | **Live** — desktop Settings Receive stock (Owner/Manager; online `POST`/`PATCH /batches`) | Owner web **Receive Stock** = **M6 Batch M** |
+| Owner web dashboard | **Live** (M6 G — KPIs, bars, inventory health, FEFO, recent sales) | Sales list = **live** (M6 H). Transaction Details = **live** (M6 I). Inventory list = **live** (M6 J). Product Details = **live** (M6 K) |
+| **Owner web Add Product** | **Live** (M6 L — `POST /products` with Piece→Strip→Box units, Rx, cold chain, reorder level, storage notes; 0 initial stock; redirect to Product Details) | Receive Stock (initial batch) = **M6 Batch M** |
+| Loyalty earn/redeem persistence | **Live** on ingest snapshots (`loyaltyUsed` / `loyaltyEarned` + customer balance). POS session calc unchanged. OTP stub stays. | Owner web Transaction Details = **live** (M6 I) |
 | n8n, RLS, bi-di sync | Not started | **M6** |
 | Supplier return bucket, supplier ledger | Not started | **M6** |
 | Super Admin console, multi-branch, transfers | Not started | **M7** |
@@ -141,7 +142,13 @@ Matches `Completed_API_lists.md`. JWT claims: `{ sub, role, tenantId, storeId }`
 | `GET /api/v1/customers` | Any authenticated |
 | `PATCH /api/v1/customers/:id` | `OWNER`, `MANAGER` — cashier `403` (search-only at POS) |
 | `POST /api/v1/sales/ingest`, `POST /api/v1/sync/ingest` | Any authenticated; sales **append-only** (no update/delete routes) |
+| `GET /api/v1/sales`, `GET /api/v1/sales/:id` | Any authenticated. **Redact** `costPerBaseAtSale` / COGS / netProfit / margins unless `OWNER` (`:id` = `Sale.id`) |
+| `GET /api/v1/owner/dashboard`, `/owner/inventory-summary`, `/owner/expiry` | **`OWNER` only** (`403` for Manager and Cashier) |
+| `GET /api/v1/owner/inventory` | **`OWNER` only** (`403` for Manager and Cashier) |
+| `GET /api/v1/owner/products/:id` | **`OWNER` only** — full product detail + batches + FEFO rank + InventoryEvent (M6K) |
 | Batch payloads | Cashier: omit `costPerBase`; `sellPerBase` allowed |
+
+> **M6L:** Owner web `POST /products` (via `apps/web` Add Product form) creates catalog-only rows — zero initial stock. Extended fields: `manufacturer`, `strength`, `form`, `category`, `requiresPrescription`, `coldChain`, `storageNotes`, `reorderLevel`. Cashier `403`.
 
 ---
 
@@ -151,7 +158,7 @@ Matches `Completed_API_lists.md`. JWT claims: `{ sub, role, tenantId, storeId }`
 * **Owner web Create Customer** is **M6** (`apps/web`). Do not re-add a Create form on POS.
 * **Fields (live schema):** `name`, `phone?`, `email?`. Do **not** add date of birth or gender unless the user authorizes a schema change.
 * **Cashier at checkout:** search by phone/name (`GET /customers`); apply loyalty if eligible; if not found → **Walk-in**. Prompt the customer to register with the **Owner** (not the Manager).
-* **`loyaltyPoints`:** display/redeem at POS (session settlement today; authoritative persist = M6).
+* **`loyaltyPoints`:** display/redeem at POS (session settlement). Authoritative persist = **M6 Batch D** ingest snapshots when `loyaltyUsed`/`loyaltyEarned` are sent with a `customerId`.
 * **`creditBalance`:** unused schema leftover. Do **not** expose in UI, mutate via POS, or build features on it.
 
 ---
@@ -297,3 +304,10 @@ Do **not** implement:
 | 2026-08-14 | **v2.0.0** — Canonical RBAC for POS + future Owner/Manager. Removed on-account / due / credit tender. Create customer = Owner only. Sales append-only. Live API matrix + now-vs-later gating so M5+ cannot invent ahead. FEFO PIN and blind shift marked target-not-now. Prisma camelCase. PharmaSync web blueprint. |
 | 2026-08-14 | **M5 Batch A** — live table: `PATCH /customers/:id` and `PATCH /batches/:id` = Owner/Manager (cashier `403`, including qty). GRN UI = desktop Settings (M5), not Owner web. |
 | 2026-08-14 | **M5 Batch C** — GRN / receive stock is **live** on desktop Settings (Owner/Manager). Add lot `POST /batches`; adjust qty `PATCH /batches/:id`. Not Owner web. |
+| 2026-08-15 | **M6 Batch E** — live table: `GET /sales` + `GET /sales/:id` any authenticated; cost/COGS/netProfit Owner-only. |
+| 2026-08-16 | **M6 Batch F** — live table: `GET /owner/dashboard`, `/owner/inventory-summary`, `/owner/expiry` = **OWNER only** (Manager/Cashier 403). |
+| 2026-08-16 | **M6 Batch G** — Owner web Dashboard live (KPIs, bars, inventory health, FEFO, recent sales). |
+| 2026-08-16 | **M6 Batch H** — Owner web Sales list live. Transaction Details = Batch I. |
+| 2026-08-16 | **M6 Batch I** — Owner web Transaction Details live (`GET /sales/:id`). Reprint = on-screen preview. No void. |
+| 2026-08-16 | **M6 Batch J** — Owner web Inventory list live (`GET /owner/inventory`). OWNER cost/sell/margin. |
+| 2026-08-16 | **M6 Batch K** — Owner web Product Details live (`GET /owner/products/:id`). Edit Product disabled. |

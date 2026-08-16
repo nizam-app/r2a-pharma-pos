@@ -22,6 +22,11 @@ export async function createProduct(ctx: TenantContext, input: ProductCreateInpu
         sku: input.sku,
         barcode: input.barcode,
         description: input.description,
+        category: input.category,
+        requiresPrescription: input.requiresPrescription ?? false,
+        coldChain: input.coldChain ?? false,
+        storageNotes: input.storageNotes,
+        reorderLevel: input.reorderLevel,
         units: {
           create: input.units.map((u) => ({
             tenantId: ctx.tenantId,
@@ -86,6 +91,11 @@ export async function updateProduct(
           sku: input.sku,
           barcode: input.barcode,
           description: input.description,
+          category: input.category,
+          requiresPrescription: input.requiresPrescription,
+          coldChain: input.coldChain,
+          storageNotes: input.storageNotes,
+          reorderLevel: input.reorderLevel,
           isActive: input.isActive,
         },
         include: productInclude,
