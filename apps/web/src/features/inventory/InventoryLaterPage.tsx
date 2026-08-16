@@ -1,22 +1,17 @@
 import { useLocale, type MessageKey } from "@/i18n";
 
-type LaterKind = "expiry" | "new" | "receive";
+type LaterKind = "expiry";
 
 const HINT: Record<LaterKind, MessageKey> = {
   expiry: "inventory.later.expiry",
-  new: "inventory.later.new",
-  receive: "inventory.later.receive",
 };
 
 const TITLE: Record<LaterKind, MessageKey> = {
   expiry: "inventory.later.expiryTitle",
-  new: "inventory.later.newTitle",
-  receive: "inventory.later.receiveTitle",
 };
 
 /**
- * Slice 1 route shells for screens that land in later batches (L–N).
- * Product Details is Batch K (`ProductDetailPage`). Do not invent Add / Receive / Expiry here.
+ * Slice 1 route shell for Expiry Management (Batch N).
  */
 export function InventoryLaterPage({ kind }: { kind: LaterKind }) {
   const { t } = useLocale();

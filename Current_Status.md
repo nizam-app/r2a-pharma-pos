@@ -13,13 +13,13 @@
 | **Product** | Offline-first, multi-tenant Pharmacy POS + Inventory SaaS (Bangladesh / emerging markets) |
 | **Phase** | Phase 1 MVP — DB + cloud API + desktop **M3 POS shell DONE**; **M4 DONE** (one-way sync). **M5 DONE** (RBAC + Receive stock + 409 copy + paged catalog + runbook) |
 | **Latest completed milestone** | **M5 — MVP hardening** |
-| **Next authorized work** | **M6 Slice 1 Batch M** (Receive Stock) in a new chat after Batch L PASS. Do not start Batch M+ from status alone. |
+| **Next authorized work** | **M6 Slice 1 Batch N** (Expiry Management) in a new chat after Batch M PASS. Do not start Batch N+ from status alone. |
 | **Cloud database** | Neon PostgreSQL (Prisma migrate + seed applied; `RefreshToken` migration applied in M2) |
 | **Cloud API** | Express + TypeScript in `apps/server` — **real** (auth, tenant guard, inventory, FEFO, sales ingest, **M4B** `POST /api/v1/sync/ingest`, **M6E** `GET /sales` + `GET /sales/:id`, **M6F** `GET /owner/dashboard` + inventory-summary + expiry, **M6J** `GET /owner/inventory`, **M6K** `GET /owner/products/:id`, **M6L** extended `POST /products` + `PATCH /products/:id`) |
 | **Local desktop / SQLite / Tauri** | **Login + chrome + connectivity + SQLite + Counter Ready → … → Cash / Card / MFS + Receipt Preview + print stub + F4 + Settings pharmacy header + Force Offline + Transactions List/Detail/Reprint + Shift Open/Close + Hold [F6] / Held list [F7] + Sync Queue panel (badge / Settings) + 15s queue flush** (M3 A–Z + AA–AE + AF–AL + AM–AP; **M4 A–F DONE**); **soft gate:** New Sale [F2] requires open shift (badge stays connectivity-only); Card = terminal stub; MFS = invented confirm |
 | **MongoDB / Mongoose** | Removed; do not reintroduce |
 
-**Bottom line:** Schema, shared Zod, and the cloud Express API are smoke-verified (`npm run smoke:m2 -w @r2a/server` — cashier PATCH 403s in M5 A). Desktop **M3 POS shell DONE** (Slices 1–6; Hold F6 / Held list F7; `smoke:m3ap`). **M4 DONE** (queue IPC `smoke:m4a`; `POST /api/v1/sync/ingest` `smoke:m4b` 13/13; offline complete `smoke:m4c`; 15s flush `smoke:m4d`; Sync Queue UI `smoke:m4e`; exit `smoke:m4`). **M5 DONE** (`smoke:m5` composes `m5a`–`m5e` + `smoke:m4`; Receive stock; 409 copy; paged catalog; [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md)). **M6 IN PROGRESS** — Slice 1 Batches A–L DONE (`@r2a/web` Owner login + chrome + live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details + live Add Product with unit hierarchy Piece→Strip→Box, Rx, cold chain, reorder level, storage notes, 0 stock notice, and `POST /products`; Prisma extras; ingest loyalty/FEFO/`receiptNo`/`InventoryEvent`; `GET /sales` + `GET /sales/:id`; OWNER-only dashboard / inventory-summary / expiry / inventory / product detail). Next = **Authorize M6 Batch M**.
+**Bottom line:** Schema, shared Zod, and the cloud Express API are smoke-verified (`npm run smoke:m2 -w @r2a/server` — cashier PATCH 403s in M5 A). Desktop **M3 POS shell DONE** (Slices 1–6; Hold F6 / Held list F7; `smoke:m3ap`). **M4 DONE** (queue IPC `smoke:m4a`; `POST /api/v1/sync/ingest` `smoke:m4b` 13/13; offline complete `smoke:m4c`; 15s flush `smoke:m4d`; Sync Queue UI `smoke:m4e`; exit `smoke:m4`). **M5 DONE** (`smoke:m5` composes `m5a`–`m5e` + `smoke:m4`; Receive stock; 409 copy; paged catalog; [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md)). **M6 IN PROGRESS** — Slice 1 Batches A–M DONE (`@r2a/web` Owner login + chrome + live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details + live Add Product + live Receive Stock using `POST /batches`; Prisma extras; ingest loyalty/FEFO/`receiptNo`/`InventoryEvent`; `GET /sales` + `GET /sales/:id`; OWNER-only dashboard / inventory-summary / expiry / inventory / product detail). Next = **Authorize M6 Batch N**.
 ---
 
 ## 2. Milestone board (authoritative progress)
@@ -34,7 +34,7 @@ Source of truth for milestone status: [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_
 | **M3** | Desktop POS shell | **DONE** | Slice 1–6 (A–AP). Later screens → Slice 7+ when authorized. See `MILESTONE_3_EXECUTION.md` |
 | **M4** | One-way sync | **DONE** | Batches A–F. Queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue panel + catalog §19. See `MILESTONE_4_EXECUTION.md` |
 | **M5** | MVP hardening | **DONE** | Batches A–F. RBAC API + desktop Settings Receive stock + Sync Queue 409 copy + paged catalog pull + runbook + catalog §20. Print/PIN stay stubs. See `MILESTONE_5_EXECUTION.md`. |
-| **M6** | Growth (Phase 2) | **IN PROGRESS** | Slice 1 Batches **A–L DONE** (Owner web login + chrome + live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details + live Add Product; Prisma extras; ingest loyalty/FEFO/`receiptNo`/`InventoryEvent`; `GET /sales` + `GET /sales/:id`; OWNER-only dashboard / inventory-summary / expiry / inventory / product detail; extended `POST /products`). M–O not started. Full M6 (bi-di, n8n, RLS) still later. |
+| **M6** | Growth (Phase 2) | **IN PROGRESS** | Slice 1 Batches **A–M DONE** (Owner web login + chrome + live Dashboard + Sales + Transaction Details + Inventory + Product Details + Add Product + Receive Stock; Prisma extras; ingest loyalty/FEFO/`receiptNo`/`InventoryEvent`; live read APIs; extended `POST /products`; existing `POST /batches`). N–O not started. Full M6 (bi-di, n8n, RLS) still later. |
 | **M7** | Scale (Phase 3) | **PENDING** | Multi-branch, transfers, enterprise RBAC |
 
 ### Milestone 1 execution batches (all green)
@@ -189,7 +189,8 @@ Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md).
 | J | Inventory list | **DONE** | 2026-08-16 |
 | K | Product Details | **DONE** | 2026-08-16 |
 | L | Add Product | **DONE** | 2026-08-16 |
-| M–O | Receive Stock → Slice 1 exit | not started | — |
+| M | Receive Stock | **DONE** | 2026-08-16 |
+| N–O | Expiry Management → Slice 1 exit | not started | — |
 
 ## 3. Locked product & stack decisions
 
@@ -222,7 +223,7 @@ R2A-Pharmacy-POS/
 ├── apps/
 │   ├── server/          # REAL — Milestone 2 Express API + M6 extended products
 │   ├── desktop/         # REAL — M3 POS shell DONE (A–AP; Hold F6 / Held list F7)
-│   └── web/             # REAL — M6 Batch L (Owner login + chrome + Dashboard + Sales + Inventory + Product Details + Add Product)
+│   └── web/             # REAL — M6 Batch M (Owner login + chrome + Dashboard + Sales + Inventory + Product Details + Add Product + Receive Stock)
 ├── packages/
 │   ├── database/        # REAL — Prisma schema, migrations, seed, client export
 │   ├── shared-types/    # REAL — Zod auth/product/batch/customer/sale/sync + enums
@@ -250,7 +251,7 @@ R2A-Pharmacy-POS/
 | UI | `@r2a/ui` | Bootstrap (M3A) |
 | Server | `@r2a/server` | **Implemented (M2)** |
 | Desktop | `@r2a/desktop` | **M3 DONE** — Slice 1–6 (Hold [F6] / Held list [F7]); later screens → Slice 7+ |
-| Web | `@r2a/web` | **M6 Batch K** — login + chrome + live Dashboard + Sales + Inventory + Product Details; Add Product still Batch L |
+| Web | `@r2a/web` | **M6 Batch M** — login + chrome + live Dashboard + Sales + Inventory + Product Details + Add Product + Receive Stock |
 
 ---
 
@@ -546,7 +547,7 @@ Do **not** start these unless the user authorizes the matching milestone:
 
 1. Read this file (`Current_Status.md`).
 2. Confirm M0–**M5** are **DONE**.
-3. **M6 Slice 1 Batches A–K DONE.** Next = **Authorize M6 Batch L** in a **new chat**. Do **not** start Batch L+ / hardware / Slice 7+ from status alone.
+3. **M6 Slice 1 Batches A–M DONE.** Next = **Authorize M6 Batch N** in a **new chat**. Do **not** start Batch N+ / hardware / Slice 7+ from status alone.
 4. Attach/reference:
    - `PROJECT_MASTER_PLAN.md`
    - `Current_Status.md`
@@ -756,4 +757,6 @@ user-facing strings. Runtime/domain data and receipt content remain untranslated
 | 2026-08-16 | **M6 Batch I DONE** — live Transaction Details (`GET /sales/:id`); FEFO OVERRIDE badge; loyalty grid from snapshots (hidden for walk-in); Reprint = on-screen preview; `smoke:m6i`; next = Authorize M6 Batch J |
 | 2026-08-16 | **M6 Batch J DONE** — live Inventory list (`GET /owner/inventory`); Owner cost/sell/margin; tabs + attention; `smoke:m6j`; next = Authorize M6 Batch K |
 | 2026-08-16 | **M6 Batch K DONE** — live Product Details (`GET /owner/products/:id`); FEFO rank; InventoryEvent activity; `smoke:m6k`; next = Authorize M6 Batch L |
+| 2026-08-16 | **M6 Batch L DONE** — live Add Product (`POST /products`); unit hierarchy + product extras; 0 initial stock; `smoke:m6l`; next = Authorize M6 Batch M |
+| 2026-08-16 | **M6 Batch M DONE** — live web Receive Stock (`POST /batches`); packaging + financial + stock-impact calculations; no Supplier/PO/invoice or offline GRN; `smoke:m6m`; next = Authorize M6 Batch N |
 

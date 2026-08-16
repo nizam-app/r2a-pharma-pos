@@ -152,11 +152,10 @@ function checkAddProductForm(): void {
 function checkLocks(): void {
   const later = readSrc("features/inventory/InventoryLaterPage.tsx");
   assert(
-    later.includes("inventory.later.receive") &&
-      later.includes("inventory.later.expiry"),
-    "Receive and Expiry stay placeholders until batches M & N",
+    later.includes("inventory.later.expiry"),
+    "Expiry stays a placeholder until Batch N",
   );
-  console.log("  ✓ Receive and Expiry stay locked for M and N");
+  console.log("  ✓ Expiry stays locked for Batch N");
 }
 
 function main(): void {

@@ -6,7 +6,7 @@
 **API catalog:** [`Completed_API_lists.md`](Completed_API_lists.md)  
 **RBAC contract:** [`ROLES_AND_PERMISSIONS.md`](ROLES_AND_PERMISSIONS.md) (v2.0.0)  
 **Authorized plan:** [`.cursor/plans/m6_slice_1_owner_33de6430.plan.md`](.cursor/plans/m6_slice_1_owner_33de6430.plan.md)  
-**Status of M6:** **IN PROGRESS** — Slice 1 Batches **A–L DONE**; **M–O not started**. Later M6 slices (Purchasing, Manager web, n8n, RLS, bi-di) are **not** in this file yet.  
+**Status of M6:** **IN PROGRESS** — Slice 1 Batches **A–M DONE**; **N–O not started**. Later M6 slices (Purchasing, Manager web, n8n, RLS, bi-di) are **not** in this file yet.
 **Prerequisite:** Milestone 0–**5** **DONE**.  
 **Do not start:** Manager web, Purchasing/Suppliers/Customers/Staff/Reports/Audit/Settings screens, supplier return workflow, bi-di catalog sync, n8n, Postgres RLS, Slice 7+ POS, real printer IPC, card SDK, MFS APIs, FEFO `pinHash`, cloud shift, multi-branch switch, on-account tender — unless the user re-authorizes.
 
@@ -210,7 +210,7 @@ This section records that `PROJECT_MASTER_PLAN.md`, `Current_Status.md`, `Comple
 | M0–M5 | **DONE** |
 | Cloud API | Real — auth, inventory, FEFO, `/sales/ingest`, `/sync/ingest`. **Batch E:** `GET /sales` + `GET /sales/:id`. **Batch F:** `GET /owner/dashboard` + inventory-summary + expiry. **Batch J:** `GET /owner/inventory`. **Batch K:** `GET /owner/products/:id` |
 | `@r2a/desktop` | POS shell + one-way sync + Receive stock (Owner/Manager Settings) |
-| `@r2a/web` | **Batch K DONE** — live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details |
+| `@r2a/web` | **Batch M DONE** — live Dashboard + Sales + Transaction Details + Inventory + Product Details + Add Product + Receive Stock |
 | Schema | **Batch C DONE** — Sale/SaleItem/Product extras + `InventoryEvent` |
 | Ingest | **Batch D DONE** — `receiptNo`, cost snapshot, loyalty, FEFO flags, `InventoryEvent` SALE/RECEIVE/ADJUST |
 | Loyalty | Session calc on POS; **Batch D** snapshots `loyaltyUsed`/`loyaltyEarned` on ingest when present |
@@ -971,15 +971,15 @@ When done, paste the short M6 Batch L report.
 
 ### Tasks
 
-- [ ] Ask for screenshot; stop until reply
-- [ ] Product context card from GET product
-- [ ] Fields: batchNumber, expiry, qty PIECE, costPerBase, sellPerBase, received date **display only** (server `createdAt`)
-- [ ] Omit supplier, Link PO, invoice
-- [ ] Live packaging math + cost/retail/margin + stock impact from current on-hand
-- [ ] Confirm → POST batches → InventoryEvent RECEIVE (already D) → Product Details
-- [ ] i18n; duplicate batchNumber uses existing API error
-- [ ] `smoke:m6m`: receive page calls POST /batches
-- [ ] Do **not** queue offline GRN
+- [x] Ask for screenshot; stop until reply
+- [x] Product context card from GET product
+- [x] Fields: batchNumber, expiry, qty PIECE, costPerBase, sellPerBase, received date **display only** (server `createdAt`)
+- [x] Omit supplier, Link PO, invoice
+- [x] Live packaging math + cost/retail/margin + stock impact from current on-hand
+- [x] Confirm → POST batches → InventoryEvent RECEIVE (already D) → Product Details
+- [x] i18n; duplicate batchNumber uses existing API error
+- [x] `smoke:m6m`: receive page calls POST /batches
+- [x] Do **not** queue offline GRN
 
 ### Exit check
 
@@ -1123,3 +1123,4 @@ When done, paste the short M6 Batch O report and the user walkthrough.
 | 2026-08-16 | **Batch J DONE** — live Inventory list (`GET /owner/inventory`); summary cards + tabs + attention; Owner cost/sell/margin; Receive picker; `smoke:m6j`. Product Details = Batch K. |
 | 2026-08-16 | **Batch K DONE** — live Product Details (`GET /owner/products/:id`); FEFO rank (sellable lots); InventoryEvent activity; Edit Product / history disabled; `smoke:m6k`. Add Product = Batch L. |
 | 2026-08-16 | **Batch L DONE** — live Add Product (`POST /api/v1/products`); name, generic, manufacturer, strength, form, SKU, barcode, category, unit hierarchy Piece→Strip→Box, Rx toggle, cold chain, reorder level, storage notes; 0 initial stock notice; navigate to Product Details; `smoke:m6l`. Receive Stock = Batch M. |
+| 2026-08-16 | **Batch M DONE** — live Owner web Receive Stock (`GET /owner/products/:id` context + `POST /batches`); PIECE quantity and per-base prices; packaging, cost/retail/margin, and stock-impact calculations; Supplier/PO/invoice omitted; online-only; `smoke:m6m`. Expiry Management = Batch N. |

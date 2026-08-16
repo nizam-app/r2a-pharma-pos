@@ -5,7 +5,7 @@
 **Base URL (dev):** `http://localhost:8787` (override with `PORT` / `BASE_URL`)  
 **API prefix:** `/api/v1`  
 **Last updated:** 2026-08-16  
-**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (§19) + **M5 MVP hardening DONE** (**§20 — M5**) + **M6 Slice 1 K** (`GET /sales` + Owner dashboard APIs + live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details; catalog §21 at Slice 1 exit)
+**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (§19) + **M5 MVP hardening DONE** (**§20 — M5**) + **M6 Slice 1 M** (`GET /sales` + Owner dashboard APIs + live Dashboard + Sales + Transaction Details + Inventory + Product Details + Add Product + Receive Stock; catalog §21 at Slice 1 exit)
 
 > **Source of truth for contracts:** Zod schemas in `@r2a/shared-types`.  
 > **Live status:** [`Current_Status.md`](Current_Status.md).  
@@ -27,6 +27,7 @@
 > **M6 Batch I (2026-08-16):** Owner web Transaction Details consumes `GET /sales/:id`. FEFO OVERRIDE from `fefoOverride`. Loyalty grid from snapshots (hidden for walk-in). Reprint = on-screen preview from sale JSON (no Tauri). Amount Due ৳0. More Actions disabled. No void.  
 > **M6 Batch J (2026-08-16):** `GET /api/v1/owner/inventory` OWNER-only paged list (tabs, search, cost/sell/margin). Owner web Inventory list live. Product Details = Batch K. Full §21 at Slice 1 exit.  
 > **M6 Batch K (2026-08-16):** `GET /api/v1/owner/products/:id` OWNER-only product detail (lots, FEFO rank on sellable lots, units, recent InventoryEvents). Owner web Product Details live. Edit Product stays disabled. Add Product = Batch L. Full §21 at Slice 1 exit.  
+> **M6 Batch M (2026-08-16):** Owner web Receive Stock uses existing `GET /owner/products/:id` context + `POST /batches`; new lots create `InventoryEvent` RECEIVE. Supplier/PO/invoice and offline GRN are omitted. No new cloud route. Full §21 at Slice 1 exit.
 > **M5 Batch A (2026-08-14):** `PATCH /customers/:id` and `PATCH /batches/:id` are **`OWNER`, `MANAGER`** (cashier `403`, including batch qty). No new routes.  
 > **M5 Batch C (2026-08-14):** Desktop Settings → Receive stock (Owner/Manager, online only) uses existing `POST /api/v1/batches` and `PATCH /api/v1/batches/:id` (`quantityOnHand`). No new cloud routes.  
 > **M5 Batch E (2026-08-14):** Desktop `catalogPull` pages `GET /products` and `GET /batches` (`limit=100` + `offset` until `meta.total`, cap 50 pages / 5000 rows). Still **no** `costPerBase` in the local cache. No new cloud routes. No CSV.  
@@ -1277,3 +1278,4 @@ Dev runbook: [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md).
 | 2026-08-16 | **M6 Batch J:** `GET /owner/inventory` OWNER-only paged list + live Inventory UI; `smoke:m6j`; Product Details still Batch K |
 | 2026-08-16 | **M6 Batch K:** `GET /owner/products/:id` OWNER-only product detail + live Product Details UI; FEFO rank; InventoryEvent; `smoke:m6k`; Add Product still Batch L |
 | 2026-08-16 | **M6 Batch L:** Extended `POST /products` + `PATCH /products/:id` — added `manufacturer`, `strength`, `form`, `category`, `requiresPrescription`, `coldChain`, `storageNotes`, `reorderLevel`; live Add Product form in `apps/web` with Piece→Strip→Box unit hierarchy, Rx / cold chain toggles, 0 initial stock notice, and auto-redirect to Product Details on create; `smoke:m6l` 7/7 server + 4/4 web; no batch creation in Add Product form |
+| 2026-08-16 | **M6 Batch M:** Owner web Receive Stock live on existing `POST /batches`; product context, packaging math, cost/retail/margin, stock impact; RECEIVE event from Batch D; Supplier/PO/invoice + offline GRN omitted; `smoke:m6m` |

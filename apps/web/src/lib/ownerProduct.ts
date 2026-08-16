@@ -116,6 +116,23 @@ export type CreatedProduct = {
   barcode?: string | null;
 };
 
+export type ReceiveStockPayload = {
+  productId: string;
+  storeId?: string;
+  batchNumber: string;
+  expiryDate: string;
+  quantityOnHand: number;
+  costPerBase: number;
+  sellPerBase: number;
+};
+
+export type ReceivedBatch = ReceiveStockPayload & {
+  id: string;
+  storeId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 /** Live OWNER product page — one round-trip, includes cost/margin/events. */
 export async function fetchOwnerProduct(
   productId: string,
@@ -131,7 +148,17 @@ export async function createOwnerProduct(
 ): Promise<CreatedProduct> {
   return apiRequest<CreatedProduct>("/api/v1/products", {
     method: "POST",
-    body: JSON.stringify(input),
+    body: input,
+  });
+}
+
+/** Online-only Owner receive flow. The server records the RECEIVE event. */
+export async function receiveOwnerStock(
+  input: ReceiveStockPayload,
+): Promise<ReceivedBatch> {
+  return apiRequest<ReceivedBatch>("/api/v1/batches", {
+    method: "POST",
+    body: input,
   });
 }
 

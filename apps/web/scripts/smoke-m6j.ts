@@ -159,12 +159,10 @@ function checkLocks(): void {
     "Filter / Columns stay parked",
   );
   assert(
-    later.includes("inventory.later.new") &&
-      later.includes("inventory.later.receive") &&
-      later.includes("inventory.later.expiry") &&
+    later.includes("inventory.later.expiry") &&
       !later.includes("fetchOwnerInventory") &&
       !later.includes("/api/v1/products/"),
-    "Later screens must stay placeholders — no product detail fetch",
+    "Expiry must stay a placeholder until Batch N",
   );
   assert(
     paths.includes('kind: "expiry"') &&

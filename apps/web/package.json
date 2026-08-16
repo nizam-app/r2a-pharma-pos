@@ -18,7 +18,8 @@
     "smoke:m6i": "tsx scripts/smoke-m6i.ts",
     "smoke:m6j": "tsx scripts/smoke-m6j.ts",
     "smoke:m6k": "tsx scripts/smoke-m6k.ts",
-    "smoke:m6l": "tsx scripts/smoke-m6l.ts"
+    "smoke:m6l": "tsx scripts/smoke-m6l.ts",
+    "smoke:m6m": "tsx scripts/smoke-m6m.ts"
   },
   "dependencies": {
     "@r2a/shared-types": "*",

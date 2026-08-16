@@ -3,8 +3,8 @@
  * Later nav (Purchasing, …) must not appear here.
  * Batch G: `/sales/:id` is a live URL (detail page filled in Batch I).
  * Batch J: `/inventory` is the live list.
- * Batch K: `/inventory/:id` is live Product Details; `/inventory/new`,
- * `/inventory/expiry`, `/inventory/:id/receive` stay shells until L–N.
+ * Batch K: `/inventory/:id` is live Product Details. Add Product is Batch L,
+ * Receive Stock is Batch M, and `/inventory/expiry` stays a shell until N.
  */
 
 export const OWNER_PATHS = ["/", "/sales", "/inventory"] as const;

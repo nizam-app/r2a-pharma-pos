@@ -153,12 +153,10 @@ function checkLocks(): void {
     "Batch numbers must stay untranslated",
   );
   assert(
-    later.includes("inventory.later.new") &&
-      later.includes("inventory.later.receive") &&
-      later.includes("inventory.later.expiry") &&
+    later.includes("inventory.later.expiry") &&
       !later.includes("kind: \"detail\"") &&
       !later.includes("fetchOwnerProduct"),
-    "Add / Receive / Expiry stay placeholders",
+    "Expiry stays a placeholder; Product Details does not",
   );
   assert(
     !page.includes("Baki") && !page.includes("on-account"),

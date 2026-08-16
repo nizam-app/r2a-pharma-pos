@@ -4,6 +4,7 @@ import {
   InventoryLaterPage,
   InventoryPage,
   ProductDetailPage,
+  ReceiveStockPage,
 } from "@/features/inventory";
 import { SaleDetailPage, SalesPage } from "@/features/sales";
 import { inventorySubpath, salesDetailIdFromPath } from "@/lib/ownerPath";
@@ -27,6 +28,9 @@ function ShellMain() {
     if (sub.kind === "new") {
       return <AddProductPage />;
     }
+    if (sub.kind === "receive") {
+      return <ReceiveStockPage productId={sub.productId} />;
+    }
     return <InventoryLaterPage kind={sub.kind} />;
   }
   return <DashboardPage />;
@@ -34,7 +38,8 @@ function ShellMain() {
 
 /**
  * Locked Admin Portal chrome. Dashboard KPIs are Batch G; Sales list is Batch H;
- * Transaction Details is Batch I; Inventory list is Batch J; Product Details is Batch K.
+ * Transaction Details is Batch I; Inventory list is Batch J; Product Details is Batch K;
+ * Receive Stock is Batch M.
  */
 export function AppShell() {
   return (

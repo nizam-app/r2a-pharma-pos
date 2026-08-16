@@ -206,7 +206,7 @@ Track status in this table. Agents must only implement the milestone the user au
 | M3 | Desktop POS shell | **DONE** | Slice 1–6; later screens → Slice 7+. See `MILESTONE_3_EXECUTION.md` |
 | M4 | One-way sync | **DONE** | Batches A–F (queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue UI + catalog §19) |
 | M5 | MVP hardening | **DONE** | RBAC E2E, Receive stock, 409 copy, paged catalog, print stub, `smoke:m5`, runbook |
-| M6 | Growth (Phase 2) | **IN PROGRESS** | Slice 1 A–L (Owner web login + chrome + live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details + live Add Product; Prisma extras + ingest snapshots + sales/owner/product APIs). Full M6 (bi-di, n8n, RLS) later |
+| M6 | Growth (Phase 2) | **IN PROGRESS** | Slice 1 A–M (Owner web login + chrome + live Dashboard + Sales + Transaction Details + Inventory + Product Details + Add Product + Receive Stock; Prisma extras + ingest snapshots + sales/owner/product APIs). Full M6 (bi-di, n8n, RLS) later |
 | M7 | Scale (Phase 3) | PENDING | Multi-branch, transfers, enterprise RBAC |
 
 ---
@@ -352,13 +352,13 @@ Runbook: [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md).
 
 ### Milestone 6 — Growth (PRD Phase 2)
 
-Detailed batches (Slice 1): [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) — **A–L DONE**; M–O not started. Full M6 is **not** this slice.
+Detailed batches (Slice 1): [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) — **A–M DONE**; N–O not started. Full M6 is **not** this slice.
 
 - Bi-directional sync (cloud catalog/stock → local)
 - Loyalty points earn/redeem — ingest snapshots live (M6 D); refill events later
 - Supplier return bucket (≈90 days to expiry)
 - API webhooks → n8n (WhatsApp/SMS, PO dispatch)
-- `apps/web` owner analytics, staff, automation settings — Slice 1 login + chrome + live Dashboard + live Sales list + live Inventory + live Product Details + live Add Product
+- `apps/web` owner analytics, staff, automation settings — Slice 1 login + chrome + live Dashboard + live Sales list + live Inventory + live Product Details + live Add Product + live Receive Stock
 - Postgres RLS policies
 
 ---
@@ -390,7 +390,7 @@ Follow @PROJECT_MASTER_PLAN.md @Current_Status.md @ROLES_AND_PERMISSIONS.md @Com
 M0–M5 are DONE. Do not start M6 / Slice 7+ / hardware unless the user authorizes it in a new chat.
 ```
 
-M0–M5 are complete. **M6 Slice 1 Batches A–L DONE.** Next = **Authorize M6 Batch M** in a new chat. Do not start Batch M+ from this file alone.
+M0–M5 are complete. **M6 Slice 1 Batches A–M DONE.** Next = **Authorize M6 Batch N** in a new chat. Do not start Batch N+ from this file alone.
 
 ---
 
@@ -469,3 +469,4 @@ M0–M5 are complete. **M6 Slice 1 Batches A–L DONE.** Next = **Authorize M6 B
 | 2026-08-16 | **M6 Batch J completed:** live Inventory list; smoke:m6j; next = Authorize M6 Batch K |
 | 2026-08-16 | **M6 Batch K completed:** live Product Details; smoke:m6k; next = Authorize M6 Batch L |
 | 2026-08-16 | **M6 Batch L completed:** live Add Product (POST /products + unit hierarchy Piece→Strip→Box + Rx, cold chain, reorder level, storage notes; 0 initial stock notice); smoke:m6l; next = Authorize M6 Batch M |
+| 2026-08-16 | **M6 Batch M completed:** live web Receive Stock (POST /batches; product context + packaging/financial/stock impact); smoke:m6m; next = Authorize M6 Batch N |

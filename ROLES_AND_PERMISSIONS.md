@@ -54,7 +54,7 @@ Prisma / JWT roles (locked): `SUPER_ADMIN` \| `OWNER` \| `MANAGER` \| `CASHIER`.
 ### Pharmacy Owner
 
 * **Access:** Root authority for one tenant.
-* **Target UI:** Owner web (`apps/web`) — **M6**; login + chrome + live Dashboard + live Sales list + live Transaction Details + live Inventory + live Product Details (Slice 1 Batches A–B, G–K). Owner aggregate APIs live (Batch F / J / K).
+* **Target UI:** Owner web (`apps/web`) — **M6**; login + chrome + live Dashboard + Sales + Transaction Details + Inventory + Product Details + Add Product + Receive Stock (Slice 1 Batches A–M). Owner aggregate APIs live (Batch F / J / K).
 * **Until web exists:** Owner may log into desktop POS (`apps/desktop`) with the same JWT role. Desktop remains a **cashier workstation**, not the executive suite.
 * **Scope:** Financials and margins, staff, catalog/pricing, settings, audit, n8n (M6), multi-branch (M7).
 
@@ -87,9 +87,9 @@ Prisma / JWT roles (locked): `SUPER_ADMIN` \| `OWNER` \| `MANAGER` \| `CASHIER`.
 | `POST /customers` — **Owner only** | **Live** | Owner web UI = **M6** |
 | FEFO override on POS | **Stub PIN** (any 4-digit + local “Authorized By”). **M6 D:** ingest persists `fefoOverride` + authorizer name. | Real `pinHash` when **authorized** |
 | Shift open/close | **Local** `shiftStore` (no cash count, no cloud) | Cloud shift + blind count when **authorized** |
-| Purchase / GRN / stock entry UI | **Live** — desktop Settings Receive stock (Owner/Manager; online `POST`/`PATCH /batches`) | Owner web **Receive Stock** = **M6 Batch M** |
+| Purchase / GRN / stock entry UI | **Live** — desktop Settings (Owner/Manager) + Owner web Receive Stock (Owner; online `POST`/`PATCH /batches`) | Supplier/PO workflows later |
 | Owner web dashboard | **Live** (M6 G — KPIs, bars, inventory health, FEFO, recent sales) | Sales list = **live** (M6 H). Transaction Details = **live** (M6 I). Inventory list = **live** (M6 J). Product Details = **live** (M6 K) |
-| **Owner web Add Product** | **Live** (M6 L — `POST /products` with Piece→Strip→Box units, Rx, cold chain, reorder level, storage notes; 0 initial stock; redirect to Product Details) | Receive Stock (initial batch) = **M6 Batch M** |
+| **Owner web Add Product** | **Live** (M6 L — `POST /products` with Piece→Strip→Box units, Rx, cold chain, reorder level, storage notes; 0 initial stock; redirect to Product Details) | Receive Stock is **live** (M6 M) |
 | Loyalty earn/redeem persistence | **Live** on ingest snapshots (`loyaltyUsed` / `loyaltyEarned` + customer balance). POS session calc unchanged. OTP stub stays. | Owner web Transaction Details = **live** (M6 I) |
 | n8n, RLS, bi-di sync | Not started | **M6** |
 | Supplier return bucket, supplier ledger | Not started | **M6** |
@@ -311,3 +311,4 @@ Do **not** implement:
 | 2026-08-16 | **M6 Batch I** — Owner web Transaction Details live (`GET /sales/:id`). Reprint = on-screen preview. No void. |
 | 2026-08-16 | **M6 Batch J** — Owner web Inventory list live (`GET /owner/inventory`). OWNER cost/sell/margin. |
 | 2026-08-16 | **M6 Batch K** — Owner web Product Details live (`GET /owner/products/:id`). Edit Product disabled. |
+| 2026-08-16 | **M6 Batch M** — Owner web Receive Stock live using existing OWNER/MANAGER `POST /batches`; Owner web remains OWNER-only. Supplier/PO/invoice omitted. |
