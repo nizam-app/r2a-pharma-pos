@@ -4,6 +4,10 @@ export type ProductUnitType = "PIECE" | "STRIP" | "BOX";
 
 export type ProductLotStatus = "fefo" | "active" | "expired" | "empty";
 
+export type BatchLifecycleStatus = "ACTIVE" | "RETIRED" | "VOIDED";
+
+export type BatchReturnStatus = "ELIGIBLE" | "NOT_ELIGIBLE" | "MANIFEST_PREPARED";
+
 export type InventoryEventType = "RECEIVE" | "ADJUST" | "SALE";
 
 export type OwnerProductUnit = {
@@ -23,6 +27,10 @@ export type OwnerProductBatch = {
   quantityOnHand: number;
   costPerBase: number;
   sellPerBase: number;
+  supplierName: string | null;
+  returnStatus: BatchReturnStatus;
+  lifecycleStatus: BatchLifecycleStatus;
+  version: number;
   stockValue: number;
   fefoRank: number | null;
   status: ProductLotStatus;
@@ -116,6 +124,24 @@ export type CreatedProduct = {
   barcode?: string | null;
 };
 
+export type UpdateProductPayload = {
+  name: string;
+  genericName: string | null;
+  manufacturer: string | null;
+  strength: string | null;
+  form: string | null;
+  sku: string | null;
+  barcode: string | null;
+  description: string | null;
+  category: string | null;
+  requiresPrescription: boolean;
+  coldChain: boolean;
+  storageNotes: string | null;
+  reorderLevel: number | null;
+  isActive: boolean;
+  units: ProductUnitInput[];
+};
+
 export type ReceiveStockPayload = {
   productId: string;
   storeId?: string;
@@ -124,6 +150,8 @@ export type ReceiveStockPayload = {
   quantityOnHand: number;
   costPerBase: number;
   sellPerBase: number;
+  supplierName?: string;
+  returnStatus?: BatchReturnStatus;
 };
 
 export type ReceivedBatch = ReceiveStockPayload & {
@@ -150,6 +178,17 @@ export async function createOwnerProduct(
     method: "POST",
     body: input,
   });
+}
+
+/** Update catalog metadata and the complete Piece/Strip/Box hierarchy. */
+export async function updateOwnerProduct(
+  productId: string,
+  input: UpdateProductPayload,
+): Promise<CreatedProduct> {
+  return apiRequest<CreatedProduct>(
+    `/api/v1/products/${encodeURIComponent(productId)}`,
+    { method: "PATCH", body: input },
+  );
 }
 
 /** Online-only Owner receive flow. The server records the RECEIVE event. */

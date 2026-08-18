@@ -43,6 +43,12 @@ export const productDetail = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: 200, message: "OK", data });
 });
 
+export const batchDetail = catchAsync(async (req: Request, res: Response) => {
+  const ctx = requireTenantContext(req);
+  const data = await ownerService.getBatchDetail(ctx, req.params.id!);
+  sendResponse(res, { statusCode: 200, message: "OK", data });
+});
+
 export const inventory = catchAsync(async (req: Request, res: Response) => {
   const ctx = requireTenantContext(req);
   const result = await ownerService.getInventoryList(

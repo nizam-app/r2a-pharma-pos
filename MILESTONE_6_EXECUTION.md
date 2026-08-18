@@ -6,9 +6,9 @@
 **API catalog:** [`Completed_API_lists.md`](Completed_API_lists.md)  
 **RBAC contract:** [`ROLES_AND_PERMISSIONS.md`](ROLES_AND_PERMISSIONS.md) (v2.0.0)  
 **Authorized plan:** [`.cursor/plans/m6_slice_1_owner_33de6430.plan.md`](.cursor/plans/m6_slice_1_owner_33de6430.plan.md)  
-**Status of M6:** **IN PROGRESS** — Slice 1 Batches **A–M DONE**; **N–O not started**. Later M6 slices (Purchasing, Manager web, n8n, RLS, bi-di) are **not** in this file yet.
-**Prerequisite:** Milestone 0–**5** **DONE**.  
-**Do not start:** Manager web, Purchasing/Suppliers/Customers/Staff/Reports/Audit/Settings screens, supplier return workflow, bi-di catalog sync, n8n, Postgres RLS, Slice 7+ POS, real printer IPC, card SDK, MFS APIs, FEFO `pinHash`, cloud shift, multi-branch switch, on-account tender — unless the user re-authorizes.
+**Status of M6:** **IN PROGRESS** — Owner Web Slice 1 **A–O DONE**; W1–W6 **DONE**; Slice 2 **P–U DONE**, V–AD not started. Later M6 (Customers/Staff/Reports/Audit/Settings, Manager web, n8n, RLS, bi-di) stay unauthorized.
+**Prerequisite:** Milestone 0–**5**, Owner Web Slice 1, and W1–W6 **DONE**.
+**Do not start:** Manager web, Customers/Staff/Reports/Audit & FEFO/Settings/Help/Owner Profile, Edit Supplier, GRN list, Review Reorder Suggestions extra page, bi-di sync, n8n, Postgres RLS, Slice 7+ POS, real printer IPC, card SDK, MFS APIs, FEFO `pinHash`, cloud shift, multi-branch switch, on-account tender — unless the user re-authorizes.
 
 ---
 
@@ -29,8 +29,8 @@
 8. Proceed to the next batch only after the previous one is green.
 
 > **Hard rules:**
-> - Implement **one batch per chat**. Do not collapse A–O into a single “do Milestone 6” run.
-> - **Do not plan or build screens that are not in Slice 1.** When more Owner screens arrive, append Slice 2+.
+> - Implement **one batch per chat**. Do not collapse Slice 1 A–O or Slice 2 P–AD into a single run.
+> - **Build only the active slice.** Slice 1 is **DONE**. Active scope is **Slice 2** (P–AD). Later screens → Slice 3+.
 > - **Mock inconsistency:** chrome is locked (same as M3). Per-screen mocks drive *content only*. The agent **handles** layout/theme/nav mismatches — do not restyle chrome to match a later/earlier mock.
 > - **Missing next screen:** if a control implies a flow we do not have a screenshot for, the agent **asks and guides** — do not invent that screen, and do not silently skip without asking.
 > - `apps/web` is **OWNER only**. Manager and Cashier must not use it.
@@ -96,6 +96,24 @@ Then stop. After you share (or say use prior), implement that batch only.
 | 7 | **Receive Stock** | M |
 | 8 | **Expiry Management** | N |
 
+**Slice 2 screen names (exact labels):**
+
+| # | Screen name | Batch |
+|---|-------------|-------|
+| 9 | **Purchasing** | T |
+| 10 | **Create Purchase Order** | U |
+| 11 | **Purchase Order Details** | V |
+| 12 | **Receive Stock** (against PO — not Inventory Add Lot) | W |
+| 13 | **Suppliers** | X |
+| 14 | **Add Supplier** | Y |
+| 15 | **Supplier Details** | Z |
+| 16 | **Expiry Returns** | AA |
+| 17 | **Create Return Manifest** | AB — **no screenshot yet; stop and ask** |
+| 18 | **Return Manifest Details** | AC (all lifecycle states, one page) |
+| — | **Record Supplier Return Dispatch** | AC modal — shared |
+| — | **Record Supplier Decision** | AC modal — invent from spec below |
+| — | **Complete Return** | AC modal — invent from spec below |
+
 Chrome baseline: **Dashboard** (first shared screen). Later mocks that use a dark sidebar → **ignore**; keep the chrome lock below.
 
 Same family of rules as [`MILESTONE_3_EXECUTION.md`](MILESTONE_3_EXECUTION.md) (chrome lock + do not invent unshared flows). Owner-web extras: **handle inconsistent mocks**; **ask + guide** when the next relevant screen is missing.
@@ -115,7 +133,7 @@ Follow the **Chrome consistency lock**. Copy **only the content region** from th
 | Dark vs light sidebar, different brand, extra header widgets | **Ignore.** Keep Dashboard chrome (Batch B) |
 | Branch switcher looks enabled | Show store **name**; keep **disabled** (M7) |
 | Decorative sample numbers (৳124,850, TXN-260814-1045) | Live API data only |
-| Parked controls (Export, bell, Supplier, Prepare Return, Edit Product) | This file’s parked table — disable/omit; do not invent backends |
+| Parked controls (bell, Prepare Return) | This file’s parked table — disable/omit; do not invent backends. W2 made Edit Product live; Batch N made CSV Export and persisted batch supplier/return metadata live. |
 | Copy that implies returns / Baki / due | Follow product locks, not the mock caption |
 
 On conflict: **this file + chrome lock > individual screenshot > Figma.**
@@ -142,12 +160,12 @@ Stopping until you reply.
 
 Examples that **must** trigger this ask (unless already parked in this file):
 
-- Edit Product, Create Customer, Staff detail, PO / Supplier pages, Settings, Help, Owner Profile
+- Create Customer, Staff detail, PO / Supplier pages, Settings, Help, Owner Profile
 - Any new modal/page implied by a primary CTA that is **not** listed in Slice 1 routes
 
 Examples that **must not** trigger an ask (already locked):
 
-- Disabled later-nav items, Prepare Supplier Return, Export no-op, header bell/search, branch switch, Supplier/PO on Receive
+- Disabled later-nav items (Customers/Staff/…), header bell/search, branch switch. Slice 2 Inventory **Prepare Supplier Return** is wired in Batch AA (do not treat as parked after AA).
 
 ### C. When the agent may proceed without asking
 
@@ -208,21 +226,21 @@ This section records that `PROJECT_MASTER_PLAN.md`, `Current_Status.md`, `Comple
 | Item | State |
 |------|--------|
 | M0–M5 | **DONE** |
-| Cloud API | Real — auth, inventory, FEFO, `/sales/ingest`, `/sync/ingest`. **Batch E:** `GET /sales` + `GET /sales/:id`. **Batch F:** `GET /owner/dashboard` + inventory-summary + expiry. **Batch J:** `GET /owner/inventory`. **Batch K:** `GET /owner/products/:id` |
-| `@r2a/desktop` | POS shell + one-way sync + Receive stock (Owner/Manager Settings) |
-| `@r2a/web` | **Batch M DONE** — live Dashboard + Sales + Transaction Details + Inventory + Product Details + Add Product + Receive Stock |
-| Schema | **Batch C DONE** — Sale/SaleItem/Product extras + `InventoryEvent` |
+| Cloud API | Real — prior Slice 1 routes plus Owner batch detail; audited/versioned corrections; signed adjustments; Owner-only void/retire. General batch PATCH is metadata/price only. |
+| `@r2a/desktop` | POS shell + one-way sync + Receive stock; W6 signed/versioned/reasoned online stock adjustment with catalog refresh |
+| `@r2a/web` | **Batch M + W2/W5 DONE** — live Dashboard, Sales, Inventory, Product Add/Edit/Receive, and Batch Management |
+| Schema | Batch C plus W1 lifecycle/version/revision, sale display snapshots, and InventoryEvent idempotency/result metadata |
 | Ingest | **Batch D DONE** — `receiptNo`, cost snapshot, loyalty, FEFO flags, `InventoryEvent` SALE/RECEIVE/ADJUST |
 | Loyalty | Session calc on POS; **Batch D** snapshots `loyaltyUsed`/`loyaltyEarned` on ingest when present |
 | FEFO override | POS PIN stub unchanged; ingest persists `fefoOverride` + `fefoAuthorizedByName` (notes still kept) |
-| Supplier / PO / returns | **No** models |
+| Supplier / PO / returns | **Batch R APIs live:** OWNER-only Supplier/PO, confirmed GRN, return queue, and manifest lifecycle APIs. No Slice 2 UI yet. Batch keeps denormalized `supplierName` + `returnStatus` and optional `supplierId`. |
 | Print / FEFO PIN | Stubs — stay stubs |
 
 ### Milestone 6 (master plan §7) vs this file
 
 Full M6: bi-di sync, loyalty persist, refill/n8n, supplier return, Owner web, RLS.
 
-**This file = Slice 1 only:** Owner Admin Portal screens 1–8 + the APIs those screens need, including minimal loyalty + FEFO fields on ingest so Transaction Details is live.
+**This file = Slice 1 (DONE) + Slice 2 (P–AD).** Full M6 still needs later slices.
 
 ---
 
@@ -230,12 +248,14 @@ Full M6: bi-di sync, loyalty persist, refill/n8n, supplier return, Owner web, RL
 
 | Rule | Behavior |
 |------|----------|
-| Active scope | **Slice 1** (batches A–O) |
-| More Owner screens later | User shares → agent **appends Slice 2+** |
-| Slice 1 complete | Batch O exit + user walkthrough PASS |
-| M6 milestone complete | **Not** this slice — later slices still required |
-| Invent authorization | Owner Login (Batch A). Chrome from Dashboard. |
-| Not inventable yet | Manager web, Purchasing, Suppliers, Customers, Staff, Reports, Audit & FEFO, Settings, Help, Owner Profile, Edit Product, Create Customer UI, supplier return, n8n, RLS, bi-di, branch switch |
+| Active scope | **Slice 2** (batches P–AD). Slice 1 A–O **DONE** |
+| More Owner screens later | User shares → agent **appends Slice 3+** |
+| Slice 1 complete | Batch O exit — **DONE** 2026-08-18 |
+| Slice 2 complete | Batch AD exit + user walkthrough PASS |
+| M6 milestone complete | **Not** Slice 2 — later slices still required |
+| Invent authorization | Owner Login (Slice 1). Record Supplier Decision + Complete Return **modals** (Slice 2 spec below). |
+| Slice 2 re-share | **Create Return Manifest** has no screenshot — stop and ask before that batch |
+| Not inventable yet | Manager web, Customers, Staff, Reports, Audit & FEFO, Settings, Help, Owner Profile, Edit Supplier page, View All Receipts, Review Reorder Suggestions page, n8n, RLS, bi-di, branch switch |
 
 ---
 
@@ -253,9 +273,10 @@ Login (OWNER)
             → Expiry Management (alerts / Review Inventory Alerts)
 
 Sidebar (visible):
-  LIVE:     Dashboard, Sales, Inventory
-  DISABLED: Purchasing, Suppliers, Customers, Staff, Reports,
-            Audit & FEFO, Settings, Help, Owner Profile
+  LIVE (Slice 1):      Dashboard, Sales, Inventory
+  LIVE (Slice 2):      Purchasing, Suppliers
+  DISABLED: Customers, Staff, Reports, Audit & FEFO, Settings,
+            Help, Owner Profile
 ```
 
 ### Slice 1 routes (`apps/web`)
@@ -271,8 +292,27 @@ Sidebar (visible):
 | Add Product | `/inventory/new` |
 | Product Details | `/inventory/:productId` |
 | Receive Stock | `/inventory/:productId/receive` |
+| Edit Product | `/inventory/:productId/edit` |
+| Manage Batch | `/inventory/:productId/batches/:batchId` |
 
 Register `/inventory/expiry` and `/inventory/new` **before** `/:productId`.
+
+### Slice 2 routes (`apps/web`) — planned
+
+| Screen | Route |
+|--------|--------|
+| Purchasing | `/purchasing` |
+| Create Purchase Order | `/purchasing/new` (draft resume: `/purchasing/:poId/edit` — **same form**) |
+| Purchase Order Details | `/purchasing/:poId` |
+| Receive against PO | `/purchasing/:poId/receive` |
+| Suppliers | `/suppliers` |
+| Add Supplier | `/suppliers/new` |
+| Supplier Details | `/suppliers/:supplierId` |
+| Expiry Returns | `/suppliers/returns` |
+| Create Return Manifest | `/suppliers/returns/new` |
+| Return Manifest Details | `/suppliers/returns/:manifestId` |
+
+Register `/purchasing/new`, `/suppliers/new`, `/suppliers/returns`, `/suppliers/returns/new` **before** `/:id` params.
 
 ---
 
@@ -305,7 +345,7 @@ Register `/inventory/expiry` and `/inventory/new` **before** `/:productId`.
 |-------|------|
 | Who logs in | **OWNER only**. Manager/Cashier: same login API, client + optional server reject for web session |
 | Store control | Show JWT / `GET /tenant/context` store **name**. Dropdown **disabled**. Multi-branch = **M7** |
-| Receive stock | Web uses existing `POST /api/v1/batches`. Desktop Settings Receive **stays**. Same API |
+| Receive stock | Web Add Lot uses `POST /api/v1/batches`. Desktop Add Lot stays; manual stock correction uses signed `/batches/:id/adjustments` and is never queued offline. |
 | Cost / margin / net profit | Owner web **shows**. `GET /sales` redacts those fields for Manager/Cashier (POS may use list later) |
 | Create Customer | **Not** in Slice 1 (Customers nav disabled). `POST /customers` remains OWNER-only |
 | Net Sales copy | Gross − discounts. **No returns.** Do not invent a returns ledger |
@@ -316,12 +356,15 @@ Register `/inventory/expiry` and `/inventory/new` **before** `/:productId`.
 | Mock control | Slice 1 |
 |--------------|---------|
 | Branch / store switch | Display only, disabled |
-| Supplier, Link PO, supplier invoice on Receive | **Omit** |
-| Prepare Supplier Return | **Disabled** |
-| Return eligibility / Manifest | Hide or em dash |
-| Export | No-op or hide until a later slice |
+| Supplier on Receive | Live optional batch-level text; Batch P adds Supplier data but this ad-hoc Slice 1 flow has no Supplier selector |
+| Link PO / supplier invoice on Receive | **Omit** |
+| Prepare Supplier Return | **Slice 1:** disabled. **Slice 2 Batch AA:** enable → `/suppliers/returns` |
+| Return eligibility | Live persisted Batch metadata; no reservation/workflow |
+| Manifest workflow | Not built; `MANIFEST_PREPARED` is metadata only |
+| Export | Live client-side CSV of selected or filtered expiry rows |
 | Header search / bell | Chrome only; no search results / notification inbox |
-| Edit Product, More Actions, View Inventory History | Disabled |
+| Edit Product | Live through W2 |
+| More Actions, View Inventory History | Disabled |
 | Card last-4 / receipt-print timeline | Show only if already on the sale (notes/reference). Do not invent |
 
 ### Colors
@@ -353,6 +396,8 @@ Register `/inventory/expiry` and `/inventory/new` **before** `/:productId`.
 
 **`Product`:** optional `category`, `requiresPrescription` Boolean default false, `coldChain` Boolean default false, `storageNotes`, `reorderLevel` Int?.
 
+**`Batch` (Batch N repair):** optional `supplierName`; `returnStatus` = `ELIGIBLE` | `NOT_ELIGIBLE` | `MANIFEST_PREPARED`, default `NOT_ELIGIBLE`. Batch P later adds optional `supplierId` plus Supplier/return-manifest models; behavior remains gated to Q/R+.
+
 **`InventoryEvent`** (append-only):
 
 | Field | Notes |
@@ -362,9 +407,9 @@ Register `/inventory/expiry` and `/inventory/new` **before** `/:productId`.
 | `productId`, `batchId?`, `storeId`, `tenantId` | Required scoping |
 | `saleId?` | Set on SALE |
 | `actorUserId?` | JWT `sub` for RECEIVE/ADJUST |
-| `note?` | Short reason (e.g. breakage) |
+| `eventId?`, `reasonCode?`, `quantityAfter?`, `note?` | W1/W3 audit and idempotency metadata |
 
-Write events from: `POST /batches` (RECEIVE), `PATCH /batches` qty (ADJUST = new − old), sale ingest (SALE per line). Desktop Receive gets history automatically.
+Current writers: `POST /batches` (RECEIVE), signed `/batches/:id/adjustments` and lifecycle compensation (ADJUST), sale ingest (SALE per line). The original Batch D absolute PATCH writer was removed in W6.
 
 ### 3. Ingest extensions (Batch D)
 
@@ -399,7 +444,7 @@ Server: if `customerId` present, snapshot `loyaltyPrevious` from `Customer.loyal
 
 ### 5. Out of Slice 1
 
-Manager web, n8n, RLS, bi-di sync, Supplier/PO models, return manifests, CSV import, terminal presence, Edit Product screen, Create Customer UI, branch switching, printer IPC, `pinHash`, sale void, `creditBalance`.
+Manager web, n8n, RLS, bi-di sync, Supplier/PO models, return manifests, CSV import, terminal presence, Create Customer UI, branch switching, printer IPC, `pinHash`, sale void, `creditBalance`.
 
 ---
 
@@ -529,7 +574,7 @@ When done, paste the short M6 Batch A report.
 - [x] Routes exist for `/`, `/sales`, `/inventory` as empty shells (i18n titles)
 - [x] Locale control somewhere accessible (header or later Settings — for Slice 1: header or login-already-has is OK; do not build Settings page)
 - [x] i18n all chrome strings
-- [x] `smoke:m6b`: sidebar labels include disabled later items; no `navigate` to Purchasing
+- [x] `smoke:m6b`: sidebar labels include disabled later items; Purchasing remained disabled until Batch S
 - [x] Do **not** fetch dashboard KPIs (Batch G)
 
 ### Exit check
@@ -604,7 +649,7 @@ When done, paste the short M6 Batch C report.
 
 ## Batch D — Ingest extensions + POS wire-up
 
-**Goal:** New sales persist loyalty snapshots, FEFO flags, cost-at-sale, receiptNo, SALE inventory events. RECEIVE/ADJUST events on existing batch POST/PATCH. Desktop `saleIngest.ts` sends the new fields. **Cashier UX unchanged.**
+**Goal (historical Batch D):** New sales persist loyalty snapshots, FEFO flags, cost-at-sale, receiptNo, SALE inventory events. Batch D originally wrote ADJUST on absolute PATCH; W6 superseded that writer with signed adjustments. Desktop `saleIngest.ts` sends the new fields. **Cashier UX unchanged.**
 
 **Re-share screen:** none.
 
@@ -613,7 +658,7 @@ When done, paste the short M6 Batch C report.
 - [x] `ingestSale`: generate `receiptNo`; fill `costPerBaseAtSale`; persist FEFO flags; loyalty snapshot + `Customer.loyaltyPoints` update when fields present; write `InventoryEvent` SALE rows
 - [x] Idempotent replay: do **not** double-apply loyalty or events
 - [x] `POST /batches` → RECEIVE event (`quantityBaseChange` = qty posted)
-- [x] `PATCH /batches` qty → ADJUST event (delta)
+- [x] Historical Batch D PATCH qty → ADJUST event (superseded and removed by W6 signed `/adjustments`)
 - [x] Desktop [`saleIngest.ts`](apps/desktop/src/lib/saleIngest.ts): send `loyaltyUsed` / `loyaltyEarned` from existing `loyaltyCalc`; send per-line `fefoOverride` + `fefoAuthorizedByName`. Keep notes for card/MFS as today
 - [x] Do **not** change Redeem OTP stub / PIN stub
 - [x] `smoke:m6d` (server and/or desktop source): ingest with override line + loyalty fields persists; old payload without them still 200
@@ -965,7 +1010,7 @@ When done, paste the short M6 Batch L report.
 
 ## Batch M — Receive Stock (web)
 
-**Goal:** Owner receives a lot from the web using **`POST /api/v1/batches`** (same as desktop). Omit Supplier / PO / invoice.
+**Goal:** Owner receives a lot from the web using **`POST /api/v1/batches`** (same as desktop). Batch N repair adds optional supplier/return metadata. Omit PO / invoice.
 
 **Re-share screen:** **Receive Stock**.
 
@@ -974,7 +1019,7 @@ When done, paste the short M6 Batch L report.
 - [x] Ask for screenshot; stop until reply
 - [x] Product context card from GET product
 - [x] Fields: batchNumber, expiry, qty PIECE, costPerBase, sellPerBase, received date **display only** (server `createdAt`)
-- [x] Omit supplier, Link PO, invoice
+- [x] Optional batch-level supplier + return status; omit Link PO and invoice
 - [x] Live packaging math + cost/retail/margin + stock impact from current on-hand
 - [x] Confirm → POST batches → InventoryEvent RECEIVE (already D) → Product Details
 - [x] i18n; duplicate batchNumber uses existing API error
@@ -984,7 +1029,7 @@ When done, paste the short M6 Batch L report.
 ### Exit check
 
 - New lot appears on Product Details and POS after catalog pull
-- Desktop Receive still works
+- Desktop Receive still works through the W6 signed adjustment contract
 
 ### Agent prompt
 
@@ -992,7 +1037,7 @@ When done, paste the short M6 Batch L report.
 Implement ONLY Batch M from MILESTONE_6_EXECUTION.md
 (Receive Stock web).
 Re-share: Receive Stock — stop until shared or use prior.
-POST /batches only. Omit Supplier/PO/invoice.
+POST /batches only. Optional batch supplier/return metadata; omit PO/invoice.
 When done, paste the short M6 Batch M report.
 ```
 
@@ -1006,20 +1051,24 @@ When done, paste the short M6 Batch M report.
 
 ## Batch N — Expiry Management
 
-**Goal:** Live expiry buckets. Prepare Supplier Return **disabled**. No return eligibility column (or em dash).
+**Gate:** Owner Web Missing Features W1–W6 had to be green before authorization. **Met, authorized, and completed 2026-08-18.**
+
+**Goal:** Live expiry buckets with persisted supplier/return metadata. Prepare Supplier Return remains **disabled**; no manifest workflow.
 
 **Re-share screen:** **Expiry Management**.
 
 ### Tasks
 
-- [ ] Ask for screenshot; stop until reply
-- [ ] `GET /owner/expiry` — cards + table + tabs
-- [ ] Search medicine/batch (no supplier)
-- [ ] Export no-op or omit
-- [ ] Prepare Supplier Return disabled
-- [ ] Row click → Product Details optional
-- [ ] `smoke:m6n`: expiry page calls owner expiry API
-- [ ] Do **not** create return manifests
+- [x] Ask for screenshot; stop until reply
+- [x] `GET /owner/expiry` — cards + table + tabs
+- [x] Search medicine/batch/supplier
+- [x] CSV Export for selected or filtered rows
+- [x] Select-all/current-row checkboxes
+- [x] Supplier + Return Eligibility display and dropdown filters
+- [x] Prepare Supplier Return disabled
+- [x] Row click → Product Details optional
+- [x] `smoke:m6n`: expiry page calls owner expiry API
+- [x] Do **not** create return manifests
 
 ### Exit check
 
@@ -1052,13 +1101,13 @@ When done, paste the short M6 Batch N report.
 
 ### Tasks
 
-- [ ] [`Completed_API_lists.md`](Completed_API_lists.md) **§21** (or next free section): GET sales, owner dashboard/summary/expiry, ingest extras, InventoryEvent, product extras, redaction rules
-- [ ] `npm run smoke:m6s1` composing m6a–m6n guards that exist + `smoke:m2` ingest still green
-- [ ] [`Current_Status.md`](Current_Status.md): M6 Slice 1 screens live; later backlog listed; next = Slice 2 when screens shared
-- [ ] [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_PLAN.md): M6 still not DONE; note Slice 1 Owner web
-- [ ] [`ROLES_AND_PERMISSIONS.md`](ROLES_AND_PERMISSIONS.md): Owner web = live for Slice 1 screens; Manager web still later
-- [ ] This file: A–O checkboxes; Slice 1 status **DONE**
-- [ ] Do **not** start Purchasing or Manager web
+- [x] [`Completed_API_lists.md`](Completed_API_lists.md) **§21**: GET sales, owner dashboard/summary/expiry, ingest extras, InventoryEvent, product/batch extras, redaction rules
+- [x] `npm run smoke:m6s1` composes durable m6a–m6n guards + `smoke:m2`; PASS 2026-08-18
+- [x] [`Current_Status.md`](Current_Status.md): M6 Slice 1 screens live; later backlog listed; next = Slice 2 when screens shared
+- [x] [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_PLAN.md): M6 still not DONE; Owner Web Slice 1 noted as complete
+- [x] [`ROLES_AND_PERMISSIONS.md`](ROLES_AND_PERMISSIONS.md): Owner web live for Slice 1; Manager web still later
+- [x] This file: A–O checkboxes; Slice 1 status **DONE**
+- [x] Did not start Purchasing or Manager web
 
 ### Exit check
 
@@ -1089,16 +1138,636 @@ When done, paste the short M6 Batch O report and the user walkthrough.
 
 **Next after PASS:** Share the next Owner screens for **Slice 2**. Do not start n8n / RLS / bi-di unless authorized.
 
+**Slice 2 is in progress (P–U done; V–AD below). Next implement:** `Authorize M6 Batch V`.
+
 ---
 
-## Later backlog (do not build in Slice 1)
+## Slice 2 — Purchasing, Suppliers, Expiry Returns
+
+User shared screens 2026-08-18 (scroll bottoms are **not** extra pages). Locks from planning chat + correction: **keep dedicated Create Return Manifest page**.
+
+### Slice 2 IA
+
+```text
+Purchasing
+  → Create Purchase Order
+  → PO Details
+       → Receive Stock against this PO (GRN)
+Inventory Receive (Slice 1) STAYS — ad-hoc lot, no PO
+
+Suppliers
+  → Add Supplier
+  → Supplier Details
+       → Create PO
+       → Expiry Returns
+
+Expiry Returns queue
+  → Create Return Manifest          (dedicated page)
+  → Manifest Details                (one page: Prepared | Dispatched | Accepted | Completed)
+       → Record Dispatch            (modal — shared)
+       → Record Supplier Decision   (modal — spec)
+       → Complete Return            (modal — spec)
+
+Inventory → Expiry → Prepare Supplier Return → /suppliers/returns
+```
+
+**10 unique pages + 3 modals.** Do **not** collapse Create Return Manifest into the queue.
+
+### Dual receive (locked)
+
+| Path | When | Implementation |
+|------|------|----------------|
+| Inventory → Receive | Ad-hoc / opening stock / no PO | Keep Slice 1 `POST /batches` |
+| Purchasing → Receive against PO | Goods vs a PO | New GRN record + `POST /batches` (or internal shared create-lot) with `supplierId` + `purchaseOrderId`; update PO remaining qty |
+
+Desktop Settings Receive stays ad-hoc. Same lot table. No offline GRN.
+
+### Parked on Slice 2 mocks (do not invent extra screens)
+
+| Control | Slice 2 |
+|---------|---------|
+| Review Reorder Suggestions | **Disabled** |
+| View All Receipts / GRN list | **Disabled** |
+| Edit Supplier | **No page.** Add Supplier only |
+| Extra draft-resume screen | **None.** Save as Draft uses Create PO form; reopen `/purchasing/:poId/edit` |
+| Export / Print / More Actions | **Disabled** unless a later slice shares them |
+| Header search / bell / branch switch | Unchanged Slice 1 chrome |
+| Save as Draft on Add Supplier / GRN | Optional: persist only if the same page can reopen it; otherwise disable |
+
+**Keep live on shared Create PO:** **Add Suggested Items** (inline, not a new page).
+
+### Domain numbers
+
+| Kind | Format |
+|------|--------|
+| PO | `PO-YYMMDD-####` unique per tenant |
+| GRN | `GRN-YYMM-####` unique per tenant |
+| Return manifest | `SRM-YYMMDD-####` unique per tenant |
+
+### Schema (Batch P — additive)
+
+New models (all `tenantId`-scoped): `Supplier`, `PurchaseOrder`, `PurchaseOrderLine`, `GoodsReceipt`, `GoodsReceiptLine`, `ReturnManifest`, `ReturnManifestLine`.
+
+**`Supplier`:** name, contactPerson, phone, email?, address?, city?, registrationNumber?, notes?, paymentTerms?, leadTimeDays?, minOrderValue?, status `ACTIVE` \| `HOLD` \| `DRAFT`, expiryReturnsAccepted, minDaysBeforeExpiry?, returnNotes?, preferredContact?, secondaryPhone?, `isActive`.
+
+**`PurchaseOrder`:** `poNumber`, `supplierId`, store from JWT, status `DRAFT` \| `SENT` \| `PARTIALLY_RECEIVED` \| `RECEIVED`, `reference?`, `expectedDelivery?`, createdBy, money totals (estimated). Creating a PO **does not** change inventory.
+
+**`PurchaseOrderLine`:** `productId`, `qtyOrdered` PIECE, `qtyReceived` default 0, `costPerBase` snapshot.
+
+**`GoodsReceipt`:** `grnNumber`, `purchaseOrderId`, `supplierInvoiceRef?`, `deliveryNote?`, `receivedAt`, `receivedByUserId`, status `CONFIRMED` (no draft GRN list). Confirm creates lots.
+
+**`GoodsReceiptLine`:** `productId`, `qty` PIECE, `batchNumber`, `expiryDate`, `costPerBase`, `sellPerBase` → creates `Batch` + `InventoryEvent` RECEIVE; set `Batch.supplierId` (new optional FK) and keep `supplierName` denormalized from Supplier.name.
+
+**`ReturnManifest`:** `srmNumber`, `supplierId`, status `PREPARED` \| `DISPATCHED` \| `ACCEPTED` \| `REJECTED` \| `COMPLETED`, preparedBy, preparedAt, supplierReference?, notes?, dispatch fields, decision fields, completedAt?.
+
+**`ReturnManifestLine`:** `batchId`, `returnQty` PIECE, cost snapshot at prepare.
+
+**`Batch.returnStatus`:** keep enum; creating a manifest sets lines to `MANIFEST_PREPARED`. Dispatch does **not** revert that; Eligible queue hides/disables those rows.
+
+Optional `Batch.supplierId` FK — do not drop `supplierName` in Slice 2.
+
+### Return lifecycle spec (one Manifest Details page)
+
+Status stepper: **Prepared → Dispatched → Supplier Decision (Accepted) → Completed**.
+
+| Current | Primary CTA | Effect |
+|---------|-------------|--------|
+| PREPARED | Record Dispatch | Shared modal. After confirm: signed `POST /batches/:id/adjustments` per line (`reasonCode` `SUPPLIER_RETURN_DISPATCH`, negative qty, `expectedVersion`, `eventId`). Stock leaves. Status **DISPATCHED**. |
+| DISPATCHED | Record Supplier Decision | Invented modal (spec below). **Accepted** → **ACCEPTED**. **Rejected** → **REJECTED** (terminal). Stock already gone — **do not** auto-restore. |
+| ACCEPTED | Complete Return | Invented modal. No further stock move. Status **COMPLETED**. |
+| REJECTED / COMPLETED | none | Read-only. Dispatch/decision disabled |
+
+**Inventory effect panel:** PREPARED = “Not yet posted” + projected deduction. After dispatch = posted / deducted.
+
+#### Record Supplier Decision (invent — match Dispatch modal family)
+
+- Title: Record Supplier Decision. Subtext: Record the supplier’s decision on this prepared dispatch.
+- Manifest + supplier (read-only).
+- Decision * : Accepted \| Rejected.
+- Credit note / reference: optional; required-looking only when Accepted (optional in API).
+- Notes.
+- Confirm checkbox: “I confirm this is the supplier’s decision.”
+- Cancel / Confirm Decision.
+
+#### Complete Return (invent)
+
+- Title: Complete Return. Subtext: Close this return. Inventory was already adjusted at dispatch.
+- Manifest + supplier + units + cost (read-only).
+- Checkbox: “I confirm this return is complete.”
+- Cancel / Complete Return.
+
+Do **not** create separate page components per status. Same details route; fields/CTAs/progress/activity/inventory effect switch on status.
+
+### Create Return Manifest (dedicated page)
+
+Not the queue. Queue selection (same supplier only) → `/suppliers/returns/new`. Page reviews batches, qtys, cost, supplier policy, Confirm → create SRM → details. Mixed-supplier selection blocked. Manifest Prepared rows not selectable.
+
+**Re-share gate:** no screenshot in chat. Agent **stops** and asks before Batch AB.
+
+---
+
+## Batch overview (Slice 2)
+
+| Batch | Title | Depends on | Re-share? |
+|-------|-------|------------|-----------|
+| **P** | Prisma + Zod (Supplier, PO, GRN, Manifest) | Slice 1 O | No |
+| **Q** | Supplier + Purchase Order APIs | P | No |
+| **R** | GRN + Return APIs | Q | No |
+| **S** | Enable Purchasing + Suppliers nav | Q | No |
+| **T** | Purchasing list | S + Q | **Purchasing** |
+| **U** | Create Purchase Order | T | **Create Purchase Order** |
+| **V** | Purchase Order Details | U | **Purchase Order Details** |
+| **W** | Receive Stock against PO | V + R | **Receive Stock** (PO GRN) |
+| **X** | Suppliers list | S + Q | **Suppliers** |
+| **Y** | Add Supplier | X | **Add Supplier** |
+| **Z** | Supplier Details | Y | **Supplier Details** |
+| **AA** | Expiry Returns queue + Prepare Return wire | Z + R | **Expiry Returns** |
+| **AB** | Create Return Manifest page | AA | **Create Return Manifest** — ask first |
+| **AC** | Manifest Details + 3 modals | AB | **Return Manifest Details** + Dispatch; invent two modals |
+| **AD** | Slice 2 exit | P–AC | No |
+
+Order: **P → Q → R → S → T → U → V → W → X → Y → Z → AA → AB → AC → AD**.
+
+---
+
+## Batch P — Prisma + shared-types (Slice 2)
+
+**Goal:** Additive schema only. Existing ingest / GET sales / owner inventory **unchanged**. No web screens.
+
+**Re-share screen:** none.
+
+### Tasks
+
+- [x] Models + enums per Slice 2 schema lock
+- [x] Relations on Tenant/Store/User/Product/Batch; `Batch.supplierId?`
+- [x] Zod DTOs in `@r2a/shared-types`
+- [x] Migrate. Seed remains unchanged (optional supplier seed deferred); drug catalog not rewritten
+- [x] Do **not** add routes yet (Batch Q/R)
+
+### Exit check
+
+- Migrate applies. `smoke:m2` + `smoke:m6s1` still PASS
+
+### Agent prompt
+
+```text
+Implement ONLY Batch P from MILESTONE_6_EXECUTION.md
+(Slice 2 Prisma + Zod: Supplier, PO, GRN, ReturnManifest).
+No new HTTP routes. No Owner web screens.
+When done, paste the short M6 Batch P report.
+```
+
+**YOU DO:** Confirm migrate. Optional smokes.
+
+**Next:** `Authorize M6 Batch Q`.
+
+---
+
+## Batch Q — Supplier + Purchase Order APIs
+
+**Goal:** OWNER-only supplier CRUD + PO list/create/get/update-draft. **Create Purchase Order** primary action → status **SENT**. **Save as Draft** → **DRAFT**. No inventory change.
+
+**Re-share screen:** none.
+
+### Tasks
+
+- [x] `GET/POST /api/v1/owner/suppliers`, `GET/PATCH /api/v1/owner/suppliers/:id` (`restrictTo("OWNER")`). No delete. HOLD status allowed. **No separate edit UI** until a later slice — PATCH exists for Add/create
+- [x] `GET/POST /api/v1/owner/purchase-orders`, `GET /:id`, `PATCH` draft lines only while **DRAFT**
+- [x] List query: `q`, `status`, `supplierId`, `limit`/`offset`, `meta.total`
+- [x] PO KPIs for Purchasing header if cheap; else Batch T can compose
+- [x] Cashier/Manager **403**
+- [x] `smoke:m6q`
+- [x] Do **not** confirm GRN or manifests
+
+### Agent prompt
+
+```text
+Implement ONLY Batch Q from MILESTONE_6_EXECUTION.md
+(Supplier + PO APIs, OWNER only).
+No GRN/return routes. No web screens.
+When done, paste the short M6 Batch Q report.
+```
+
+**YOU DO:** none if smoke PASS.
+
+**Next:** `Authorize M6 Batch R`.
+
+---
+
+## Batch R — GRN + Return APIs
+
+**Goal:** Confirm receipt against a PO; return queue; create manifest; get manifest; dispatch (stock out); decision; complete.
+
+**Re-share screen:** none.
+
+### Tasks
+
+- [x] `POST /api/v1/owner/purchase-orders/:id/receipts` — confirm GRN: create lots via existing batch create path, RECEIVE events, increment line `qtyReceived`, PO status SENT→PARTIALLY_RECEIVED→RECEIVED. Reject over-receive
+- [x] `GET /api/v1/owner/returns/queue` — eligible lots (+ filters). Include `MANIFEST_PREPARED` / `NOT_ELIGIBLE` for the table; selection rules on the client
+- [x] `POST /api/v1/owner/return-manifests`, `GET /:id`
+- [x] `POST /:id/dispatch` — signed adjustments; status DISPATCHED
+- [x] `POST /:id/decision` — ACCEPTED \| REJECTED
+- [x] `POST /:id/complete` — only from ACCEPTED
+- [x] Idempotent operationIds on dispatch
+- [x] `smoke:m6r`: happy GRN + manifest dispatch; cashier 403
+- [x] Do **not** build UI
+
+### Agent prompt
+
+```text
+Implement ONLY Batch R from MILESTONE_6_EXECUTION.md
+(GRN confirm + return manifest APIs).
+Dispatch uses signed batch adjustments. No web screens.
+When done, paste the short M6 Batch R report.
+```
+
+**YOU DO:** none if smoke PASS.
+
+**Next:** `Authorize M6 Batch S`.
+
+---
+
+## Batch S — Enable Purchasing + Suppliers nav
+
+**Goal:** Sidebar items **Purchasing** and **Suppliers** become real routes (placeholder shells OK). Other later nav stays disabled.
+
+**Re-share screen:** none (chrome lock).
+
+### Tasks
+
+- [x] Live nav + routes `/purchasing`, `/suppliers` shells with i18n titles
+- [x] Help / Owner Profile / Customers / … still disabled
+- [x] `smoke:m6s`: nav clickable; no Customers route
+- [x] Do **not** build tables (T+)
+
+### Agent prompt
+
+```text
+Implement ONLY Batch S from MILESTONE_6_EXECUTION.md
+(Enable Purchasing + Suppliers sidebar).
+Placeholder pages OK. Do not build list tables.
+When done, paste the short M6 Batch S report.
+```
+
+**YOU DO:** Owner web — Purchasing and Suppliers open. Customers still dead.
+
+**Next:** `Authorize M6 Batch T`.
+
+---
+
+## Batch T — Purchasing list
+
+**Goal:** Live Purchasing dashboard from APIs. **Status:** DONE (2026-08-18, `smoke:m6t` PASS).
+
+**Re-share screen:** **Purchasing**.
+
+### Tasks
+
+- [x] Ask for screenshot; stop until reply / use prior
+- [x] KPI cards, PO table, search/status, pagination
+- [x] Recent receipts **section** on this page if API can list GRNs for the PO table’s store — if not, hide or show PO-linked receipts from PO list only. **View All Receipts** disabled
+- [x] Replenishment Attention from inventory-summary / low-stock; **Review Reorder Suggestions** disabled
+- [x] CTAs: Create PO → `/purchasing/new`. Receive Stock → require a PO (picker or disable until a row). Prefer: Receive on a SENT/PARTIAL row → receive route
+- [x] `smoke:m6t`: no hard-coded ৳698,150
+- [x] Do **not** build Create PO form (U)
+
+### Agent prompt
+
+```text
+Implement ONLY Batch T from MILESTONE_6_EXECUTION.md
+(Purchasing list).
+Re-share: Purchasing — stop until shared or use prior.
+View All Receipts + Review Reorder Suggestions stay disabled.
+When done, paste the short M6 Batch T report.
+```
+
+**YOU DO:** Open Purchasing. Empty or seed POs OK.
+
+**Next:** `Authorize M6 Batch U`.
+
+---
+
+## Batch U — Create Purchase Order
+
+**Goal:** Live create/draft PO. Inventory unchanged. **Status:** DONE (2026-08-18, `smoke:m6u` PASS). Seed now ships 3 ACTIVE suppliers (Beximco · Square · SMC).
+
+**Re-share screen:** **Create Purchase Order**.
+
+### Tasks
+
+- [x] Ask; stop until reply (resolved: use prior upload)
+- [x] Supplier dropdown from GET suppliers (ACTIVE). Delivery branch locked to JWT store name
+- [x] Lines: search products, qty, last cost, totals. Stock/reorder highlight when below reorder
+- [x] **Add Suggested Items** inline (low stock products; if no supplier-product link yet, use all low-stock — document)
+- [x] Save as Draft / Create (SENT) / Cancel
+- [x] Right rail: order summary + replenishment impact
+- [x] `smoke:m6u`: POST purchase-orders
+- [x] Do **not** receive stock here
+
+### Agent prompt
+
+```text
+Implement ONLY Batch U from MILESTONE_6_EXECUTION.md
+(Create Purchase Order).
+Re-share: Create Purchase Order — stop until shared or use prior.
+Creating a PO must not change inventory.
+When done, paste the short M6 Batch U report.
+```
+
+**YOU DO:** Create a draft and a sent PO.
+
+**Next:** `Authorize M6 Batch V`.
+
+---
+
+## Batch V — Purchase Order Details
+
+**Goal:** Live PO detail + receiving progress. Receive Stock → GRN page.
+
+**Re-share screen:** **Purchase Order Details**.
+
+### Tasks
+
+- [ ] Ask; stop until reply
+- [ ] Header, KPIs, line remaining/received, GRN history for **this** PO
+- [ ] Export / Print / More Actions **disabled**
+- [ ] Receive Stock enabled when remaining qty > 0
+- [ ] `smoke:m6v`
+- [ ] Do **not** build GRN form (W)
+
+### Agent prompt
+
+```text
+Implement ONLY Batch V from MILESTONE_6_EXECUTION.md
+(Purchase Order Details).
+Re-share: Purchase Order Details — stop until shared or use prior.
+Export/Print/More Actions disabled.
+When done, paste the short M6 Batch V report.
+```
+
+**YOU DO:** Open the sent PO.
+
+**Next:** `Authorize M6 Batch W`.
+
+---
+
+## Batch W — Receive Stock against PO
+
+**Goal:** Confirm GRN. Creates lots (shared with Inventory Receive). Distinct route from `/inventory/:productId/receive`.
+
+**Re-share screen:** **Receive Stock** (Purchasing / PO breadcrumb).
+
+### Tasks
+
+- [ ] Ask; stop until reply. Do **not** restyle Inventory Add Lot
+- [ ] Lines from remaining PO qty; Recv now, batch, expiry, cost, sell; + Add Batch
+- [ ] Invoice / received date. Save as Draft: **disable** unless same page can resume (park extra draft screen)
+- [ ] Confirm → Batch R receipts API → PO details. Inventory + POS catalog after pull
+- [ ] `smoke:m6w`
+- [ ] Do **not** remove Inventory Receive
+
+### Agent prompt
+
+```text
+Implement ONLY Batch W from MILESTONE_6_EXECUTION.md
+(Receive Stock against PO).
+Re-share: Receive Stock (PO GRN) — stop until shared or use prior.
+Keep Inventory ad-hoc receive. Confirm creates batches + GRN.
+When done, paste the short M6 Batch W report.
+```
+
+**YOU DO:** Receive a partial line. Confirm PO status Partial and a new lot on Product Details.
+
+**Next:** `Authorize M6 Batch X`.
+
+---
+
+## Batch X — Suppliers list
+
+**Goal:** Live supplier directory + attention panel (disable Review All Issues if no page).
+
+**Re-share screen:** **Suppliers**.
+
+### Tasks
+
+- [ ] Ask; stop until reply
+- [ ] KPI cards, table, search, pagination
+- [ ] Expiry Returns CTA → `/suppliers/returns`. Add Supplier → `/suppliers/new`
+- [ ] Attention: overdue PO / open PO / expiry return / on hold — links to existing pages only
+- [ ] `smoke:m6x`
+- [ ] Do **not** build Add form (Y)
+
+### Agent prompt
+
+```text
+Implement ONLY Batch X from MILESTONE_6_EXECUTION.md
+(Suppliers list).
+Re-share: Suppliers — stop until shared or use prior.
+When done, paste the short M6 Batch X report.
+```
+
+**YOU DO:** Open Suppliers. Seed rows OK.
+
+**Next:** `Authorize M6 Batch Y`.
+
+---
+
+## Batch Y — Add Supplier
+
+**Goal:** Create ACTIVE supplier. No Edit Supplier page.
+
+**Re-share screen:** **Add Supplier**.
+
+### Tasks
+
+- [ ] Ask; stop until reply
+- [ ] All shared fields + setup summary. Save as Draft: status DRAFT **or** disable
+- [ ] Create → Supplier Details
+- [ ] `smoke:m6y`
+- [ ] Do **not** add Edit route
+
+### Agent prompt
+
+```text
+Implement ONLY Batch Y from MILESTONE_6_EXECUTION.md
+(Add Supplier).
+Re-share: Add Supplier — stop until shared or use prior.
+No Edit Supplier page.
+When done, paste the short M6 Batch Y report.
+```
+
+**YOU DO:** Create a throwaway supplier.
+
+**Next:** `Authorize M6 Batch Z`.
+
+---
+
+## Batch Z — Supplier Details
+
+**Goal:** Live supplier page. Create PO + Expiry Returns. No Edit.
+
+**Re-share screen:** **Supplier Details** (including the table bottoms).
+
+### Tasks
+
+- [ ] Ask; stop until reply
+- [ ] KPIs, info, performance (compute what exists; honest zeros otherwise — do not fake 94%)
+- [ ] PO table (this supplier) → PO details. Products supplied from batches/PO lines
+- [ ] View All POs → Purchasing filtered if cheap; else disable. View All Products → Inventory search disable if no filter
+- [ ] `smoke:m6z`
+
+### Agent prompt
+
+```text
+Implement ONLY Batch Z from MILESTONE_6_EXECUTION.md
+(Supplier Details).
+Re-share: Supplier Details — stop until shared or use prior.
+No Edit Supplier.
+When done, paste the short M6 Batch Z report.
+```
+
+**YOU DO:** Open Square (or seed) supplier.
+
+**Next:** `Authorize M6 Batch AA`.
+
+---
+
+## Batch AA — Expiry Returns queue
+
+**Goal:** Live queue. Inventory Expiry **Prepare Supplier Return** enabled → this page. Selection → Create Manifest page (not inline create).
+
+**Re-share screen:** **Expiry Returns** (and scroll bottom).
+
+### Tasks
+
+- [ ] Ask; stop until reply
+- [ ] Cards, filters, table, selection bar. Mixed supplier → cannot proceed
+- [ ] Top Create Return Manifest: enabled when valid selection, else disabled (as mock)
+- [ ] Enable Inventory expiry Prepare Return → `/suppliers/returns`
+- [ ] `smoke:m6aa`
+- [ ] Do **not** build Create Manifest layout (AB)
+
+### Agent prompt
+
+```text
+Implement ONLY Batch AA from MILESTONE_6_EXECUTION.md
+(Expiry Returns queue).
+Re-share: Expiry Returns — stop until shared or use prior.
+Wire Inventory Prepare Supplier Return here.
+Do not collapse Create Manifest into the queue.
+When done, paste the short M6 Batch AA report.
+```
+
+**YOU DO:** Open queue from Suppliers and from Inventory Expiry CTA.
+
+**Next:** `Authorize M6 Batch AB`.
+
+---
+
+## Batch AB — Create Return Manifest page
+
+**Goal:** Dedicated create page. **Not** the queue.
+
+**Re-share screen:** **Create Return Manifest**.
+
+### Tasks
+
+- [ ] **Stop first:**
+
+```text
+⏸ Batch AB needs the visual for: "Create Return Manifest".
+Please re-share that screenshot (or say "use prior upload" / "invent to match theme").
+Stopping until you reply.
+```
+
+- [ ] After share/invent: review selected lots, supplier policy, confirm create → Manifest Details
+- [ ] `smoke:m6ab`
+- [ ] Do **not** build details lifecycle (AC)
+
+### Agent prompt
+
+```text
+Implement ONLY Batch AB from MILESTONE_6_EXECUTION.md
+(Create Return Manifest page).
+STOP and ask for the Create Return Manifest screenshot first.
+Do not collapse this into the queue.
+When done, paste the short M6 Batch AB report.
+```
+
+**YOU DO:** Create a manifest from two Eligible lots of one supplier.
+
+**Next:** `Authorize M6 Batch AC`.
+
+---
+
+## Batch AC — Manifest Details + lifecycle modals
+
+**Goal:** One details page for all statuses. Dispatch modal from shared screen. Decision + Complete from spec above.
+
+**Re-share screen:** **Return Manifest Details** (and scroll). Dispatch modal: use prior / re-share **Record Supplier Return Dispatch**.
+
+### Tasks
+
+- [ ] Ask for Manifest Details; stop until reply
+- [ ] One component/route; UI switches on status
+- [ ] Dispatch / Decision / Complete modals per spec. Dispatch posts stock
+- [ ] Export/Print/More Actions disabled. Supplier Return Policy = data from Supplier record
+- [ ] `smoke:m6ac`: PREPARED→DISPATCHED reduces qty; decision/complete transitions
+- [ ] Do **not** add extra status pages
+
+### Agent prompt
+
+```text
+Implement ONLY Batch AC from MILESTONE_6_EXECUTION.md
+(Manifest Details + Dispatch / Decision / Complete modals).
+One page for Prepared/Dispatched/Accepted/Completed.
+Use the lifecycle spec in this file. Re-share Manifest Details (+ Dispatch if needed).
+When done, paste the short M6 Batch AC report.
+```
+
+**YOU DO:** Dispatch (stock drops). Accept. Complete. Optional: second manifest → Reject (no restore).
+
+**Next:** `Authorize M6 Batch AD`.
+
+---
+
+## Batch AD — Slice 2 exit
+
+**Goal:** Catalog §22, `smoke:m6s2`, status/docs. M6 stays **IN PROGRESS**.
+
+**Re-share screen:** none.
+
+### Tasks
+
+- [ ] [`Completed_API_lists.md`](Completed_API_lists.md) **§22**: suppliers, POs, GRNs, return manifests + dual-receive note
+- [ ] `npm run smoke:m6s2` composing m6q–m6ac + `smoke:m6s1`
+- [ ] Status + master plan + RBAC: Slice 2 live; Manager web still later
+- [ ] This file P–AD checkboxes
+- [ ] Do **not** start Customers / n8n / RLS
+
+### Agent prompt
+
+```text
+Implement ONLY Batch AD from MILESTONE_6_EXECUTION.md
+(Slice 2 exit). Catalog §22, smoke:m6s2, status docs.
+No new screens.
+When done, paste the short M6 Batch AD report.
+```
+
+**YOU DO:** Owner: create supplier → PO → partial GRN → expiry return → dispatch. POS still sells. Cashier still cannot use web.
+
+**Next after PASS:** Slice 3 when you share Customers/Staff/… screens.
+
+---
+
+## Later backlog (do not build in Slice 2)
 
 | Track | Item |
 |-------|------|
 | Manager | Manager web screens + Manager authorization matrix |
-| Nav | Purchasing, Suppliers, Customers, Staff, Reports, Audit & FEFO, Settings, Help, Owner Profile |
-| Owner | Edit Product, Create Customer UI, Export, notifications inbox, branch switch |
-| Domain | Supplier/PO, supplier return bucket, CSV import, terminal presence |
+| Nav | Customers, Staff, Reports, Audit & FEFO, Settings, Help, Owner Profile |
+| Owner | Create Customer UI, Edit Supplier, View All Receipts, Review Reorder Suggestions page, notifications, branch switch |
+| Slice 2 parked | Extra draft-resume pages; Export/Print/More Actions; auto-restore stock on rejected return |
 | M6 rest | Bi-di sync, n8n, Postgres RLS, full loyalty/refill beyond ingest snapshots |
 | POS / hardware | Printer IPC, card SDK, MFS APIs, FEFO `pinHash`, cloud shift, Slice 7+ |
 | M7 | Multi-branch, transfers, Super Admin console |
@@ -1123,4 +1792,12 @@ When done, paste the short M6 Batch O report and the user walkthrough.
 | 2026-08-16 | **Batch J DONE** — live Inventory list (`GET /owner/inventory`); summary cards + tabs + attention; Owner cost/sell/margin; Receive picker; `smoke:m6j`. Product Details = Batch K. |
 | 2026-08-16 | **Batch K DONE** — live Product Details (`GET /owner/products/:id`); FEFO rank (sellable lots); InventoryEvent activity; Edit Product / history disabled; `smoke:m6k`. Add Product = Batch L. |
 | 2026-08-16 | **Batch L DONE** — live Add Product (`POST /api/v1/products`); name, generic, manufacturer, strength, form, SKU, barcode, category, unit hierarchy Piece→Strip→Box, Rx toggle, cold chain, reorder level, storage notes; 0 initial stock notice; navigate to Product Details; `smoke:m6l`. Receive Stock = Batch M. |
-| 2026-08-16 | **Batch M DONE** — live Owner web Receive Stock (`GET /owner/products/:id` context + `POST /batches`); PIECE quantity and per-base prices; packaging, cost/retail/margin, and stock-impact calculations; Supplier/PO/invoice omitted; online-only; `smoke:m6m`. Expiry Management = Batch N. |
+| 2026-08-16 | **Batch M DONE** — live Owner web Receive Stock (`GET /owner/products/:id` context + `POST /batches`); PIECE quantity and per-base prices; packaging, cost/retail/margin, and stock-impact calculations; PO/invoice omitted; online-only; `smoke:m6m`. Batch N repair later added optional batch supplier/return metadata. |
+| 2026-08-18 | **Owner Web Missing Features W1–W6 DONE** — Edit Product + Batch Management; lifecycle/version/audit integrity; correction/signed-adjustment/void/retire APIs; desktop signed/versioned/reasoned adjustment migration; absolute quantity PATCH removed; Batch N gate met but still requires authorization. |
+| 2026-08-18 | **Batch N DONE + repair** — live Expiry Management (`GET /owner/expiry`); Inventory CTA; risk cards/tabs; medicine/batch/supplier search; Medicine/FEFO/Supplier/Return filters; selection; CSV Export; persisted Batch `supplierName`/`returnStatus`; Product Details row navigation. Prepare Supplier Return remains disabled; no manifest model/workflow. `smoke:m6n`. Slice 1 exit = Batch O. |
+| 2026-08-18 | **Batch O DONE / Owner Web Slice 1 DONE** — `Completed_API_lists.md` §21; composed `smoke:m6s1` PASS; status/master plan/RBAC synchronized. Overall M6 remains IN PROGRESS; next = separately authorized Slice 2. |
+| 2026-08-18 | **Slice 2 planned (P–AD not started).** Purchasing + Suppliers + Expiry Returns. Dual receive. Dedicated Create Return Manifest page. One Manifest Details page + 3 modals. |
+| 2026-08-18 | **Batch P DONE** — additive Supplier/PO/GRN/ReturnManifest Prisma models, tenant/store/actor/catalog relations, optional `Batch.supplierId`, shared Zod DTOs, and deployed migration; `smoke:m2` + `smoke:m6s1` PASS. No routes or UI; next = Batch Q. |
+| 2026-08-18 | **Batch Q DONE** — OWNER-only Supplier CRUD (no delete) and PO list/create/get/draft-update; `PO-YYMMDD-####`, server totals, list KPIs, draft lock, no inventory effect; `smoke:m6q` 18/18 PASS. No GRN/return routes or UI; next = Batch R. |
+| 2026-08-18 | **Batch R DONE** — OWNER-only confirmed GRN + return queue/manifest lifecycle APIs; partial/final PO receiving, over-receive protection, RECEIVE events, idempotent dispatch stock deltas, decision/complete transitions; `smoke:m6r` 17/17 PASS. No UI; next = Batch S. |
+| 2026-08-18 | **Batch S DONE** — Purchasing and Suppliers sidebar items now open localized placeholder shells at `/purchasing` and `/suppliers`; all other later nav remains disabled; no list tables; `smoke:m6s` PASS; next = Batch T. |

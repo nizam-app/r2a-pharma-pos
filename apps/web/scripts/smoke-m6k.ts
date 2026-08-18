@@ -110,13 +110,13 @@ function checkDetailFetch(): void {
 
 function checkLocks(): void {
   const page = readSrc("features/inventory/ProductDetailPage.tsx");
-  const later = readSrc("features/inventory/InventoryLaterPage.tsx");
+  const expiry = readSrc("features/inventory/ExpiryManagementPage.tsx");
 
   assert(
     page.includes("inventory.detail.edit") &&
-      page.includes("disabled") &&
-      page.includes("inventory.detail.editSoon"),
-    "Edit Product must be disabled",
+      page.includes("`/inventory/${encodeURIComponent(product.id)}/edit`") &&
+      page.includes("onClick={onEdit}"),
+    "Edit Product must navigate to the live edit route",
   );
   assert(
     page.includes("inventory.detail.history") &&
@@ -153,16 +153,14 @@ function checkLocks(): void {
     "Batch numbers must stay untranslated",
   );
   assert(
-    later.includes("inventory.later.expiry") &&
-      !later.includes("kind: \"detail\"") &&
-      !later.includes("fetchOwnerProduct"),
-    "Expiry stays a placeholder; Product Details does not",
+    expiry.includes("fetchOwnerExpiry") && !expiry.includes("fetchOwnerProduct"),
+    "Expiry and Product Details must use their separate live owner endpoints",
   );
   assert(
     !page.includes("Baki") && !page.includes("on-account"),
     "No Baki / on-account",
   );
-  console.log("  ✓ Edit disabled / Receive route / FEFO / events");
+  console.log("  ✓ Edit + Receive routes / FEFO / events");
 }
 
 function main(): void {

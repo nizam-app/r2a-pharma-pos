@@ -335,7 +335,7 @@ async function main() {
     fail("8d. Cashier blocked from creating users", JSON.stringify(userBlock.body));
   }
 
-  // M5 Batch A — cashier cannot PATCH customers or batch qty
+  // Cashier cannot PATCH customers or use signed stock adjustments.
   let customerId = null;
   let customerName = null;
   const custSearch = await req("/customers?limit=5", { token: ownerToken });
@@ -370,16 +370,21 @@ async function main() {
     );
   }
 
-  const cashQtyPatch = await req(`/batches/${fefoBatchId}`, {
-    method: "PATCH",
+  const cashQtyPatch = await req(`/batches/${fefoBatchId}/adjustments`, {
+    method: "POST",
     token: cashierToken,
-    body: { quantityOnHand: 1 },
+    body: {
+      eventId: `m2-cashier-adjust-${Date.now()}`,
+      expectedVersion: cashBatch.version,
+      quantityChange: 1,
+      reasonCode: "OTHER",
+    },
   });
   if (cashQtyPatch.status === 403) {
-    pass("8f. Cashier blocked from PATCH batch qty");
+    pass("8f. Cashier blocked from signed stock adjustment");
   } else {
     fail(
-      "8f. Cashier blocked from PATCH batch qty",
+      "8f. Cashier blocked from signed stock adjustment",
       JSON.stringify(cashQtyPatch.body),
     );
   }

@@ -17,6 +17,12 @@
     "smoke:m6j": "tsx scripts/m6j-smoke.ts",
     "smoke:m6k": "tsx scripts/m6k-smoke.ts",
     "smoke:m6l": "tsx scripts/m6l-smoke.ts",
+    "smoke:m6q": "tsx scripts/m6q-smoke.ts",
+    "smoke:m6r": "tsx scripts/m6r-smoke.ts",
+    "smoke:web-w1": "tsx scripts/web-w1-smoke.ts",
+    "smoke:web-w3": "tsx scripts/web-w3-smoke.ts",
+    "smoke:web-w4": "tsx scripts/web-w4-smoke.ts",
+    "smoke:web-w6": "tsx scripts/web-w6-smoke.ts",
     "test": "echo \"@r2a/server test — not configured yet\"",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },

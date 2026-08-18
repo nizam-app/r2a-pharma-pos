@@ -90,6 +90,7 @@ function checkI18n(): void {
 
 function checkAddProductForm(): void {
   const page = readSrc("features/inventory/AddProductPage.tsx");
+  const form = readSrc("features/inventory/ProductForm.tsx");
   const client = readSrc("lib/ownerProduct.ts");
   const shell = readSrc("features/shell/AppShell.tsx");
   const all = walkTs(SRC)
@@ -112,50 +113,57 @@ function checkAddProductForm(): void {
     "AppShell must render AddProductPage on sub.kind === 'new' (/inventory/new)",
   );
   assert(
-    page.includes("name") &&
-      page.includes("genericName") &&
-      page.includes("manufacturer") &&
-      page.includes("strength") &&
-      page.includes("form") &&
-      page.includes("sku") &&
-      page.includes("barcode") &&
-      page.includes("category"),
+    form.includes("name") &&
+      form.includes("genericName") &&
+      form.includes("manufacturer") &&
+      form.includes("strength") &&
+      form.includes("form") &&
+      form.includes("sku") &&
+      form.includes("barcode") &&
+      form.includes("category"),
     "AddProductPage must include core product catalog fields",
   );
   assert(
-    page.includes("requiresPrescription") &&
-      page.includes("coldChain") &&
-      page.includes("reorderLevel") &&
-      page.includes("storageNotes"),
+    form.includes("requiresPrescription") &&
+      form.includes("coldChain") &&
+      form.includes("reorderLevel") &&
+      form.includes("storageNotes"),
     "AddProductPage must support extended fields (Rx, coldChain, reorderLevel, storageNotes)",
   );
   assert(
-    page.includes("unitType: \"PIECE\"") &&
-      page.includes("unitType: \"STRIP\"") &&
-      page.includes("unitType: \"BOX\""),
+    form.includes("unitType: \"PIECE\"") &&
+      form.includes("unitType: \"STRIP\"") &&
+      form.includes("unitType: \"BOX\""),
     "AddProductPage must support packaging unit hierarchy (Piece, Strip, Box)",
   );
   assert(
-    page.includes("initialStockTitle") ||
-      page.includes("Initial Stock: 0") ||
-      page.includes("0 pcs"),
+    form.includes("initialStockTitle") ||
+      form.includes("Initial Stock: 0") ||
+      form.includes("0 pcs"),
     "Must clearly show 0 initial stock notice",
   );
   assert(
-    !page.includes("/api/v1/batches") && !page.includes("batchNumber"),
+    !page.includes("/api/v1/batches") &&
+      !page.includes("batchNumber") &&
+      !form.includes("/api/v1/batches"),
     "Must not create stock batches in Add Product form",
   );
+  assert(
+    page.includes("ProductForm") && form.includes("EMPTY_PRODUCT_FORM"),
+    "Add Product must use the reusable ProductForm with empty defaults",
+  );
+  assert(!form.includes('name: "Napa 500mg"'), "Add Product must not be demo-prefilled");
   assert(!/₺/.test(all), "Must use ৳, never ₺");
-  console.log("  ✓ AddProductPage form + POST /api/v1/products + units + 0 stock");
+  console.log("  ✓ shared ProductForm + POST /api/v1/products + units + 0 stock");
 }
 
 function checkLocks(): void {
-  const later = readSrc("features/inventory/InventoryLaterPage.tsx");
+  const expiry = readSrc("features/inventory/ExpiryManagementPage.tsx");
   assert(
-    later.includes("inventory.later.expiry"),
-    "Expiry stays a placeholder until Batch N",
+    expiry.includes("fetchOwnerExpiry"),
+    "Expiry must be live after Batch N",
   );
-  console.log("  ✓ Expiry stays locked for Batch N");
+  console.log("  ✓ Expiry is live after Batch N");
 }
 
 function main(): void {

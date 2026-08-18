@@ -3,7 +3,7 @@
 **Document type:** Single source of truth for Cursor agents and engineers  
 **Project:** Multi-Tenant Pharmacy POS & Inventory SaaS  
 **Version:** 1.0.0  
-**Last updated:** 2026-08-16  
+**Last updated:** 2026-08-18
 
 > **How to use in a fresh chat:** Attach or `@` this file (`PROJECT_MASTER_PLAN.md`) plus relevant docs under `docs/`. Follow milestones in order. Do not introduce MongoDB, Mongoose, or any stack outside the Tech Stack below.
 
@@ -206,7 +206,7 @@ Track status in this table. Agents must only implement the milestone the user au
 | M3 | Desktop POS shell | **DONE** | Slice 1–6; later screens → Slice 7+. See `MILESTONE_3_EXECUTION.md` |
 | M4 | One-way sync | **DONE** | Batches A–F (queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue UI + catalog §19) |
 | M5 | MVP hardening | **DONE** | RBAC E2E, Receive stock, 409 copy, paged catalog, print stub, `smoke:m5`, runbook |
-| M6 | Growth (Phase 2) | **IN PROGRESS** | Slice 1 A–M (Owner web login + chrome + live Dashboard + Sales + Transaction Details + Inventory + Product Details + Add Product + Receive Stock; Prisma extras + ingest snapshots + sales/owner/product APIs). Full M6 (bi-di, n8n, RLS) later |
+| M6 | Growth (Phase 2) | **IN PROGRESS** | Slice 1 A–O + W1–W6 **DONE**. Slice 2 P–U **DONE**; V–AD planned. See `MILESTONE_6_EXECUTION.md`. |
 | M7 | Scale (Phase 3) | PENDING | Multi-branch, transfers, enterprise RBAC |
 
 ---
@@ -352,13 +352,15 @@ Runbook: [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md).
 
 ### Milestone 6 — Growth (PRD Phase 2)
 
-Detailed batches (Slice 1): [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) — **A–M DONE**; N–O not started. Full M6 is **not** this slice.
+Detailed batches (Slice 1 **A–O DONE**, Slice 2 **P–U DONE**, V–AD planned): [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md). Owner Web Missing Features [`WEB_MISSING_FEATURES_PLAN.md`](WEB_MISSING_FEATURES_PLAN.md) — **W1–W6 DONE**. Full M6 is **not** complete.
 
 - Bi-directional sync (cloud catalog/stock → local)
 - Loyalty points earn/redeem — ingest snapshots live (M6 D); refill events later
 - Supplier return bucket (≈90 days to expiry)
 - API webhooks → n8n (WhatsApp/SMS, PO dispatch)
-- `apps/web` owner analytics, staff, automation settings — Slice 1 login + chrome + live Dashboard + live Sales list + live Inventory + live Product Details + live Add Product + live Receive Stock
+- `apps/web` Owner Web Slice 1 — OWNER login/chrome, Dashboard, Sales/Transaction Details, Inventory, Product Add/Edit/Details, Receive Stock, audited Batch Management, and Expiry Management are live
+- `apps/web` Owner Web Slice 2 — Supplier/PO/GRN/return APIs (Q–R) and Purchasing list + Create Purchase Order (T–U) live; PO Details (V) and later are pending
+- Desktop manual stock correction uses online signed deltas with reason, optimistic version, idempotent event ID, and authoritative catalog refresh; general batch PATCH never changes quantity
 - Postgres RLS policies
 
 ---
@@ -390,7 +392,7 @@ Follow @PROJECT_MASTER_PLAN.md @Current_Status.md @ROLES_AND_PERMISSIONS.md @Com
 M0–M5 are DONE. Do not start M6 / Slice 7+ / hardware unless the user authorizes it in a new chat.
 ```
 
-M0–M5 are complete. **M6 Slice 1 Batches A–M DONE.** Next = **Authorize M6 Batch N** in a new chat. Do not start Batch N+ from this file alone.
+M0–M5 are complete. **M6 Owner Web Slice 1 A–O, W1–W6, and Slice 2 P–U are DONE.** V–AD are planned. Next = **Authorize M6 Batch V**. Do not start later M6 work from this file alone.
 
 ---
 
@@ -470,3 +472,13 @@ M0–M5 are complete. **M6 Slice 1 Batches A–M DONE.** Next = **Authorize M6 B
 | 2026-08-16 | **M6 Batch K completed:** live Product Details; smoke:m6k; next = Authorize M6 Batch L |
 | 2026-08-16 | **M6 Batch L completed:** live Add Product (POST /products + unit hierarchy Piece→Strip→Box + Rx, cold chain, reorder level, storage notes; 0 initial stock notice); smoke:m6l; next = Authorize M6 Batch M |
 | 2026-08-16 | **M6 Batch M completed:** live web Receive Stock (POST /batches; product context + packaging/financial/stock impact); smoke:m6m; next = Authorize M6 Batch N |
+| 2026-08-18 | **Owner Web Missing Features W1–W6 completed:** lifecycle/version/audit data foundation; historical sale snapshots; Edit Product; correction/signed-adjustment/void/retire APIs; localized Batch Management; desktop signed-adjustment compatibility; legacy absolute quantity PATCH removed; Batch N now eligible for separate authorization |
+| 2026-08-18 | **M6 Batch N completed:** live Expiry Management with supplier/return metadata, filters, selection and CSV; Prepare Supplier Return remains disabled; smoke:m6n |
+| 2026-08-18 | **M6 Batch O / Owner Web Slice 1 completed:** catalog §21 + composed smoke:m6s1 PASS; overall M6 remains IN PROGRESS; next = explicitly authorized Slice 2 |
+| 2026-08-18 | **M6 Slice 2 planned:** P–AD (Purchasing, Suppliers, Expiry Returns, dedicated Create Manifest). Next = Authorize M6 Batch P |
+| 2026-08-18 | **M6 Batch P completed:** additive Supplier/PO/GRN/ReturnManifest Prisma schema + shared Zod contracts; migration deployed; no routes/UI; smoke:m2 + smoke:m6s1 PASS; next = Authorize M6 Batch Q |
+| 2026-08-18 | **M6 Batch Q completed:** OWNER-only Supplier CRUD and PO list/create/get/draft-update APIs; server PO numbers/totals/KPIs; no inventory effect; smoke:m6q 18/18 PASS; next = Authorize M6 Batch R |
+| 2026-08-18 | **M6 Batch R completed:** OWNER-only GRN confirmation and return queue/manifest lifecycle APIs; receipt batches + RECEIVE events; partial/final PO progress; idempotent dispatch stock-out; smoke:m6r 17/17 PASS; next = Authorize M6 Batch S |
+| 2026-08-18 | **M6 Batch S completed:** Purchasing and Suppliers sidebar routes enabled with localized placeholder shells; all other later nav remains disabled; no tables; smoke:m6s PASS; next = Authorize M6 Batch T |
+| 2026-08-18 | **M6 Batch T completed:** live Purchasing list (KPI cards, PO table, search/status, pagination, CTAs); Create PO → /purchasing/new; smoke:m6t PASS; next = Authorize M6 Batch U |
+| 2026-08-18 | **M6 Batch U completed:** live Create Purchase Order (ACTIVE-supplier dropdown, product line search w/ low-stock hint, Add Suggested Items, Save as Draft / Create SENT / Cancel, order-summary rail; no inventory effect); seed ships 3 ACTIVE suppliers (Beximco · Square · SMC); smoke:m6u PASS; next = Authorize M6 Batch V |

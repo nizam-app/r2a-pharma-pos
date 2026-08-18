@@ -88,9 +88,9 @@ npm run db:seed
 | `db:generate` | `prisma generate` |
 | `db:deploy` | `prisma migrate deploy` (CI / existing DB) |
 | `db:migrate` | `prisma migrate dev` (when you author a new migration — not needed for M5) |
-| `db:seed` | Idempotent upserts (`demo-pharmacy`, catalog, staff) |
+| `db:seed` | Idempotent upserts (`demo-pharmacy`, catalog, staff, **3 ACTIVE suppliers**) |
 
-Expected seed: tenant `demo-pharmacy`, store `MAIN`, **5** products (Napa sku `NAPA-500`), staff emails below.
+Expected seed: tenant `demo-pharmacy`, store `MAIN`, **5** products (Napa sku `NAPA-500`), staff emails below, **3 ACTIVE suppliers** (Beximco Distribution Ltd. · Square Distribution Ltd. · SMC Distribution) for the Create PO supplier dropdown.
 
 Optional package builds if something fails to resolve:
 
@@ -159,10 +159,12 @@ Server must be running for cloud smokes (`BASE_URL` defaults to `http://localhos
 # Cloud (Terminal 1 up)
 npm run smoke:m2 -w @r2a/server
 npm run smoke:m4b -w @r2a/server
+npm run smoke:web-w6 -w @r2a/server
 
 # Desktop (Node source / compose; no live cloud required except as noted)
 npm run smoke:m4 -w @r2a/desktop
 npm run smoke:m5 -w @r2a/desktop
+npm run smoke:web-w6 -w @r2a/desktop
 ```
 
 | Script | Checks |
@@ -171,6 +173,8 @@ npm run smoke:m5 -w @r2a/desktop
 | `smoke:m4b` | `POST /api/v1/sync/ingest` accepted / duplicate / rejected |
 | `smoke:m4` | Queue + worker + Sync Queue + catalog §19 |
 | `smoke:m5` | Composes `m5a`–`m5e` + `smoke:m4` + catalog §20 / M5 DONE / runbook / stubs |
+| `smoke:web-w6` | Server: signed adjustment + legacy PATCH rejection + RBAC. Desktop: signed/reasoned/versioned online flow + catalog refresh guards |
+| `smoke:m6s1` | Composes durable Owner Web Slice 1 A–N guards, live M6 API smokes, and `smoke:m2` (API must be running) |
 
 ---
 
@@ -181,7 +185,7 @@ npm run smoke:m5 -w @r2a/desktop
 3. **F10** / Proceed → Payment (Cash / Card stub / MFS invent). Loyalty zero-pay if points cover.
 4. Sale Completed + Receipt Preview. Print is a **stub** (no Tauri printer IPC).
 5. Offline / Force Offline complete → same Sale Completed; Sync Queue flushes via `/sync/ingest`.
-6. Owner/Manager: **Settings → Receive stock** (online) → Add lot / Adjust qty → `catalogPull`. Cashier does **not** see this section.
+6. Owner/Manager: **Settings → Receive stock** (online) → Add lot, or signed Adjust stock (`+`/`-` PIECE + required reason) → `catalogPull`. Cashier does **not** see this section; no adjustment is queued offline.
 7. Failed Sync Queue rows: i18n conflict copy + raw `last_error`; Enter = Retry. **No** void.
 
 Keyboard: arrows / Enter / Esc. **Tab is never a POS navigator.** Shortcuts: F2 New Sale · F4 substitutes · F6 Hold · F7 Held list · F8 Customer · F10 Proceed.
@@ -190,9 +194,9 @@ Keyboard: arrows / Enter / Esc. **Tab is never a POS navigator.** Shortcuts: F2 
 
 ## 9. Not in this runbook (do not invent)
 
-- Owner web dashboard (`apps/web`) — **M6**
+- Owner Web Slice 1 is complete. Later M6 slices require separate screens and explicit authorization.
 - Real printer IPC, real card SDK, real MFS APIs, FEFO `pinHash`
-- Cloud `GET /sales`, cloud shift, bi-di catalog sync, n8n, RLS
+- Cloud shift, bi-di catalog sync, n8n, RLS
 - CSV catalog import, sale void, on-account tender, Slice 7+ POS screens
 
-Canonical status: [`Current_Status.md`](../Current_Status.md). Milestones: [`PROJECT_MASTER_PLAN.md`](../PROJECT_MASTER_PLAN.md). APIs: [`Completed_API_lists.md`](../Completed_API_lists.md) (§20 = M5). RBAC: [`ROLES_AND_PERMISSIONS.md`](../ROLES_AND_PERMISSIONS.md).
+Canonical status: [`Current_Status.md`](../Current_Status.md). Milestones: [`PROJECT_MASTER_PLAN.md`](../PROJECT_MASTER_PLAN.md). APIs: [`Completed_API_lists.md`](../Completed_API_lists.md) (§20 = M5, §21 = M6 Owner Web Slice 1). RBAC: [`ROLES_AND_PERMISSIONS.md`](../ROLES_AND_PERMISSIONS.md).

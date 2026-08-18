@@ -18,6 +18,7 @@ export async function pickFefoBatch(params: {
       tenantId: params.tenantId,
       storeId: params.storeId,
       productId: params.productId,
+      status: "ACTIVE",
       quantityOnHand: { gt: 0 },
     },
     orderBy: [{ expiryDate: "asc" }, { id: "asc" }],

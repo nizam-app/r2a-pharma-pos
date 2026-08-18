@@ -111,7 +111,7 @@ function checkInventoryFetch(): void {
 
 function checkLocks(): void {
   const page = readSrc("features/inventory/InventoryPage.tsx");
-  const later = readSrc("features/inventory/InventoryLaterPage.tsx");
+  const expiry = readSrc("features/inventory/ExpiryManagementPage.tsx");
   const picker = readSrc("features/inventory/ReceiveProductPicker.tsx");
   const paths = readSrc("lib/ownerPath.ts");
 
@@ -139,8 +139,11 @@ function checkLocks(): void {
   assert(
     page.includes('navigate("/inventory/new")') &&
       page.includes('navigate("/inventory/expiry")') &&
+      page.includes("inventory.expiryManagement") &&
+      page.includes("CalendarClock") &&
+      page.includes("PackagePlus") &&
       page.includes("`/inventory/${row.productId}`"),
-    "Add Product / alerts / row must use Slice 1 routes",
+    "Expiry / Add / Receive and row actions must use Slice 1 routes with distinct icons",
   );
   assert(
     picker.includes("fetchOwnerInventory") &&
@@ -159,10 +162,8 @@ function checkLocks(): void {
     "Filter / Columns stay parked",
   );
   assert(
-    later.includes("inventory.later.expiry") &&
-      !later.includes("fetchOwnerInventory") &&
-      !later.includes("/api/v1/products/"),
-    "Expiry must stay a placeholder until Batch N",
+    expiry.includes("fetchOwnerExpiry") && expiry.includes("/inventory/${row.productId}"),
+    "Expiry Management must be live after Batch N",
   );
   assert(
     paths.includes('kind: "expiry"') &&

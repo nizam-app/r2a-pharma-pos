@@ -1,6 +1,9 @@
 import { Router } from "express";
 import {
   batchCreateSchema,
+  batchAdjustmentSchema,
+  batchCorrectionSchema,
+  batchLifecycleSchema,
   batchListSchema,
   batchUpdateSchema,
   idParamSchema,
@@ -18,6 +21,34 @@ batchRouter.get(
 );
 
 batchRouter.post(
+  "/:id/corrections",
+  restrictTo("OWNER", "MANAGER"),
+  validate({ params: idParamSchema, body: batchCorrectionSchema }),
+  batchController.correct,
+);
+
+batchRouter.post(
+  "/:id/adjustments",
+  restrictTo("OWNER", "MANAGER"),
+  validate({ params: idParamSchema, body: batchAdjustmentSchema }),
+  batchController.adjust,
+);
+
+batchRouter.post(
+  "/:id/void",
+  restrictTo("OWNER"),
+  validate({ params: idParamSchema, body: batchLifecycleSchema }),
+  batchController.voidBatch,
+);
+
+batchRouter.post(
+  "/:id/retire",
+  restrictTo("OWNER"),
+  validate({ params: idParamSchema, body: batchLifecycleSchema }),
+  batchController.retireBatch,
+);
+
+batchRouter.post(
   "/",
   restrictTo("OWNER", "MANAGER"),
   validate({ body: batchCreateSchema }),
@@ -30,7 +61,7 @@ batchRouter.get(
   batchController.getById,
 );
 
-/** Patch lot (incl. qty) — Owner/Manager only. Cashier cannot adjust on-hand. */
+/** Legacy metadata/price PATCH only. Stock changes use signed /adjustments. */
 batchRouter.patch(
   "/:id",
   restrictTo("OWNER", "MANAGER"),

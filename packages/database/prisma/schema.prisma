@@ -40,6 +40,50 @@ enum InventoryEventType {
   SALE
 }
 
+enum BatchStatus {
+  ACTIVE
+  RETIRED
+  VOIDED
+}
+
+enum BatchReturnStatus {
+  ELIGIBLE
+  NOT_ELIGIBLE
+  MANIFEST_PREPARED
+}
+
+enum BatchRevisionAction {
+  METADATA_CORRECTION
+  PRICE_CORRECTION
+  VOID
+  RETIRE
+}
+
+enum SupplierStatus {
+  ACTIVE
+  HOLD
+  DRAFT
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIALLY_RECEIVED
+  RECEIVED
+}
+
+enum GoodsReceiptStatus {
+  CONFIRMED
+}
+
+enum ReturnManifestStatus {
+  PREPARED
+  DISPATCHED
+  ACCEPTED
+  REJECTED
+  COMPLETED
+}
+
 // --- Tenancy & access ---
 
 model Tenant {
@@ -50,17 +94,25 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  stores         Store[]
-  users          User[]
-  refreshTokens  RefreshToken[]
-  products       Product[]
-  productUnits   ProductUnit[]
-  batches        Batch[]
-  customers      Customer[]
-  sales            Sale[]
-  saleItems        SaleItem[]
-  payments         Payment[]
-  inventoryEvents  InventoryEvent[]
+  stores              Store[]
+  users               User[]
+  refreshTokens       RefreshToken[]
+  products            Product[]
+  productUnits        ProductUnit[]
+  batches             Batch[]
+  customers           Customer[]
+  sales               Sale[]
+  saleItems           SaleItem[]
+  payments            Payment[]
+  inventoryEvents     InventoryEvent[]
+  batchRevisions      BatchRevision[]
+  suppliers           Supplier[]
+  purchaseOrders      PurchaseOrder[]
+  purchaseOrderLines  PurchaseOrderLine[]
+  goodsReceipts       GoodsReceipt[]
+  goodsReceiptLines   GoodsReceiptLine[]
+  returnManifests     ReturnManifest[]
+  returnManifestLines ReturnManifestLine[]
 }
 
 model Store {
@@ -73,11 +125,15 @@ model Store {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  users            User[]
-  batches          Batch[]
-  sales            Sale[]
-  inventoryEvents  InventoryEvent[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users           User[]
+  batches         Batch[]
+  sales           Sale[]
+  inventoryEvents InventoryEvent[]
+  batchRevisions  BatchRevision[]
+  purchaseOrders  PurchaseOrder[]
+  goodsReceipts   GoodsReceipt[]
+  returnManifests ReturnManifest[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -95,11 +151,18 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  store            Store?           @relation(fields: [storeId], references: [id], onDelete: SetNull)
-  sales            Sale[]
-  refreshTokens    RefreshToken[]
-  inventoryEvents  InventoryEvent[] @relation("InventoryEventActor")
+  tenant                    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store                     Store?           @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  sales                     Sale[]
+  refreshTokens             RefreshToken[]
+  inventoryEvents           InventoryEvent[] @relation("InventoryEventActor")
+  batchRevisions            BatchRevision[]  @relation("BatchRevisionActor")
+  purchaseOrdersCreated     PurchaseOrder[]  @relation("PurchaseOrderCreatedBy")
+  goodsReceiptsReceived     GoodsReceipt[]   @relation("GoodsReceiptReceivedBy")
+  returnManifestsPrepared   ReturnManifest[] @relation("ReturnManifestPreparedBy")
+  returnManifestsDispatched ReturnManifest[] @relation("ReturnManifestDispatchedBy")
+  returnManifestsDecided    ReturnManifest[] @relation("ReturnManifestDecidedBy")
+  returnManifestsCompleted  ReturnManifest[] @relation("ReturnManifestCompletedBy")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -108,14 +171,14 @@ model User {
 
 /// Opaque refresh tokens — store only SHA-256 hashes; rotate on each use.
 model RefreshToken {
-  id        String    @id @default(cuid())
-  tenantId  String
-  userId    String
-  tokenHash String    @unique
-  expiresAt DateTime
-  revokedAt DateTime?
+  id           String    @id @default(cuid())
+  tenantId     String
+  userId       String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
   replacedById String?
-  createdAt DateTime  @default(now())
+  createdAt    DateTime  @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -128,36 +191,38 @@ model RefreshToken {
 // --- Catalog & inventory ---
 
 model Product {
-  id          String   @id @default(cuid())
-  tenantId    String
-  name        String
+  id                   String   @id @default(cuid())
+  tenantId             String
+  name                 String
   /// Active ingredient / generic name (search + substitution).
-  genericName String?
+  genericName          String?
   /// Brand / company (e.g. Beximco Pharmaceuticals).
-  manufacturer String?
+  manufacturer         String?
   /// Display strength (e.g. "500 mg", "500 mg + 65 mg").
-  strength    String?
+  strength             String?
   /// Dosage form (e.g. "Tablet", "Syrup 100ml").
-  form        String?
-  sku         String?
-  barcode     String?
-  description String?
+  form                 String?
+  sku                  String?
+  barcode              String?
+  description          String?
   /// Optional shelf category (Owner web Add Product).
-  category    String?
-  requiresPrescription Boolean @default(false)
-  coldChain   Boolean  @default(false)
-  storageNotes String?
+  category             String?
+  requiresPrescription Boolean  @default(false)
+  coldChain            Boolean  @default(false)
+  storageNotes         String?
   /// When set, low stock = 0 < on-hand ≤ reorderLevel.
-  reorderLevel Int?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  reorderLevel         Int?
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  units            ProductUnit[]
-  batches          Batch[]
-  saleItems        SaleItem[]
-  inventoryEvents  InventoryEvent[]
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  units              ProductUnit[]
+  batches            Batch[]
+  saleItems          SaleItem[]
+  inventoryEvents    InventoryEvent[]
+  purchaseOrderLines PurchaseOrderLine[]
+  goodsReceiptLines  GoodsReceiptLine[]
 
   @@unique([tenantId, sku])
   @@unique([tenantId, barcode])
@@ -190,26 +255,39 @@ model ProductUnit {
 
 /// FEFO-ready stock lot. quantityOnHand / prices are in base (PIECE) units.
 model Batch {
-  id             String   @id @default(cuid())
+  id             String            @id @default(cuid())
   tenantId       String
   storeId        String
   productId      String
+  supplierId     String?
   batchNumber    String
-  expiryDate     DateTime @db.Date
+  expiryDate     DateTime          @db.Date
   quantityOnHand Int
-  costPerBase    Decimal  @db.Decimal(12, 4)
-  sellPerBase    Decimal  @db.Decimal(12, 4)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  costPerBase    Decimal           @db.Decimal(12, 4)
+  sellPerBase    Decimal           @db.Decimal(12, 4)
+  /// Supplier label remains as the immutable display snapshot for this lot.
+  supplierName   String?
+  /// Return metadata only; MANIFEST_PREPARED does not create or reserve a manifest.
+  returnStatus   BatchReturnStatus @default(NOT_ELIGIBLE)
+  status         BatchStatus       @default(ACTIVE)
+  /// Optimistic concurrency token. Incremented on every batch mutation.
+  version        Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
-  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  store            Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  product          Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
-  saleItems        SaleItem[]
-  inventoryEvents  InventoryEvent[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store               Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product             Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supplier            Supplier?            @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  saleItems           SaleItem[]
+  inventoryEvents     InventoryEvent[]
+  revisions           BatchRevision[]
+  goodsReceiptLine    GoodsReceiptLine?
+  returnManifestLines ReturnManifestLine[]
 
   @@unique([tenantId, storeId, productId, batchNumber])
   @@index([tenantId])
+  @@index([supplierId])
   @@index([expiryDate])
   /// FEFO pick: nearest expiry with stock for a product in a store.
   @@index([storeId, productId, expiryDate, quantityOnHand])
@@ -218,16 +296,16 @@ model Batch {
 // --- Customers ---
 
 model Customer {
-  id             String   @id @default(cuid())
-  tenantId       String
-  name           String
-  phone          String?
-  email          String?
-  loyaltyPoints  Int      @default(0)
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String
+  phone         String?
+  email         String?
+  loyaltyPoints Int      @default(0)
   /// Optional account credit balance (not a POS payment method).
-  creditBalance  Decimal  @default(0) @db.Decimal(12, 2)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  creditBalance Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sales  Sale[]
@@ -241,33 +319,33 @@ model Customer {
 
 /// Immutable sale header. Prefer insert-only; no soft overwrite path.
 model Sale {
-  id         String   @id @default(cuid())
-  tenantId   String
-  storeId    String
-  userId     String
-  customerId String?
+  id              String   @id @default(cuid())
+  tenantId        String
+  storeId         String
+  userId          String
+  customerId      String?
   /// Offline sync / ingest idempotency key (global unique).
-  eventId    String   @unique
+  eventId         String   @unique
   /// Server-generated display id (`TXN-YYMMDD-HHmm`). Filled on ingest (M6 Batch D).
-  receiptNo  String?
-  soldAt     DateTime @default(now())
-  subtotal   Decimal  @db.Decimal(12, 2)
-  discount   Decimal  @default(0) @db.Decimal(12, 2)
-  total      Decimal  @db.Decimal(12, 2)
-  notes      String?
-  loyaltyPrevious Int @default(0)
-  loyaltyUsed     Int @default(0)
-  loyaltyEarned   Int @default(0)
-  createdAt  DateTime @default(now())
+  receiptNo       String?
+  soldAt          DateTime @default(now())
+  subtotal        Decimal  @db.Decimal(12, 2)
+  discount        Decimal  @default(0) @db.Decimal(12, 2)
+  total           Decimal  @db.Decimal(12, 2)
+  notes           String?
+  loyaltyPrevious Int      @default(0)
+  loyaltyUsed     Int      @default(0)
+  loyaltyEarned   Int      @default(0)
+  createdAt       DateTime @default(now())
   // No updatedAt — sales are append-only.
 
-  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  store            Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  user             User             @relation(fields: [userId], references: [id], onDelete: Restrict)
-  customer         Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  items            SaleItem[]
-  payments         Payment[]
-  inventoryEvents  InventoryEvent[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store           Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  customer        Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items           SaleItem[]
+  payments        Payment[]
+  inventoryEvents InventoryEvent[]
 
   @@unique([tenantId, receiptNo])
   @@index([tenantId])
@@ -276,24 +354,29 @@ model Sale {
 }
 
 model SaleItem {
-  id           String   @id @default(cuid())
-  tenantId     String
-  saleId       String
-  productId    String
-  batchId      String
-  unitType     UnitType
+  id                       String   @id @default(cuid())
+  tenantId                 String
+  saleId                   String
+  productId                String
+  batchId                  String
+  unitType                 UnitType
   /// Quantity in the sold unit (e.g. 2 BOX).
-  unitQty      Int
+  unitQty                  Int
   /// Quantity converted to base (PIECE) units.
-  quantityBase Int
+  quantityBase             Int
   /// Price charged per sold unit at time of sale.
-  unitPrice    Decimal  @db.Decimal(12, 4)
-  lineTotal    Decimal  @db.Decimal(12, 2)
-  fefoOverride Boolean  @default(false)
-  fefoAuthorizedByName String?
+  unitPrice                Decimal  @db.Decimal(12, 4)
+  lineTotal                Decimal  @db.Decimal(12, 2)
+  fefoOverride             Boolean  @default(false)
+  fefoAuthorizedByName     String?
   /// Server-filled from the batch at ingest (M6 Batch D). Never trust client cost.
-  costPerBaseAtSale Decimal? @db.Decimal(12, 4)
-  createdAt    DateTime @default(now())
+  costPerBaseAtSale        Decimal? @db.Decimal(12, 4)
+  /// Trusted catalog/lot display snapshots. Product and Batch stay editable.
+  productNameAtSale        String
+  productGenericNameAtSale String?
+  batchNumberAtSale        String
+  expiryDateAtSale         DateTime @db.Date
+  createdAt                DateTime @default(now())
   // No updatedAt — line items are immutable with the parent sale.
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -325,26 +408,31 @@ model Payment {
   @@index([saleId])
 }
 
-/// Append-only stock ledger. Written from POST /batches (RECEIVE), PATCH qty (ADJUST), sale ingest (SALE) — Batch D.
+/// Append-only stock ledger. Written from receive, signed adjustment, lifecycle, and sale ingest paths.
 model InventoryEvent {
-  id                   String              @id @default(cuid())
-  tenantId             String
-  storeId              String
-  productId            String
-  batchId              String?
-  saleId               String?
-  actorUserId          String?
-  type                 InventoryEventType
+  id                 String             @id @default(cuid())
+  tenantId           String
+  storeId            String
+  productId          String
+  batchId            String?
+  saleId             String?
+  actorUserId        String?
+  /// Idempotency key for manual adjustments (W3); legacy/system events may be null.
+  eventId            String?            @unique
+  type               InventoryEventType
   /// Signed PIECE delta (SALE lines are negative).
-  quantityBaseChange   Int
-  note                 String?
-  createdAt            DateTime            @default(now())
+  quantityBaseChange Int
+  /// Resulting batch quantity after this movement; null on legacy events.
+  quantityAfter      Int?
+  reasonCode         String?
+  note               String?
+  createdAt          DateTime           @default(now())
   // No updatedAt — inventory events are append-only.
 
   tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   store     Store   @relation(fields: [storeId], references: [id], onDelete: Restrict)
   product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
-  batch     Batch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  batch     Batch?  @relation(fields: [batchId], references: [id], onDelete: Restrict)
   sale      Sale?   @relation(fields: [saleId], references: [id], onDelete: SetNull)
   actorUser User?   @relation("InventoryEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
@@ -352,5 +440,232 @@ model InventoryEvent {
   @@index([saleId])
   @@index([productId])
   @@index([storeId])
+  @@index([batchId])
+}
+
+/// Append-only audit snapshots for batch metadata, price, and lifecycle changes.
+model BatchRevision {
+  id          String              @id @default(cuid())
+  tenantId    String
+  storeId     String
+  batchId     String
+  actorUserId String
+  operationId String              @unique
+  action      BatchRevisionAction
+  reason      String
+  before      Json
+  after       Json
+  createdAt   DateTime            @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store  Store  @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  batch  Batch  @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  actor  User   @relation("BatchRevisionActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@index([storeId])
+  @@index([batchId, createdAt])
+  @@index([actorUserId])
+}
+
+// --- Purchasing, receiving, and supplier returns (M6 Slice 2) ---
+
+model Supplier {
+  id                    String         @id @default(cuid())
+  tenantId              String
+  name                  String
+  contactPerson         String
+  phone                 String
+  email                 String?
+  address               String?
+  city                  String?
+  registrationNumber    String?
+  notes                 String?
+  paymentTerms          String?
+  leadTimeDays          Int?
+  minOrderValue         Decimal?       @db.Decimal(12, 2)
+  status                SupplierStatus @default(ACTIVE)
+  expiryReturnsAccepted Boolean        @default(false)
+  minDaysBeforeExpiry   Int?
+  returnNotes           String?
+  preferredContact      String?
+  secondaryPhone        String?
+  isActive              Boolean        @default(true)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  batches         Batch[]
+  purchaseOrders  PurchaseOrder[]
+  returnManifests ReturnManifest[]
+
+  @@unique([tenantId, name])
+  @@unique([tenantId, registrationNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, phone])
+}
+
+model PurchaseOrder {
+  id                String              @id @default(cuid())
+  tenantId          String
+  storeId           String
+  supplierId        String
+  createdByUserId   String
+  poNumber          String
+  status            PurchaseOrderStatus @default(DRAFT)
+  reference         String?
+  expectedDelivery  DateTime?           @db.Date
+  estimatedSubtotal Decimal             @default(0) @db.Decimal(12, 2)
+  estimatedTax      Decimal             @default(0) @db.Decimal(12, 2)
+  estimatedTotal    Decimal             @default(0) @db.Decimal(12, 2)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  tenant        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store         Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  supplier      Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy     User                @relation("PurchaseOrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  lines         PurchaseOrderLine[]
+  goodsReceipts GoodsReceipt[]
+
+  @@unique([tenantId, poNumber])
+  @@index([tenantId])
+  @@index([tenantId, storeId, createdAt])
+  @@index([tenantId, supplierId, status])
+  @@index([createdByUserId])
+}
+
+model PurchaseOrderLine {
+  id              String   @id @default(cuid())
+  tenantId        String
+  purchaseOrderId String
+  productId       String
+  qtyOrdered      Int
+  qtyReceived     Int      @default(0)
+  costPerBase     Decimal  @db.Decimal(12, 4)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchaseOrder     PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product           Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  goodsReceiptLines GoodsReceiptLine[]
+
+  @@unique([purchaseOrderId, productId])
+  @@index([tenantId])
+  @@index([productId])
+}
+
+model GoodsReceipt {
+  id                 String             @id @default(cuid())
+  tenantId           String
+  storeId            String
+  purchaseOrderId    String
+  receivedByUserId   String
+  grnNumber          String
+  supplierInvoiceRef String?
+  deliveryNote       String?
+  receivedAt         DateTime           @default(now())
+  status             GoodsReceiptStatus @default(CONFIRMED)
+  createdAt          DateTime           @default(now())
+
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store         Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  receivedBy    User               @relation("GoodsReceiptReceivedBy", fields: [receivedByUserId], references: [id], onDelete: Restrict)
+  lines         GoodsReceiptLine[]
+
+  @@unique([tenantId, grnNumber])
+  @@index([tenantId])
+  @@index([tenantId, storeId, receivedAt])
+  @@index([purchaseOrderId])
+  @@index([receivedByUserId])
+}
+
+model GoodsReceiptLine {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  goodsReceiptId      String
+  purchaseOrderLineId String
+  productId           String
+  batchId             String   @unique
+  qty                 Int
+  batchNumber         String
+  expiryDate          DateTime @db.Date
+  costPerBase         Decimal  @db.Decimal(12, 4)
+  sellPerBase         Decimal  @db.Decimal(12, 4)
+  createdAt           DateTime @default(now())
+
+  tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  goodsReceipt      GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderLine PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
+  product           Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  batch             Batch             @relation(fields: [batchId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@index([goodsReceiptId])
+  @@index([purchaseOrderLineId])
+  @@index([productId])
+}
+
+model ReturnManifest {
+  id                  String               @id @default(cuid())
+  tenantId            String
+  storeId             String
+  supplierId          String
+  preparedByUserId    String
+  dispatchedByUserId  String?
+  decidedByUserId     String?
+  completedByUserId   String?
+  srmNumber           String
+  status              ReturnManifestStatus @default(PREPARED)
+  preparedAt          DateTime             @default(now())
+  supplierReference   String?
+  notes               String?
+  dispatchOperationId String?              @unique
+  dispatchReference   String?
+  dispatchNotes       String?
+  dispatchedAt        DateTime?
+  decisionNotes       String?
+  decidedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store        Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  supplier     Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  preparedBy   User                 @relation("ReturnManifestPreparedBy", fields: [preparedByUserId], references: [id], onDelete: Restrict)
+  dispatchedBy User?                @relation("ReturnManifestDispatchedBy", fields: [dispatchedByUserId], references: [id], onDelete: SetNull)
+  decidedBy    User?                @relation("ReturnManifestDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  completedBy  User?                @relation("ReturnManifestCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  lines        ReturnManifestLine[]
+
+  @@unique([tenantId, srmNumber])
+  @@index([tenantId])
+  @@index([tenantId, storeId, preparedAt])
+  @@index([tenantId, supplierId, status])
+  @@index([preparedByUserId])
+  @@index([dispatchedByUserId])
+  @@index([decidedByUserId])
+  @@index([completedByUserId])
+}
+
+model ReturnManifestLine {
+  id               String   @id @default(cuid())
+  tenantId         String
+  returnManifestId String
+  batchId          String
+  returnQty        Int
+  costPerBase      Decimal  @db.Decimal(12, 4)
+  createdAt        DateTime @default(now())
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  returnManifest ReturnManifest @relation(fields: [returnManifestId], references: [id], onDelete: Cascade)
+  batch          Batch          @relation(fields: [batchId], references: [id], onDelete: Restrict)
+
+  @@unique([returnManifestId, batchId])
+  @@index([tenantId])
   @@index([batchId])
 }

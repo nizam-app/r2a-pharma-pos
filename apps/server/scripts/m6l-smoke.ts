@@ -228,6 +228,158 @@ async function main(): Promise<void> {
     fail("Extended fields", JSON.stringify(detailData));
   }
 
+  // Create one historical sale before editing so W1 snapshots are exercised.
+  let historicalSaleId: string | null = null;
+  if (owner.storeId) {
+    const historyBatch = await req("/batches", {
+      method: "POST",
+      token: owner.token,
+      body: {
+        productId: createdId,
+        storeId: owner.storeId,
+        batchNumber: `EDIT-${ts}`,
+        expiryDate: "2029-12-31",
+        quantityOnHand: 2,
+        costPerBase: 1,
+        sellPerBase: 2,
+      },
+    });
+    const historyBatchData = asRecord(historyBatch.body.data);
+    const historyBatchId =
+      typeof historyBatchData?.id === "string" ? historyBatchData.id : null;
+    if (historyBatchId) {
+      const historySale = await req("/sales/ingest", {
+        method: "POST",
+        token: owner.token,
+        body: {
+          eventId: `edit-history-${ts}`,
+          storeId: owner.storeId,
+          subtotal: 2,
+          discount: 0,
+          total: 2,
+          items: [
+            {
+              productId: createdId,
+              batchId: historyBatchId,
+              unitType: "PIECE",
+              unitQty: 1,
+              quantityBase: 1,
+              unitPrice: 2,
+              lineTotal: 2,
+            },
+          ],
+          payments: [{ method: "CASH", amount: 2 }],
+        },
+      });
+      const historySaleData = asRecord(historySale.body.data);
+      historicalSaleId =
+        typeof historySaleData?.id === "string" ? historySaleData.id : null;
+    }
+  }
+  if (historicalSaleId) {
+    pass("Historical sale fixture created before product edit");
+  } else {
+    fail("Historical sale fixture", "Could not create pre-edit sale");
+  }
+
+  // 6. Edit guards and hierarchy validation
+  const cashierPatch = await req(`/products/${createdId}`, {
+    method: "PATCH",
+    token: cashier.token,
+    body: { name: `Cashier Edit ${ts}` },
+  });
+  if (cashierPatch.status === 403) {
+    pass("Cashier PATCH /products/:id rejected (403)");
+  } else {
+    fail("Cashier PATCH /products/:id", `expected 403, got ${cashierPatch.status}`);
+  }
+
+  const invalidUnits = await req(`/products/${createdId}`, {
+    method: "PATCH",
+    token: owner.token,
+    body: {
+      units: [
+        { unitType: "PIECE", factorToBase: 1 },
+        { unitType: "STRIP", factorToBase: 12 },
+        { unitType: "BOX", factorToBase: 100 },
+      ],
+    },
+  });
+  if (invalidUnits.status === 400) {
+    pass("Incompatible Box/Strip hierarchy rejected (400)");
+  } else {
+    fail("Invalid unit hierarchy", `expected 400, got ${invalidUnits.status}`);
+  }
+
+  const updatedName = `Updated Medicine ${ts}`;
+  const ownerPatch = await req(`/products/${createdId}`, {
+    method: "PATCH",
+    token: owner.token,
+    body: {
+      name: updatedName,
+      genericName: null,
+      description: null,
+      requiresPrescription: false,
+      coldChain: false,
+      reorderLevel: null,
+      isActive: false,
+      units: [
+        { unitType: "PIECE", factorToBase: 1, label: "Tablet" },
+        { unitType: "STRIP", factorToBase: 12, label: "Strip" },
+        { unitType: "BOX", factorToBase: 120, label: "Box" },
+      ],
+    },
+  });
+  if (ownerPatch.status === 200) {
+    pass("Owner PATCH /products/:id updates catalog and units");
+  } else {
+    fail("Owner PATCH /products/:id", JSON.stringify(ownerPatch.body));
+  }
+
+  const editedDetail = await req(`/owner/products/${createdId}`, {
+    token: owner.token,
+  });
+  const editedData = asRecord(editedDetail.body.data);
+  const editedUnits = Array.isArray(editedData?.units)
+    ? editedData.units.map(asRecord)
+    : [];
+  const editedStrip = editedUnits.find((unit) => unit?.unitType === "STRIP");
+  const editedBox = editedUnits.find((unit) => unit?.unitType === "BOX");
+  if (
+    editedDetail.status === 200 &&
+    editedData?.name === updatedName &&
+    editedData?.genericName === null &&
+    editedData?.description === null &&
+    editedData?.isActive === false &&
+    editedData?.reorderLevel === null &&
+    editedStrip?.factorToBase === 12 &&
+    editedBox?.factorToBase === 120
+  ) {
+    pass("Edited product persists nullable fields, inactive state, and hierarchy");
+  } else {
+    fail("Edited product detail", JSON.stringify(editedDetail.body));
+  }
+
+  if (historicalSaleId) {
+    const historicalSale = await req(`/sales/${historicalSaleId}`, {
+      token: owner.token,
+    });
+    const historicalData = asRecord(historicalSale.body.data);
+    const historicalLine = Array.isArray(historicalData?.items)
+      ? asRecord(historicalData.items[0])
+      : null;
+    const historicalProduct = asRecord(historicalLine?.product);
+    if (
+      historicalSale.status === 200 &&
+      historicalProduct?.name === createPayload.name &&
+      historicalProduct?.genericName === createPayload.genericName
+    ) {
+      pass("Product edit preserves historical sale name/generic snapshots");
+    } else {
+      fail("Historical product snapshots", JSON.stringify(historicalSale.body));
+    }
+  }
+
   // Summary
   const failed = results.filter((r) => !r.ok);
   console.log(`\nResults: ${results.length - failed.length}/${results.length} PASS`);

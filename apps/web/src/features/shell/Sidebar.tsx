@@ -1,5 +1,6 @@
 import { useLocale } from "@/i18n";
 import { useOwnerPath } from "@/lib/OwnerPathProvider";
+import { X } from "lucide-react";
 import { FOOTER_NAV, PRIMARY_NAV, type NavItem } from "./nav";
 
 function NavButton({
@@ -51,14 +52,20 @@ function NavButton({
  * Admin Portal sidebar — Dashboard chrome lock (light grey, teal active).
  * Later nav is visible and disabled. Do not restyle per later mocks.
  */
-export function Sidebar() {
+export function Sidebar({
+  className = "",
+  onClose,
+}: {
+  className?: string;
+  onClose?: () => void;
+}) {
   const { t } = useLocale();
   const { path, navigate } = useOwnerPath();
 
   return (
     <aside
-      className="flex shrink-0 flex-col border-r border-border bg-shell"
-      style={{ width: "var(--r2a-sidebar-width)" }}
+      className={`flex shrink-0 flex-col border-r border-border bg-shell ${className}`}
+      style={{ width: "min(var(--r2a-sidebar-width), 85vw)" }}
     >
       <div className="flex items-center gap-2.5 border-b border-border px-3 py-3.5">
         <span
@@ -70,6 +77,16 @@ export function Sidebar() {
         <p className="text-sm font-semibold leading-tight text-foreground">
           {t("brand.name")}
         </p>
+        {onClose ? (
+          <button
+            type="button"
+            aria-label={t("nav.closeMenu")}
+            className="ml-auto rounded-md p-1.5 text-muted hover:bg-white hover:text-foreground"
+            onClick={onClose}
+          >
+            <X className="size-4" />
+          </button>
+        ) : null}
       </div>
 
       <nav
@@ -82,7 +99,10 @@ export function Sidebar() {
             item={item}
             active={item.live && item.path === path}
             onLiveClick={() => {
-              if (item.live && item.path) navigate(item.path);
+              if (item.live && item.path) {
+                navigate(item.path);
+                onClose?.();
+              }
             }}
           />
         ))}

@@ -38,7 +38,7 @@ export type NavItem = {
   path?: OwnerPath;
 };
 
-/** Live Slice 1 routes. Later items are visible and disabled — no path. */
+/** Live Owner routes. Unauthorized later items stay visible and disabled. */
 export const PRIMARY_NAV: readonly NavItem[] = [
   {
     id: "dashboard",
@@ -65,13 +65,15 @@ export const PRIMARY_NAV: readonly NavItem[] = [
     id: "purchasing",
     labelKey: "nav.purchasing",
     icon: ShoppingBag,
-    live: false,
+    live: true,
+    path: "/purchasing",
   },
   {
     id: "suppliers",
     labelKey: "nav.suppliers",
     icon: Truck,
-    live: false,
+    live: true,
+    path: "/suppliers",
   },
   {
     id: "customers",

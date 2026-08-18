@@ -33,6 +33,10 @@ type SaleItemM6Fields = {
   fefoOverride: boolean;
   fefoAuthorizedByName: string | null;
   costPerBaseAtSale: { toString(): string } | number | null;
+  productNameAtSale: string;
+  productGenericNameAtSale: string | null;
+  batchNumberAtSale: string;
+  expiryDateAtSale: Date;
 };
 
 function withSaleM6<T>(sale: T): T & SaleM6Fields {
@@ -86,7 +90,7 @@ async function allocateReceiptNo(
   if (!suffixTaken) return suffixed;
 
   const alnum = eventId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-  const longTail = (alnum.slice(-8) || Date.now().toString(36)).toUpperCase();
+  const longTail = (alnum.slice(-16) || Date.now().toString(36)).toUpperCase();
   return `${base}-${longTail}`;
 }
 
@@ -138,7 +142,15 @@ function serializeSale(sale: SaleWithRelations, role: Role) {
         lineTotal: toNumber(line.lineTotal),
         fefoOverride: line.fefoOverride,
         fefoAuthorizedByName: line.fefoAuthorizedByName,
-        batch: serializeBatch(line.batch, role),
+        productNameAtSale: line.productNameAtSale,
+        productGenericNameAtSale: line.productGenericNameAtSale,
+        batchNumberAtSale: line.batchNumberAtSale,
+        expiryDateAtSale: line.expiryDateAtSale,
+        batch: {
+          ...serializeBatch(line.batch, role),
+          batchNumber: line.batchNumberAtSale,
+          expiryDate: line.expiryDateAtSale,
+        },
       };
       if (role !== "CASHIER" && line.costPerBaseAtSale != null) {
         row.costPerBaseAtSale = toNumber(line.costPerBaseAtSale);
@@ -260,6 +272,12 @@ export async function ingestSale(
           404,
         );
       }
+      if (batch.status !== "ACTIVE") {
+        throw new AppError(
+          `Batch ${batch.batchNumber} is ${batch.status.toLowerCase()} and cannot be sold; refresh catalog and select an active batch`,
+          409,
+        );
+      }
       if (batch.quantityOnHand < line.quantityBase) {
         throw new AppError(
           `Insufficient stock on batch ${batch.batchNumber}`,
@@ -339,6 +357,10 @@ export async function ingestSale(
           fefoOverride: boolean;
           fefoAuthorizedByName: string | null;
           costPerBaseAtSale: { toString(): string } | number;
+          productNameAtSale: string;
+          productGenericNameAtSale: string | null;
+          batchNumberAtSale: string;
+          expiryDateAtSale: Date;
         }> = [];
         const eventCreates: Array<{
           tenantId: string;
@@ -348,6 +370,7 @@ export async function ingestSale(
           actorUserId: string;
           type: "SALE";
           quantityBaseChange: number;
+          quantityAfter: number;
         }> = [];
 
         for (const line of resolvedLines) {
@@ -356,19 +379,39 @@ export async function ingestSale(
               id: line.batchId,
               tenantId: ctx.tenantId,
               storeId: input.storeId,
+              status: "ACTIVE",
               quantityOnHand: { gte: line.quantityBase },
             },
             data: {
               quantityOnHand: { decrement: line.quantityBase },
+              version: { increment: 1 },
             },
           });
           if (updated.count !== 1) {
+            const latest = await tx.batch.findFirst({
+              where: { id: line.batchId, tenantId: ctx.tenantId },
+              select: { batchNumber: true, status: true },
+            });
+            if (latest && latest.status !== "ACTIVE") {
+              throw new AppError(
+                `Batch ${latest.batchNumber} is ${latest.status.toLowerCase()} and cannot be sold; refresh catalog and select an active batch`,
+                409,
+              );
+            }
             throw new AppError("Insufficient stock during sale commit", 409);
           }
 
           const batch = await tx.batch.findFirst({
             where: { id: line.batchId, tenantId: ctx.tenantId },
-            select: { costPerBase: true },
+            select: {
+              costPerBase: true,
+              quantityOnHand: true,
+              batchNumber: true,
+              expiryDate: true,
+              product: {
+                select: { name: true, genericName: true },
+              },
+            },
           });
           if (!batch) {
             throw new AppError("Insufficient stock during sale commit", 409);
@@ -386,6 +429,10 @@ export async function ingestSale(
             fefoOverride: line.fefoOverride,
             fefoAuthorizedByName: line.fefoAuthorizedByName,
             costPerBaseAtSale: batch.costPerBase,
+            productNameAtSale: batch.product.name,
+            productGenericNameAtSale: batch.product.genericName,
+            batchNumberAtSale: batch.batchNumber,
+            expiryDateAtSale: batch.expiryDate,
           });
           eventCreates.push({
             tenantId: ctx.tenantId,
@@ -395,6 +442,7 @@ export async function ingestSale(
             actorUserId: ctx.userId,
             type: "SALE",
             quantityBaseChange: -line.quantityBase,
+            quantityAfter: batch.quantityOnHand,
           });
         }
 
@@ -583,8 +631,8 @@ function serializeSaleRead(sale: SaleReadRow, role: Role) {
       fefoAuthorizedByName: line.fefoAuthorizedByName,
       product: {
         id: line.product.id,
-        name: line.product.name,
-        genericName: line.product.genericName,
+        name: line.productNameAtSale,
+        genericName: line.productGenericNameAtSale,
         sku: line.product.sku,
         manufacturer: line.product.manufacturer,
         strength: line.product.strength,
@@ -592,8 +640,8 @@ function serializeSaleRead(sale: SaleReadRow, role: Role) {
       },
       batch: {
         id: line.batch.id,
-        batchNumber: line.batch.batchNumber,
-        expiryDate: line.batch.expiryDate,
+        batchNumber: line.batchNumberAtSale,
+        expiryDate: line.expiryDateAtSale,
       },
     };
 

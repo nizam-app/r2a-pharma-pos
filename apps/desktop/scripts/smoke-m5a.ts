@@ -58,9 +58,10 @@ function checkRouters(): void {
     'PATCH /customers/:id must restrictTo("OWNER", "MANAGER")',
   );
 
-  const batchPost = extractCall(batch, "batchRouter", "post");
   assert(
-    batchPost.includes('restrictTo("OWNER", "MANAGER")'),
+    /batchRouter\.post\(\s*"\/",[\s\S]{0,180}?restrictTo\("OWNER", "MANAGER"\)/.test(
+      batch,
+    ),
     "POST /batches must stay OWNER+MANAGER",
   );
 
@@ -76,9 +77,10 @@ function checkRouters(): void {
     "m2-smoke must assert cashier PATCH /customers 403",
   );
   assert(
-    smoke.includes("Cashier blocked from PATCH batch qty") &&
-      smoke.includes("quantityOnHand"),
-    "m2-smoke must assert cashier PATCH batch qty 403",
+    smoke.includes("Cashier blocked from signed stock adjustment") &&
+      smoke.includes("quantityChange") &&
+      smoke.includes("reasonCode"),
+    "m2-smoke must assert cashier signed adjustment 403",
   );
   assert(
     smoke.includes("Cashier blocked from price edit"),
@@ -140,9 +142,15 @@ function checkDocs(): void {
   );
   assert(
     catalog.includes(
-      "| PATCH | `/api/v1/batches/:id` | Bearer | `OWNER`, `MANAGER` (cashier `403`, including qty) |",
+      "| PATCH | `/api/v1/batches/:id` | Bearer | `OWNER`, `MANAGER`; metadata/prices only, never quantity |",
     ),
     "Completed_API_lists.md route index: PATCH batches OWNER+MANAGER",
+  );
+  assert(
+    catalog.includes(
+      "| POST | `/api/v1/batches/:id/adjustments` | Bearer | `OWNER`, `MANAGER` |",
+    ),
+    "Completed_API_lists.md route index: signed adjustments OWNER+MANAGER",
   );
   assert(
     !catalog.includes("Cashier may patch non-price fields"),

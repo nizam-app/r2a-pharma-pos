@@ -64,6 +64,7 @@ export async function listSubstitutes(
         tenantId: ctx.tenantId,
         storeId,
         productId: other.id,
+        status: "ACTIVE",
         quantityOnHand: { gt: 0 },
       },
       _sum: { quantityOnHand: true },
@@ -83,6 +84,7 @@ export async function listSubstitutes(
             tenantId: ctx.tenantId,
             storeId,
             productId: other.id,
+            status: "ACTIVE",
           },
           orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
         });

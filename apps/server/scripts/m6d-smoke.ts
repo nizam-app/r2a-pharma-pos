@@ -156,6 +156,13 @@ async function main(): Promise<void> {
   const batchId = typeof sellBatch?.id === "string" ? sellBatch.id : null;
   const costPerBase =
     typeof sellBatch?.costPerBase === "number" ? sellBatch.costPerBase : null;
+  const productName = typeof product?.name === "string" ? product.name : null;
+  const productGenericName =
+    typeof product?.genericName === "string" ? product.genericName : null;
+  const batchNumber =
+    typeof sellBatch?.batchNumber === "string" ? sellBatch.batchNumber : null;
+  const expiryDate =
+    typeof sellBatch?.expiryDate === "string" ? sellBatch.expiryDate : null;
   const unitPrice =
     typeof sellBatch?.sellPerBase === "number" ? sellBatch.sellPerBase : 1.2;
   if (batchId && costPerBase != null) {
@@ -226,7 +233,11 @@ async function main(): Promise<void> {
     loyaltySale?.loyaltyEarned === 1 &&
     loyaltyLine?.fefoOverride === true &&
     loyaltyLine?.fefoAuthorizedByName === "Smoke Manager" &&
-    loyaltyLine?.costPerBaseAtSale === costPerBase
+    loyaltyLine?.costPerBaseAtSale === costPerBase &&
+    loyaltyLine?.productNameAtSale === productName &&
+    loyaltyLine?.productGenericNameAtSale === productGenericName &&
+    loyaltyLine?.batchNumberAtSale === batchNumber &&
+    loyaltyLine?.expiryDateAtSale === expiryDate
   ) {
     pass(
       "3b. Ingest loyalty + FEFO + cost + receiptNo",
@@ -251,11 +262,16 @@ async function main(): Promise<void> {
     const saleEvents = await prisma.inventoryEvent.findMany({
       where: { saleId, type: "SALE" },
     });
+    const batchAfterSale = await prisma.batch.findUnique({
+      where: { id: batchId },
+      select: { quantityOnHand: true },
+    });
     if (
       saleEvents.length === 1 &&
-      saleEvents[0]?.quantityBaseChange === -1
+      saleEvents[0]?.quantityBaseChange === -1 &&
+      saleEvents[0]?.quantityAfter === batchAfterSale?.quantityOnHand
     ) {
-      pass("3d. SALE InventoryEvent written", saleId);
+      pass("3d. SALE InventoryEvent written with resulting quantity", saleId);
     } else {
       fail(
         "3d. SALE InventoryEvent written",
@@ -354,7 +370,10 @@ async function main(): Promise<void> {
     oldSale?.loyaltyPrevious === 0 &&
     oldSale?.loyaltyUsed === 0 &&
     oldSale?.loyaltyEarned === 0 &&
-    oldLine?.fefoOverride === false
+    oldLine?.fefoOverride === false &&
+    typeof oldLine?.productNameAtSale === "string" &&
+    typeof oldLine?.batchNumberAtSale === "string" &&
+    typeof oldLine?.expiryDateAtSale === "string"
   ) {
     pass("5. Old payload without loyalty/FEFO still succeeds", String(oldSale?.receiptNo));
   } else {
@@ -384,6 +403,7 @@ async function main(): Promise<void> {
     if (
       recvEvents.length === 1 &&
       recvEvents[0]?.quantityBaseChange === 7 &&
+      recvEvents[0]?.quantityAfter === 7 &&
       recvEvents[0]?.actorUserId
     ) {
       pass("6a. POST /batches writes RECEIVE event", lotNo);
@@ -398,23 +418,31 @@ async function main(): Promise<void> {
   }
 
   if (receivedId) {
-    const adjust = await req(`/batches/${receivedId}`, {
-      method: "PATCH",
+    const adjustmentEventId = `m6d-adjust-${stamp}`;
+    const adjust = await req(`/batches/${receivedId}/adjustments`, {
+      method: "POST",
       token: ownerToken,
-      body: { quantityOnHand: 10 },
+      body: {
+        eventId: adjustmentEventId,
+        expectedVersion: 0,
+        quantityChange: 3,
+        reasonCode: "RECEIVE_CORRECTION",
+      },
     });
     const adjEvents = await prisma.inventoryEvent.findMany({
-      where: { batchId: receivedId, type: "ADJUST" },
+      where: { batchId: receivedId, type: "ADJUST", eventId: adjustmentEventId },
     });
     if (
       adjust.status === 200 &&
       adjEvents.length === 1 &&
-      adjEvents[0]?.quantityBaseChange === 3
+      adjEvents[0]?.quantityBaseChange === 3 &&
+      adjEvents[0]?.quantityAfter === 10 &&
+      adjEvents[0]?.reasonCode === "RECEIVE_CORRECTION"
     ) {
-      pass("6b. PATCH qty writes ADJUST delta", "+3");
+      pass("6b. Signed adjustment writes audited ADJUST delta", "+3");
     } else {
       fail(
-        "6b. PATCH qty writes ADJUST delta",
+        "6b. Signed adjustment writes audited ADJUST delta",
         JSON.stringify({
           status: adjust.status,
           count: adjEvents.length,
@@ -423,7 +451,7 @@ async function main(): Promise<void> {
       );
     }
   } else {
-    fail("6b. PATCH qty writes ADJUST delta", "no received batch");
+    fail("6b. Signed adjustment writes audited ADJUST delta", "no received batch");
   }
 
   const cashierEventId = `m6d-cashier-${stamp}`;

@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, MapPin, Search } from "lucide-react";
+import { Bell, ChevronDown, MapPin, Menu, Search } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { displayNameFromUser, initialsFromUser, useAuth } from "@/features/auth";
 import { LocaleToggle, useLocale } from "@/i18n";
@@ -10,7 +10,7 @@ import { useTenantChrome } from "@/lib/TenantContextProvider";
  * Admin Portal header — breadcrumb, disabled store control, chrome-only
  * bell/search, locale, avatar + logout. No KPI widgets.
  */
-export function Header() {
+export function Header({ onOpenNavigation }: { onOpenNavigation?: () => void }) {
   const { t } = useLocale();
   const { user, logout } = useAuth();
   const { path } = useOwnerPath();
@@ -43,8 +43,18 @@ export function Header() {
   }, [menuOpen]);
 
   return (
-    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-5 py-2.5">
-      <nav aria-label={t("header.breadcrumb")} className="min-w-0">
+    <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-3 py-2.5 sm:gap-3 sm:px-5">
+      <nav aria-label={t("header.breadcrumb")} className="flex min-w-0 items-center gap-2">
+        {onOpenNavigation ? (
+          <button
+            type="button"
+            aria-label={t("nav.openMenu")}
+            className="rounded-md p-2 text-muted hover:bg-canvas hover:text-foreground md:hidden"
+            onClick={onOpenNavigation}
+          >
+            <Menu className="size-4" />
+          </button>
+        ) : null}
         <p className="truncate text-sm text-muted">{title}</p>
       </nav>
 
@@ -54,7 +64,7 @@ export function Header() {
           disabled
           aria-disabled="true"
           title={t("header.storeLocked")}
-          className="inline-flex max-w-[14rem] cursor-not-allowed items-center gap-1.5 rounded-md border border-border bg-canvas px-2.5 py-1.5 text-sm text-foreground"
+          className="hidden max-w-[14rem] cursor-not-allowed items-center gap-1.5 rounded-md border border-border bg-canvas px-2.5 py-1.5 text-sm text-foreground lg:inline-flex"
         >
           <MapPin className="size-3.5 shrink-0 text-muted" strokeWidth={1.75} />
           <span className="truncate">{storeLabel}</span>
@@ -68,7 +78,7 @@ export function Header() {
           type="button"
           aria-label={t("header.notifications")}
           title={t("header.notificationsSoon")}
-          className="rounded-md p-2 text-muted hover:bg-canvas hover:text-foreground"
+          className="hidden rounded-md p-2 text-muted hover:bg-canvas hover:text-foreground sm:block"
         >
           <Bell className="size-4" strokeWidth={1.75} />
         </button>
@@ -77,7 +87,7 @@ export function Header() {
           type="button"
           aria-label={t("header.search")}
           title={t("header.searchSoon")}
-          className="rounded-md p-2 text-muted hover:bg-canvas hover:text-foreground"
+          className="hidden rounded-md p-2 text-muted hover:bg-canvas hover:text-foreground sm:block"
         >
           <Search className="size-4" strokeWidth={1.75} />
         </button>

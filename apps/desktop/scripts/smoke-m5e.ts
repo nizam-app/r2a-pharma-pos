@@ -156,8 +156,8 @@ function checkSourceGuards(): void {
     "sync ingest path must remain unchanged",
   );
   assert(
-    receive.includes("postReceiveLot") && receive.includes("patchReceiveQty"),
-    "Receive stock helpers must be unchanged in this batch",
+    receive.includes("postReceiveLot") && receive.includes("adjustReceiveQty"),
+    "Receive stock helpers must retain add lot and current signed adjustment",
   );
   console.log("  ✓ source: envelope meta, one cache replace, no CSV, ingest untouched");
 }

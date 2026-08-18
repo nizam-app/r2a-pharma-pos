@@ -19,7 +19,14 @@
     "smoke:m6j": "tsx scripts/smoke-m6j.ts",
     "smoke:m6k": "tsx scripts/smoke-m6k.ts",
     "smoke:m6l": "tsx scripts/smoke-m6l.ts",
-    "smoke:m6m": "tsx scripts/smoke-m6m.ts"
+    "smoke:m6m": "tsx scripts/smoke-m6m.ts",
+    "smoke:m6n": "tsx scripts/smoke-m6n.ts",
+"smoke:m6s": "tsx scripts/smoke-m6s.ts",
+    "smoke:m6s1": "tsx scripts/smoke-m6s1.ts",
+    "smoke:m6t": "tsx scripts/smoke-m6t.ts",
+    "smoke:m6u": "tsx scripts/smoke-m6u.ts",
+    "smoke:web-w2": "tsx scripts/web-w2-smoke.ts",
+    "smoke:web-w5": "tsx scripts/web-w5-smoke.ts"
   },
   "dependencies": {
     "@r2a/shared-types": "*",

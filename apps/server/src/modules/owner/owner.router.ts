@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  idParamSchema,
   ownerDashboardQuerySchema,
   ownerExpiryQuerySchema,
   ownerInventoryQuerySchema,
@@ -8,6 +9,7 @@ import {
 import { restrictTo } from "../../middlewares/protect";
 import { validate } from "../../middlewares/validate";
 import * as ownerController from "./owner.controller";
+import purchasingRouter from "../purchasing/purchasing.router";
 
 /**
  * Owner aggregate reads — dashboard / inventory-summary / expiry / inventory list
@@ -16,6 +18,8 @@ import * as ownerController from "./owner.controller";
 const ownerRouter = Router();
 
 ownerRouter.use(restrictTo("OWNER"));
+
+ownerRouter.use(purchasingRouter);
 
 ownerRouter.get(
   "/dashboard",
@@ -35,6 +39,12 @@ ownerRouter.get(
   "/products/:productId",
   validate({ params: productIdParamSchema }),
   ownerController.productDetail,
+);
+
+ownerRouter.get(
+  "/batches/:id",
+  validate({ params: idParamSchema }),
+  ownerController.batchDetail,
 );
 
 ownerRouter.get(

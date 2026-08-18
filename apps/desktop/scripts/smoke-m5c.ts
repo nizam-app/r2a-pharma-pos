@@ -2,7 +2,7 @@
  * M5 Batch C smoke — Receive stock UI (GRN).
  * Run: npm run smoke:m5c -w @r2a/desktop
  *
- * Settings → Receive stock: Add lot POST /batches + Adjust qty PATCH.
+ * Settings -> Receive stock: Add lot POST /batches + signed adjustment POST.
  * Owner/Manager only; online only; catalogPull after save.
  * This script does not hit the cloud API (walkthrough covers live POST).
  */
@@ -46,6 +46,9 @@ const RECEIVE_I18N_KEYS = [
   "settings.receiveStockDuplicate",
   "settings.receiveStockLotSaved",
   "settings.receiveStockQtySaved",
+  "settings.receiveStockQtyChange",
+  "settings.receiveStockAdjustmentReason",
+  "settings.receiveStockAdjustmentConflict",
 ] as const;
 
 function checkReceiveForm(): void {
@@ -60,10 +63,11 @@ function checkReceiveForm(): void {
     "receiveStock must POST /api/v1/batches for Add lot",
   );
   assert(
-    helper.includes('method: "PATCH"') &&
-      helper.includes("quantityOnHand") &&
-      helper.includes("patchReceiveQty"),
-    "receiveStock must PATCH /api/v1/batches/:id with quantityOnHand",
+    helper.includes('method: "POST"') &&
+      helper.includes("/adjustments") &&
+      helper.includes("adjustReceiveQty") &&
+      helper.includes("BatchAdjustmentInput"),
+    "receiveStock must POST signed, versioned adjustments",
   );
   assert(
     helper.includes("searchReceiveProducts") &&
@@ -78,9 +82,12 @@ function checkReceiveForm(): void {
 
   assert(
     section.includes("postReceiveLot") &&
-      section.includes("patchReceiveQty") &&
-      section.includes("pullCacheNow"),
-    "ReceiveStockSection must POST lot, PATCH qty, and catalogPull after save",
+      section.includes("adjustReceiveQty") &&
+      section.includes("pullCacheNow") &&
+      section.includes("expectedVersion: selectedBatch.version") &&
+      section.includes("quantityChange") &&
+      section.includes("reasonCode: adjustmentReason"),
+    "ReceiveStockSection must POST signed adjustment and refresh catalog",
   );
   assert(
     section.includes('mode === "online"') &&
@@ -92,6 +99,19 @@ function checkReceiveForm(): void {
     section.includes("isDuplicateBatchError") &&
       section.includes('t("settings.receiveStockDuplicate")'),
     "409 duplicate batch number must use i18n toast",
+  );
+  assert(
+    section.includes("parseSignedInt") &&
+      section.includes("receiveStockWouldBeNegative") &&
+      section.includes("receiveStockProjectedQty") &&
+      section.includes("data-adjustment-reason"),
+    "Adjust stock must require signed non-zero quantity, reason, and show projection",
+  );
+  assert(
+    section.includes("isAdjustmentConflict") &&
+      section.includes("listReceiveBatches(product.id)") &&
+      section.includes("receiveStockAdjustmentConflict"),
+    "Adjustment 409 must reload current batches without automatic retry",
   );
   assert(
     section.includes('t("settings.receiveStockCost")') &&
@@ -127,7 +147,7 @@ function checkReceiveForm(): void {
     "Batch B placeholder must be replaced by the Receive stock form",
   );
 
-  console.log("  ✓ POST /batches + PATCH qty + catalogPull + online-only + role gate");
+  console.log("  ✓ POST /batches + signed adjustment + catalogPull + online-only + role gate");
 }
 
 function checkNoSidebarInventory(): void {

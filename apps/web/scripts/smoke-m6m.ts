@@ -4,7 +4,7 @@
  *
  * Source guards only. The page must fetch live product context, submit a new
  * batch to POST /api/v1/batches, show packaging/financial/stock calculations,
- * and omit Supplier, PO, invoice, and offline GRN behavior.
+ * capture optional supplier/return metadata, and omit PO, invoice, and offline GRN behavior.
  */
 
 import { readFileSync } from "node:fs";
@@ -34,6 +34,8 @@ const RECEIVE_I18N_KEYS = [
   "inventory.receive.receivedDate",
   "inventory.receive.batchNumber",
   "inventory.receive.expiryDate",
+  "inventory.receive.supplier",
+  "inventory.receive.returnEligibility",
   "inventory.receive.quantity",
   "inventory.receive.costPerPiece",
   "inventory.receive.sellPerPiece",
@@ -97,6 +99,8 @@ function checkReceiveFlow(): void {
     "quantityOnHand",
     "costPerBase",
     "sellPerBase",
+    "supplierName",
+    "returnStatus",
   ]) {
     assert(page.includes(field), `Receive payload must include ${field}`);
   }
@@ -117,12 +121,13 @@ function checkReceiveFlow(): void {
     "Received date must be display-only and server createdAt must remain represented",
   );
   assert(
-    !page.includes("Supplier") &&
+    page.includes("inventory.receive.supplier") &&
+      page.includes("inventory.receive.returnEligibility") &&
       !page.includes("Link PO") &&
       !page.includes("Invoice") &&
       !page.includes("outbound_sync_queue") &&
       !page.includes("offline"),
-    "Receive Stock must omit Supplier/PO/invoice and offline GRN queue behavior",
+    "Receive Stock must persist supplier/return metadata and omit PO/invoice/offline GRN behavior",
   );
   assert(!/1,?280/.test(page) && !/NP25021/.test(page), "Must not hard-code mock stock or batch data");
   assert(page.includes("product.name") && !page.includes("t(product.name"), "Medicine names must remain untranslated");

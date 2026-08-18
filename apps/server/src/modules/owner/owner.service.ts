@@ -616,6 +616,7 @@ export async function getExpiry(ctx: TenantContext, query: OwnerExpiryQuery) {
     where: {
       tenantId: ctx.tenantId,
       ...scope,
+      status: "ACTIVE",
       quantityOnHand: { gt: 0 },
     },
     select: {
@@ -625,6 +626,8 @@ export async function getExpiry(ctx: TenantContext, query: OwnerExpiryQuery) {
       expiryDate: true,
       quantityOnHand: true,
       costPerBase: true,
+      supplierName: true,
+      returnStatus: true,
       product: { select: { name: true, genericName: true } },
     },
     orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
@@ -651,6 +654,8 @@ export async function getExpiry(ctx: TenantContext, query: OwnerExpiryQuery) {
     quantityOnHand: number;
     costValue: number;
     fefoRank: number;
+    supplierName: string | null;
+    returnStatus: "ELIGIBLE" | "NOT_ELIGIBLE" | "MANIFEST_PREPARED";
   }> = [];
 
   for (const lot of lots) {
@@ -669,6 +674,8 @@ export async function getExpiry(ctx: TenantContext, query: OwnerExpiryQuery) {
       quantityOnHand: lot.quantityOnHand,
       costValue: round2(lot.quantityOnHand * toNumber(lot.costPerBase)),
       fefoRank: rankByProduct.get(lot.productId)?.get(lot.id) ?? 0,
+      supplierName: lot.supplierName,
+      returnStatus: lot.returnStatus,
     });
   }
 
@@ -808,6 +815,8 @@ export async function getInventoryList(
         quantityOnHand: true,
         costPerBase: true,
         sellPerBase: true,
+        status: true,
+        version: true,
         expiryDate: true,
       },
     }),
@@ -1058,6 +1067,10 @@ export async function getProductDetail(ctx: TenantContext, productId: string) {
         quantityOnHand: true,
         costPerBase: true,
         sellPerBase: true,
+        supplierName: true,
+        returnStatus: true,
+        status: true,
+        version: true,
       },
       orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
     }),
@@ -1075,7 +1088,9 @@ export async function getProductDetail(ctx: TenantContext, productId: string) {
 
   const sellable = lots.filter(
     (lot) =>
-      lot.quantityOnHand > 0 && daysUntilExpiry(lot.expiryDate, today) >= 0,
+      lot.status === "ACTIVE" &&
+      lot.quantityOnHand > 0 &&
+      daysUntilExpiry(lot.expiryDate, today) >= 0,
   );
   const fefoRankById = new Map<string, number>();
   for (const lot of sellable) {
@@ -1177,6 +1192,10 @@ export async function getProductDetail(ctx: TenantContext, productId: string) {
       quantityOnHand: qty,
       costPerBase: cost,
       sellPerBase: sell,
+      supplierName: lot.supplierName,
+      returnStatus: lot.returnStatus,
+      lifecycleStatus: lot.status,
+      version: lot.version,
       stockValue: round2(qty * cost),
       fefoRank,
       status,
@@ -1243,6 +1262,81 @@ export async function getProductDetail(ctx: TenantContext, productId: string) {
       batchNumber: ev.batch?.batchNumber ?? null,
       receiptNo: ev.sale?.receiptNo ?? null,
       actorName: ev.actorUser?.name ?? null,
+    })),
+  };
+}
+
+/** Owner-only batch management context for W3/W5. */
+export async function getBatchDetail(ctx: TenantContext, batchId: string) {
+  const batch = await prisma.batch.findFirst({
+    where: { id: batchId, tenantId: ctx.tenantId, ...storeScope(ctx) },
+    include: {
+      product: {
+        select: {
+          id: true,
+          name: true,
+          genericName: true,
+          strength: true,
+          manufacturer: true,
+          sku: true,
+        },
+      },
+      _count: { select: { saleItems: true } },
+      inventoryEvents: {
+        where: { type: "ADJUST" },
+        include: { actorUser: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
+      revisions: {
+        include: { actor: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
+    },
+  });
+  if (!batch) throw new AppError("Batch not found", 404);
+
+  return {
+    id: batch.id,
+    tenantId: batch.tenantId,
+    storeId: batch.storeId,
+    productId: batch.productId,
+    product: batch.product,
+    batchNumber: batch.batchNumber,
+    expiryDate: batch.expiryDate.toISOString(),
+    quantityOnHand: batch.quantityOnHand,
+    costPerBase: toNumber(batch.costPerBase),
+    sellPerBase: toNumber(batch.sellPerBase),
+    supplierName: batch.supplierName,
+    returnStatus: batch.returnStatus,
+    status: batch.status,
+    version: batch.version,
+    saleReferenceCount: batch._count.saleItems,
+    canVoid: batch.status === "ACTIVE" && batch._count.saleItems === 0,
+    createdAt: batch.createdAt.toISOString(),
+    updatedAt: batch.updatedAt.toISOString(),
+    adjustments: batch.inventoryEvents.map((event) => ({
+      id: event.id,
+      eventId: event.eventId,
+      quantityBaseChange: event.quantityBaseChange,
+      quantityAfter: event.quantityAfter,
+      reasonCode: event.reasonCode,
+      note: event.note,
+      actorUserId: event.actorUserId,
+      actorName: event.actorUser?.name ?? null,
+      createdAt: event.createdAt.toISOString(),
+    })),
+    revisions: batch.revisions.map((revision) => ({
+      id: revision.id,
+      operationId: revision.operationId,
+      action: revision.action,
+      reason: revision.reason,
+      before: revision.before,
+      after: revision.after,
+      actorUserId: revision.actorUserId,
+      actorName: revision.actor.name,
+      createdAt: revision.createdAt.toISOString(),
     })),
   };
 }

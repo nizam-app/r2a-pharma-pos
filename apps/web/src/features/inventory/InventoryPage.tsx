@@ -1,9 +1,11 @@
 import {
   AlertTriangle,
+  CalendarClock,
   Clock,
   Columns3,
   Filter,
   Package,
+  PackagePlus,
   PackageX,
   Plus,
   Search,
@@ -132,6 +134,14 @@ export function InventoryPage() {
           <button
             type="button"
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground hover:bg-canvas"
+            onClick={() => navigate("/inventory/expiry")}
+          >
+            <CalendarClock className="size-3.5 text-amber-600" strokeWidth={1.75} />
+            {t("inventory.expiryManagement")}
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground hover:bg-canvas"
             onClick={() => navigate("/inventory/new")}
           >
             <Plus className="size-3.5" strokeWidth={1.75} />
@@ -142,7 +152,7 @@ export function InventoryPage() {
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
             onClick={() => setPickerOpen(true)}
           >
-            <Plus className="size-3.5" strokeWidth={1.75} />
+            <PackagePlus className="size-3.5" strokeWidth={1.75} />
             {t("inventory.receiveStock")}
           </button>
         </div>

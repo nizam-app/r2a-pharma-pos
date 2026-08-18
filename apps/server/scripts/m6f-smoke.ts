@@ -284,6 +284,8 @@ async function main(): Promise<void> {
       quantityOnHand: 7,
       costPerBase: 1.1,
       sellPerBase: unitPrice,
+      supplierName: "M6F Supplier",
+      returnStatus: "ELIGIBLE",
     },
   });
   const createdLotData = asRecord(createdLot.body.data);
@@ -374,10 +376,6 @@ async function main(): Promise<void> {
   const expiredHit = expiredRows
     .map(asRecord)
     .find((row) => row?.batchNumber === expiredBatchNo);
-  const hasSupplier = expiredRows.some((row) => {
-    const rec = asRecord(row);
-    return rec != null && ("supplier" in rec || "returnEligibility" in rec);
-  });
   if (
     expired.status === 200 &&
     expiredData?.bucket === "expired" &&
@@ -390,7 +388,8 @@ async function main(): Promise<void> {
     typeof expiredHit.productName === "string" &&
     typeof expiredHit.fefoRank === "number" &&
     typeof expiredHit.costValue === "number" &&
-    !hasSupplier
+    expiredHit.supplierName === "M6F Supplier" &&
+    expiredHit.returnStatus === "ELIGIBLE"
   ) {
     pass(
       "10. Owner GET /owner/expiry?bucket=expired",

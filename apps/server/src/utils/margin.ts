@@ -1,4 +1,4 @@
-import type { Role } from "@r2a/shared-types";
+import type { BatchReturnStatus, Role } from "@r2a/shared-types";
 import { AppError } from "./AppError";
 import type { TenantContext } from "../types/tenant";
 
@@ -18,6 +18,10 @@ export type BatchPublic = {
   quantityOnHand: number;
   costPerBase?: number;
   sellPerBase: number;
+  supplierName: string | null;
+  returnStatus: BatchReturnStatus;
+  status: "ACTIVE" | "RETIRED" | "VOIDED";
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -34,6 +38,10 @@ export function serializeBatch(
     quantityOnHand: number;
     costPerBase: DecimalLike;
     sellPerBase: DecimalLike;
+    supplierName: string | null;
+    returnStatus: BatchReturnStatus;
+    status: "ACTIVE" | "RETIRED" | "VOIDED";
+    version: number;
     createdAt: Date;
     updatedAt: Date;
   },
@@ -48,6 +56,10 @@ export function serializeBatch(
     expiryDate: batch.expiryDate,
     quantityOnHand: batch.quantityOnHand,
     sellPerBase: toNumber(batch.sellPerBase),
+    supplierName: batch.supplierName,
+    returnStatus: batch.returnStatus,
+    status: batch.status,
+    version: batch.version,
     createdAt: batch.createdAt,
     updatedAt: batch.updatedAt,
   };

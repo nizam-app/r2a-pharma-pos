@@ -1,6 +1,6 @@
 # R2A Pharmacy POS — Current Status
 
-**Last updated:** 2026-08-16  
+**Last updated:** 2026-08-18
 **Purpose:** Single place to understand where the project stands when you return. Read this first in a new chat, then open the linked source-of-truth docs as needed.  
 **Maintainer note:** Update this file at the end of every completed milestone (or significant mid-milestone change).
 
@@ -12,14 +12,14 @@
 |------|--------|
 | **Product** | Offline-first, multi-tenant Pharmacy POS + Inventory SaaS (Bangladesh / emerging markets) |
 | **Phase** | Phase 1 MVP — DB + cloud API + desktop **M3 POS shell DONE**; **M4 DONE** (one-way sync). **M5 DONE** (RBAC + Receive stock + 409 copy + paged catalog + runbook) |
-| **Latest completed milestone** | **M5 — MVP hardening** |
-| **Next authorized work** | **M6 Slice 1 Batch N** (Expiry Management) in a new chat after Batch M PASS. Do not start Batch N+ from status alone. |
+| **Latest completed milestone** | **M5 — MVP hardening**; **M6 Owner Web Slice 1 A–O + W1–W6 DONE** and **Slice 2 P–U DONE** while M6 remains in progress |
+| **Next gated work** | Authorize **M6 Batch V** (Purchase Order Details). Do not start Batch V or later work without explicit authorization. |
 | **Cloud database** | Neon PostgreSQL (Prisma migrate + seed applied; `RefreshToken` migration applied in M2) |
-| **Cloud API** | Express + TypeScript in `apps/server` — **real** (auth, tenant guard, inventory, FEFO, sales ingest, **M4B** `POST /api/v1/sync/ingest`, **M6E** `GET /sales` + `GET /sales/:id`, **M6F** `GET /owner/dashboard` + inventory-summary + expiry, **M6J** `GET /owner/inventory`, **M6K** `GET /owner/products/:id`, **M6L** extended `POST /products` + `PATCH /products/:id`) |
-| **Local desktop / SQLite / Tauri** | **Login + chrome + connectivity + SQLite + Counter Ready → … → Cash / Card / MFS + Receipt Preview + print stub + F4 + Settings pharmacy header + Force Offline + Transactions List/Detail/Reprint + Shift Open/Close + Hold [F6] / Held list [F7] + Sync Queue panel (badge / Settings) + 15s queue flush** (M3 A–Z + AA–AE + AF–AL + AM–AP; **M4 A–F DONE**); **soft gate:** New Sale [F2] requires open shift (badge stays connectivity-only); Card = terminal stub; MFS = invented confirm |
+| **Cloud API** | Express + TypeScript in `apps/server` — **real** (auth, tenant guard, inventory, FEFO, sales/sync ingest, sales/owner reads, product/batch management, OWNER-only suppliers, purchase orders, confirmed GRNs, and return manifests). General batch PATCH no longer mutates quantity. |
+| **Local desktop / SQLite / Tauri** | POS shell + one-way sync + Owner/Manager Receive Stock. Manual stock corrections are online-only signed deltas with required reason, expected version, idempotent event ID, 409 reload, and authoritative catalog refresh. |
 | **MongoDB / Mongoose** | Removed; do not reintroduce |
 
-**Bottom line:** Schema, shared Zod, and the cloud Express API are smoke-verified (`npm run smoke:m2 -w @r2a/server` — cashier PATCH 403s in M5 A). Desktop **M3 POS shell DONE** (Slices 1–6; Hold F6 / Held list F7; `smoke:m3ap`). **M4 DONE** (queue IPC `smoke:m4a`; `POST /api/v1/sync/ingest` `smoke:m4b` 13/13; offline complete `smoke:m4c`; 15s flush `smoke:m4d`; Sync Queue UI `smoke:m4e`; exit `smoke:m4`). **M5 DONE** (`smoke:m5` composes `m5a`–`m5e` + `smoke:m4`; Receive stock; 409 copy; paged catalog; [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md)). **M6 IN PROGRESS** — Slice 1 Batches A–M DONE (`@r2a/web` Owner login + chrome + live Dashboard + live Sales list + live Transaction Details + live Inventory list + live Product Details + live Add Product + live Receive Stock using `POST /batches`; Prisma extras; ingest loyalty/FEFO/`receiptNo`/`InventoryEvent`; `GET /sales` + `GET /sales/:id`; OWNER-only dashboard / inventory-summary / expiry / inventory / product detail). Next = **Authorize M6 Batch N**.
+**Bottom line:** M0–M5 remain DONE. **M6 IN PROGRESS** — Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–U DONE**, V–AD planned. Next = **Authorize M6 Batch V**.
 ---
 
 ## 2. Milestone board (authoritative progress)
@@ -34,7 +34,7 @@ Source of truth for milestone status: [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_
 | **M3** | Desktop POS shell | **DONE** | Slice 1–6 (A–AP). Later screens → Slice 7+ when authorized. See `MILESTONE_3_EXECUTION.md` |
 | **M4** | One-way sync | **DONE** | Batches A–F. Queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue panel + catalog §19. See `MILESTONE_4_EXECUTION.md` |
 | **M5** | MVP hardening | **DONE** | Batches A–F. RBAC API + desktop Settings Receive stock + Sync Queue 409 copy + paged catalog pull + runbook + catalog §20. Print/PIN stay stubs. See `MILESTONE_5_EXECUTION.md`. |
-| **M6** | Growth (Phase 2) | **IN PROGRESS** | Slice 1 Batches **A–M DONE** (Owner web login + chrome + live Dashboard + Sales + Transaction Details + Inventory + Product Details + Add Product + Receive Stock; Prisma extras; ingest loyalty/FEFO/`receiptNo`/`InventoryEvent`; live read APIs; extended `POST /products`; existing `POST /batches`). N–O not started. Full M6 (bi-di, n8n, RLS) still later. |
+| **M6** | Growth (Phase 2) | **IN PROGRESS** | Owner Web Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–U DONE**; V–AD not started. |
 | **M7** | Scale (Phase 3) | **PENDING** | Multi-branch, transfers, enterprise RBAC |
 
 ### Milestone 1 execution batches (all green)
@@ -190,7 +190,30 @@ Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md).
 | K | Product Details | **DONE** | 2026-08-16 |
 | L | Add Product | **DONE** | 2026-08-16 |
 | M | Receive Stock | **DONE** | 2026-08-16 |
-| N–O | Expiry Management → Slice 1 exit | not started | — |
+| N | Expiry Management | **DONE** | 2026-08-18 |
+| O | Slice 1 exit | **DONE** | 2026-08-18 |
+
+### Milestone 6 execution batches (Slice 2)
+
+Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Slice 2 section). **In progress.**
+
+| Batch | Title | Status | Date |
+|-------|-------|--------|------|
+| P | Prisma + Zod (Supplier, PO, GRN, Manifest) | **DONE** | 2026-08-18 |
+| Q | Supplier + Purchase Order APIs | **DONE** | 2026-08-18 |
+| R | GRN + Return APIs | **DONE** | 2026-08-18 |
+| S | Enable Purchasing + Suppliers nav | **DONE** | 2026-08-18 |
+| T | Purchasing list | **DONE** | 2026-08-18 |
+| U | Create Purchase Order | **DONE** | 2026-08-18 |
+| V | Purchase Order Details | **NOT STARTED** | — |
+| W | Receive Stock against PO | **NOT STARTED** | — |
+| X | Suppliers list | **NOT STARTED** | — |
+| Y | Add Supplier | **NOT STARTED** | — |
+| Z | Supplier Details | **NOT STARTED** | — |
+| AA | Expiry Returns queue | **NOT STARTED** | — |
+| AB | Create Return Manifest page | **NOT STARTED** | — |
+| AC | Manifest Details + 3 modals | **NOT STARTED** | — |
+| AD | Slice 2 exit | **NOT STARTED** | — |
 
 ## 3. Locked product & stack decisions
 
@@ -223,7 +246,7 @@ R2A-Pharmacy-POS/
 ├── apps/
 │   ├── server/          # REAL — Milestone 2 Express API + M6 extended products
 │   ├── desktop/         # REAL — M3 POS shell DONE (A–AP; Hold F6 / Held list F7)
-│   └── web/             # REAL — M6 Batch M (Owner login + chrome + Dashboard + Sales + Inventory + Product Details + Add Product + Receive Stock)
+│   └── web/             # REAL — M6 Owner Web Slice 1 A–O DONE
 ├── packages/
 │   ├── database/        # REAL — Prisma schema, migrations, seed, client export
 │   ├── shared-types/    # REAL — Zod auth/product/batch/customer/sale/sync + enums
@@ -251,7 +274,7 @@ R2A-Pharmacy-POS/
 | UI | `@r2a/ui` | Bootstrap (M3A) |
 | Server | `@r2a/server` | **Implemented (M2)** |
 | Desktop | `@r2a/desktop` | **M3 DONE** — Slice 1–6 (Hold [F6] / Held list [F7]); later screens → Slice 7+ |
-| Web | `@r2a/web` | **M6 Batch M** — login + chrome + live Dashboard + Sales + Inventory + Product Details + Add Product + Receive Stock |
+| Web | `@r2a/web` | **M6 Slice 1 DONE + Slice 2 Batch T–U** — OWNER login/chrome, Dashboard, Sales, Inventory, product and batch management, Receive Stock, Expiry Management, Purchasing list, Create Purchase Order |
 
 ---
 
@@ -265,6 +288,10 @@ R2A-Pharmacy-POS/
 - `UnitType`: `BOX`, `STRIP`, `PIECE`
 - `PaymentMethod`: `CASH`, `CARD`, `MFS`
 - `InventoryEventType`: `RECEIVE`, `ADJUST`, `SALE` (**M6 Batch C**)
+- `SupplierStatus`: `ACTIVE`, `HOLD`, `DRAFT` (**M6 Batch P**)
+- `PurchaseOrderStatus`: `DRAFT`, `SENT`, `PARTIALLY_RECEIVED`, `RECEIVED` (**M6 Batch P**)
+- `GoodsReceiptStatus`: `CONFIRMED` (**M6 Batch P**)
+- `ReturnManifestStatus`: `PREPARED`, `DISPATCHED`, `ACCEPTED`, `REJECTED`, `COMPLETED` (**M6 Batch P**)
 
 **Models**
 
@@ -281,7 +308,11 @@ R2A-Pharmacy-POS/
 | `Sale` | Immutable header; unique `eventId` for sync idempotency; **M6 D:** `receiptNo` (`@@unique([tenantId, receiptNo])`), loyalty snapshot ints |
 | `SaleItem` | Line items tied to product + batch + unit; **M6 D:** `fefoOverride`, `fefoAuthorizedByName`, `costPerBaseAtSale` (server-filled) |
 | `Payment` | Cash / Card / MFS lines on a sale |
-| `InventoryEvent` | **M6 D:** append-only stock ledger — SALE on ingest, RECEIVE on `POST /batches`, ADJUST on `PATCH` qty |
+| `InventoryEvent` | Append-only stock ledger — SALE on ingest, RECEIVE on `POST /batches`, ADJUST on signed `/batches/:id/adjustments` and lifecycle compensation |
+| `Supplier` | Tenant supplier profile, purchasing terms, and expiry-return policy (**M6 Q API live**) |
+| `PurchaseOrder`, `PurchaseOrderLine` | Tenant/store PO header and PIECE-quantity cost snapshots; no inventory effect (**M6 Q API live**) |
+| `GoodsReceipt`, `GoodsReceiptLine` | Confirmed PO receipts linked to created batches (**M6 R API live**) |
+| `ReturnManifest`, `ReturnManifestLine` | Supplier return lifecycle and batch cost snapshots (**M6 R API live**) |
 
 **Important behaviors encoded in schema**
 
@@ -295,6 +326,7 @@ R2A-Pharmacy-POS/
 - M2 add-on: `packages/database/prisma/migrations/20260808183000_refresh_tokens/`
 - Catalog fields: `packages/database/prisma/migrations/20260811013000_product_catalog_fields/` (`manufacturer`, `strength`, `form`)
 - **M6 Batch C:** `packages/database/prisma/migrations/20260815160000_m6_batch_c_schema/` (`receiptNo`, loyalty snapshots, FEFO/cost-at-sale, product extras, `InventoryEvent`)
+- **M6 Batch P:** `packages/database/prisma/migrations/20260818190000_m6_batch_p_purchasing_returns/` (Supplier/PO/GRN/manifest models + optional `Batch.supplierId`)
 - Applied successfully to Neon (`prisma migrate deploy`).
 
 ### 5.3 Seed (`packages/database/prisma/seed.ts`)
@@ -316,6 +348,7 @@ Idempotent **upserts** by stable keys (tenant slug, store code, email, product s
 | Napa lots | **4 demo lots** for Select Batch / FEFO UX (see table below). Re-seed zeros retired `NP-2408-A` |
 | Customer | Karim Ahmed, phone `01700000000`, **120** loyalty pts (eligible redeem) |
 | Customer | Nusrat Jahan, phone `01811000000`, **25** loyalty pts (below 50 ? Not Eligible UI) |
+| Supplier | **3 ACTIVE** suppliers (names match `Batch.supplierName` demo values for future GRN consistency): Beximco Distribution Ltd. (01712000001), Square Distribution Ltd. (01712000002), SMC Distribution (01712000003). Upsert by `tenantId_name`. **M6 Batch U:** powers the Create PO supplier dropdown (GET suppliers `?isActive=true`) |
 
 **Napa 500mg demo lots (`sku: NAPA-500`)**
 
@@ -339,6 +372,7 @@ Idempotent **upserts** by stable keys (tenant slug, store code, email, product s
 | `customer.ts` | create / update / search (M2) |
 | `sale.ts` | sale ingest; **`batchId` optional** for server FEFO fill; **M6 D:** optional `loyaltyUsed` / `loyaltyEarned` + line `fefoOverride` (persisted); `saleListQuerySchema` stub |
 | `owner.ts` | **M6 F:** owner dashboard / expiry query DTOs (wired on `GET /owner/*`) |
+| `purchasing.ts` | **M6 P:** Supplier, PO, GRN, return queue/manifest create and lifecycle DTOs (routes begin in Q/R) |
 | `sync.ts` | queue envelope: `event_id`, `entity_type`, `action`, `payload` (snake_case) |
 
 **Naming rule:** Domain API DTOs = camelCase (Prisma-aligned). Sync queue envelope = snake_case (desktop queue contract). Map at the sync boundary later.
@@ -378,7 +412,7 @@ Locked modular tree: `router ? controller ? service` under `src/modules/*`; moun
 | Users | `GET /users/me`; `POST /users` (OWNER/MANAGER ? CASHIER/MANAGER) |
 | Tenant | `protect` + `tenantContext`; body `tenantId` stripped/ignored; `assertStoreAccess` |
 | Products | CRUD/search; units with `factorToBase` |
-| Batches | CRUD/list; fields `expiryDate`, `quantityOnHand`, `costPerBase`, `sellPerBase` |
+| Batches | ACTIVE POS list; metadata/price PATCH; audited/versioned correction; signed adjustment; Owner-only void/retire; fields `expiryDate`, `quantityOnHand`, `costPerBase`, `sellPerBase`, `status`, `version` |
 | Customers | CRUD/search by phone/name |
 | FEFO | `GET /products/:productId/fefo-batch` (earliest in-stock; may be expired ? desktop search prefers sellable) |
 | Substitutes | `GET /products/:productId/substitutes` (stock, sell, nearest expiry / expired) |
@@ -405,6 +439,15 @@ Locked modular tree: `router ? controller ? service` under `src/modules/*`; moun
 | GET | `/owner/dashboard`, `/owner/inventory-summary`, `/owner/expiry` | **M6 F** — `OWNER` only (Manager/Cashier 403). Net profit = `sum(sale.total) − period COGS` |
 | GET | `/owner/inventory` | **M6 J** — `OWNER` only paged inventory list (cost/sell/margin). Full catalog §21 at Slice 1 exit |
 | GET | `/owner/products/:id` | **M6 K** — `OWNER` only product detail (lots, FEFO rank, units, InventoryEvents). Full catalog §21 at Slice 1 exit |
+| GET | `/owner/batches/:id` | **W3** — `OWNER` only management context, sale references, revisions and adjustments |
+| POST | `/batches/:id/corrections`, `/adjustments` | **W3/W6** — Owner/Manager; versioned + idempotent; adjustment is signed delta with reason |
+| POST | `/batches/:id/void`, `/retire` | **W4** — Owner only; preserve row/history and remove remaining stock |
+| GET/POST | `/owner/suppliers`, `/owner/purchase-orders` | **M6 Q** — `OWNER` only; paged list/create; PO create defaults `SENT` |
+| GET/PATCH | `/owner/suppliers/:id`, `/owner/purchase-orders/:id` | **M6 Q** — `OWNER` only; no supplier delete; PO PATCH only while `DRAFT` |
+| POST | `/owner/purchase-orders/:id/receipts` | **M6 R** — `OWNER` only; confirmed GRN, lots + RECEIVE events, PO progress |
+| GET | `/owner/returns/queue` | **M6 R** — `OWNER` only; supplier-linked return candidates and status filters |
+| POST/GET | `/owner/return-manifests`, `/owner/return-manifests/:id` | **M6 R** — `OWNER` only; prepare/get manifest |
+| POST | `/owner/return-manifests/:id/dispatch`, `/decision`, `/complete` | **M6 R** — `OWNER` only; idempotent stock-out then lifecycle transitions |
 
 ### 6.3 Explicitly out of M2 (do not regress)
 
@@ -537,7 +580,10 @@ Do **not** start these unless the user authorizes the matching milestone:
 - ~~M5 Batch D 409 Sync Queue copy~~ — **DONE** (`smoke:m5d`)
 - ~~M5 Batch E paged catalog pull~~ — **DONE** (`smoke:m5e`)
 - ~~M5 Batch F runbook + catalog §20 + M5 DONE~~ — **DONE** (`docs/DEV_RUNBOOK.md`; `smoke:m5`)
-- n8n workflows, owner web dashboard, Postgres RLS (M6+)
+- ~~Owner Web Missing Features W1–W6~~ — **DONE** (data integrity, Edit Product, Batch Management APIs/UI, lifecycle, desktop signed adjustment; `WEB_MISSING_FEATURES_PLAN.md`)
+- ~~M6 Batch T: Purchasing list~~ — **DONE** (live Purchasing dashboard; Create PO → `/purchasing/new`; `smoke:m6t`)
+- ~~M6 Batch U: Create Purchase Order~~ — **DONE** (supplier dropdown from GET suppliers ACTIVE; Save as Draft / Create SENT / Cancel; no inventory effect; `smoke:m6u`)
+- Purchasing/Suppliers detail, receive, edit, Suppliers list/add/detail, Expiry Returns + Create Return Manifest, Manager web, bi-directional sync, n8n workflows, and Postgres RLS (later authorized M6 batches — next is Batch V)
 - Real Card terminal SDK / real MFS provider APIs (backend-confirmed status; no cashier manual Trx) — later authorized work
 - Super Admin platform console (role exists; no admin product surface yet)
 
@@ -547,13 +593,14 @@ Do **not** start these unless the user authorizes the matching milestone:
 
 1. Read this file (`Current_Status.md`).
 2. Confirm M0–**M5** are **DONE**.
-3. **M6 Slice 1 Batches A–M DONE.** Next = **Authorize M6 Batch N** in a **new chat**. Do **not** start Batch N+ / hardware / Slice 7+ from status alone.
+3. **M6 Owner Web Slice 1 A–O + W1–W6 DONE. Slice 2 P–U DONE.** Next = **Authorize M6 Batch V**. Do not start Batch V+, later M6, hardware, or Slice 7+ from status alone.
 4. Attach/reference:
    - `PROJECT_MASTER_PLAN.md`
    - `Current_Status.md`
    - `ROLES_AND_PERMISSIONS.md`
    - `docs/DEV_RUNBOOK.md`
-   - `Completed_API_lists.md` (§14–§20)
+    - `Completed_API_lists.md` (§14–§21)
+    - `WEB_MISSING_FEATURES_PLAN.md`
    - Specs under `docs/` as needed
 
 ### Desktop run (Batches A–AP)
@@ -595,7 +642,7 @@ npm run dev:tauri -w @r2a/desktop
 # QA: __r2aArmPrintFailOnce() / __r2aArmCardDeclineOnce() / __r2aArmMfsFailOnce()
 # Redeem → OTP (any 6 digits) → Loyalty line; Proceed at ৳0 → Complete Sale → zero-pay ingest
 # M4: Force Offline → complete sale → Sync queue Pending → Go Online → flush ≤15s (`__r2aFlushSyncNow()`)
-# M5: Owner Settings → Receive stock; cashier checkout unchanged; Failed Sync Queue shows 409 copy
+# W6: Owner/Manager Settings → Receive stock → Adjust stock uses signed +/- PIECE + required reason; online only; 409 reloads current values
 # Exit smokes: npm run smoke:m5 -w @r2a/desktop  (composes m5a–m5e + smoke:m4; also smoke:m2 / smoke:m4b on the server)
 # Runbook: docs/DEV_RUNBOOK.md
 ```
@@ -624,6 +671,8 @@ npm run dev:tauri -w @r2a/desktop
 - Print stub + FEFO PIN stub unchanged
 - [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md) + catalog **§20** + `smoke:m5`
 
+Current W6 amendment: Adjust stock now uses signed `POST /batches/:id/adjustments` with `expectedVersion`, idempotent `eventId`, and required reason. The M5 absolute PATCH flow is historical; general PATCH is metadata/price only.
+
 ---
 
 ## 11. Key documents map
@@ -637,6 +686,7 @@ npm run dev:tauri -w @r2a/desktop
 | [`MILESTONE_3_EXECUTION.md`](MILESTONE_3_EXECUTION.md) | How M3 slices/batches were executed (Slice 1–6 **DONE**; M3 closed) |
 | [`MILESTONE_4_EXECUTION.md`](MILESTONE_4_EXECUTION.md) | How M4 batches A–F were executed (**DONE**) |
 | [`MILESTONE_5_EXECUTION.md`](MILESTONE_5_EXECUTION.md) | How M5 batches A–F were executed (**DONE**) |
+| [`WEB_MISSING_FEATURES_PLAN.md`](WEB_MISSING_FEATURES_PLAN.md) | Owner web missing-feature W1–W6 execution and exit (**DONE**) |
 | [`ROLES_AND_PERMISSIONS.md`](ROLES_AND_PERMISSIONS.md) | Canonical RBAC (v2). Owner web = M6. No on-account tender |
 | [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md) | Local setup: env files, Neon or Postgres Docker, seed, smokes |
 | [`docs/Project_Handover.md`](docs/Project_Handover.md) | Agent context / non-negotiable business rules |
@@ -664,7 +714,7 @@ Tracked so returning chats don?t re-learn tribal knowledge:
 9d. **Hold / Park Sale (desktop) — Slice 6 AP DONE:** `heldSaleStore` + Hold **F6** + Held list **F7** (toggle; cart Held n/3) + resume / discard confirm. Soft hold — no reservation. Resume rechecks live batch/expiry/qty (strip unsellable, clamp short stock; keep hold if none remain). Mid-payment Hold aborts card/MFS stubs and does not ingest / Sale Completed. **No** cloud hold / multi-terminal shared holds. See `MILESTONE_3_EXECUTION.md` Slice 6 + `Completed_API_lists.md` §18.
 10. **Deferred — Owner/Manager terminal presence:** Owner/Manager should see each cashier/terminal **online (green) / offline (red)** in real time. Needs cloud heartbeat/presence from desktop + owner/manager UI (likely **M6 owner web** or a later authorized slice). Do not invent presence APIs until authorized.
 11. **Deferred ? catalog onboarding (CSV / Excel import):** Real pharmacies onboard hundreds?thousands of SKUs from supplier/Excel lists. Owner/manager bulk import into Neon is the expected path; **not designed or built yet**. Today: seed demo + product/batch APIs only. Do not invent import UI/API until authorized.
-12. **Goods receiving / stock adjust UX — M5 Batch C DONE:** Day-to-day FEFO depends on **new lots** (batch #, expiry, qty) after the initial load. Owner/Manager **Settings → Receive stock** (online): Add lot `POST /api/v1/batches`; Adjust qty `PATCH /api/v1/batches/:id` `{ quantityOnHand }`. Cashier does not see the section. After save, `catalogPull` refreshes POS search/FEFO. No offline GRN queue. Supplier-return bucket remains **M6**.
+12. **Goods receiving / stock adjust UX — W6 current contract:** Owner/Manager **Settings → Receive stock** (online): Add lot `POST /api/v1/batches`; Adjust stock `POST /api/v1/batches/:id/adjustments` with signed `quantityChange`, required reason, `expectedVersion`, and idempotent `eventId`. Cashier does not see the section. A 409 reloads current values without auto-retry; success triggers authoritative `catalogPull`. No offline GRN queue. General batch PATCH cannot mutate quantity.
 12b. **409 conflict UX — M5 Batch D DONE:** Failed Sync Queue rows map `last_error` (insufficient stock / 409 / conflict) to i18n `syncQueue.conflictReason` plus raw `last_error` as data. Enter still Retry. **No** void / delete sale. Online ingest 409 still stays on payment. Stage with `__r2aMarkHeadSyncDead()` (defaults to `409 Insufficient stock`). Catalog **§20**.
 13. **Product catalog display fields (locked):** `manufacturer`, `strength`, `form` are optional on `Product` (schema + Zod + seed + desktop cache). Search UI shows them; free-text `q` also matches these fields. Do not invent from `description`.
 14. **Pilot scale — catalog cache pull (M5 Batch E DONE):** Desktop `catalogPull` pages `GET /products` (`isActive=true`) and `GET /batches` with `limit=100` + `offset` until `meta.total`, cap **50 pages** (5000 rows) per resource; i18n toast if truncated. Local SQLite stays a lean cache (not a second master DB); Neon remains source of truth. Still drops `costPerBase`. No CSV. Bi-di sync remains **M6**.
@@ -759,4 +809,15 @@ user-facing strings. Runtime/domain data and receipt content remain untranslated
 | 2026-08-16 | **M6 Batch K DONE** — live Product Details (`GET /owner/products/:id`); FEFO rank; InventoryEvent activity; `smoke:m6k`; next = Authorize M6 Batch L |
 | 2026-08-16 | **M6 Batch L DONE** — live Add Product (`POST /products`); unit hierarchy + product extras; 0 initial stock; `smoke:m6l`; next = Authorize M6 Batch M |
 | 2026-08-16 | **M6 Batch M DONE** — live web Receive Stock (`POST /batches`); packaging + financial + stock-impact calculations; no Supplier/PO/invoice or offline GRN; `smoke:m6m`; next = Authorize M6 Batch N |
+| 2026-08-18 | **Owner Web Missing Features W1–W6 DONE** — data integrity + sale snapshots; Edit Product; batch correction/adjustment/lifecycle APIs; localized Batch Management UI; desktop signed adjustment migration; legacy absolute PATCH removed; next eligible = M6 Batch N when explicitly authorized |
+| 2026-08-18 | **M6 Batch N DONE** — live localized Expiry Management with supplier/return metadata, filters, selection, CSV export, and disabled return workflow; `smoke:m6n` |
+| 2026-08-18 | **M6 Batch O DONE / Owner Web Slice 1 DONE** — API catalog §21; `smoke:m6s1` PASS; M6 remains IN PROGRESS; next = separately authorized Slice 2 |
+| 2026-08-18 | **M6 Slice 2 planned** — batches P–AD in `MILESTONE_6_EXECUTION.md` (not started). Next = Authorize M6 Batch P |
+| 2026-08-18 | **M6 Batch P DONE** — deployed additive Supplier/PO/GRN/ReturnManifest schema + optional `Batch.supplierId`; shared Zod contracts; no routes/UI; `smoke:m2` and `smoke:m6s1` PASS; next = Authorize M6 Batch Q |
+| 2026-08-18 | **M6 Batch Q DONE** — OWNER-only Supplier CRUD (no delete) + PO list/create/get/draft-update; PO number/totals/KPIs; no inventory effect; `smoke:m6q` 18/18 PASS; next = Authorize M6 Batch R |
+| 2026-08-18 | **M6 Batch R DONE** — OWNER-only confirmed GRN + return queue/manifest lifecycle APIs; partial/final PO progress, over-receive protection, RECEIVE ledger entries, idempotent dispatch stock-out; `smoke:m6r` 17/17 PASS; next = Authorize M6 Batch S |
+| 2026-08-18 | **M6 Batch S DONE** — Purchasing + Suppliers sidebar routes live as localized placeholder shells; later nav disabled; `smoke:m6s` PASS; next = Authorize M6 Batch T |
+| 2026-08-18 | **M6 Batch T DONE** — live Purchasing list (`GET /owner/purchase-orders`): KPI cards, PO table, search/status, pagination, CTAs; Create PO → `/purchasing/new`; `smoke:m6t` PASS; next = Authorize M6 Batch U |
+| 2026-08-18 | **M6 Batch U DONE** — live Create Purchase Order page: ACTIVE-supplier dropdown (new `lib/suppliers.ts`), product line search w/ low-stock hint, Add Suggested Items, Save as Draft / Create (SENT) / Cancel, order-summary right rail; no inventory effect; seed now ships **3 ACTIVE suppliers** (Beximco · Square · SMC) so the dropdown is usable; `smoke:m6u` PASS; next = Authorize M6 Batch V |
+| 2026-08-18 | **M6 Batch S DONE** — Purchasing and Suppliers sidebar routes now open localized placeholder shells; Customers and all other later nav remain disabled; no list tables; `smoke:m6s` PASS; next = Authorize M6 Batch T |
 

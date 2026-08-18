@@ -13,6 +13,7 @@ type OwnerPathContextValue = {
   path: OwnerPath;
   pathname: string;
   navigate: (to: string) => void;
+  setNavigationBlocker: (blocker: ((to: string) => boolean) | null) => void;
 };
 
 const OwnerPathContext = createContext<OwnerPathContextValue | null>(null);
@@ -31,37 +32,51 @@ function syncUrl(): OwnerPath {
 }
 
 /**
- * Tiny path store for Slice 1 live nav. Does not implement later-nav routes.
+ * Tiny path store for live Owner navigation.
  * `pathname` is the real URL so `/sales` → `/sales/:id` re-renders (chrome path stays `/sales`).
  */
 export function OwnerPathProvider({ children }: { children: ReactNode }) {
   const [path, setPath] = useState<OwnerPath>(() => readPath());
   const [pathname, setPathname] = useState(() => window.location.pathname);
+  const [navigationBlocker, setNavigationBlockerState] = useState<
+    ((to: string) => boolean) | null
+  >(null);
+  const setNavigationBlocker = useCallback(
+    (blocker: ((to: string) => boolean) | null) => {
+      setNavigationBlockerState(() => blocker);
+    },
+    [],
+  );
 
   useEffect(() => {
     setPath(syncUrl());
     setPathname(window.location.pathname);
 
     const onPop = () => {
+      if (navigationBlocker && !navigationBlocker(window.location.pathname)) {
+        window.history.pushState({}, "", pathname);
+        return;
+      }
       setPath(syncUrl());
       setPathname(window.location.pathname);
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  }, [navigationBlocker, pathname]);
 
   const navigate = useCallback((to: string) => {
     const next = isLiveOwnerUrl(to) ? to : "/";
+    if (navigationBlocker && !navigationBlocker(next)) return;
     if (window.location.pathname !== next) {
       window.history.pushState({}, "", next);
     }
     setPath(matchOwnerPath(next));
     setPathname(next);
-  }, []);
+  }, [navigationBlocker]);
 
   const value = useMemo(
-    () => ({ path, pathname, navigate }),
-    [path, pathname, navigate],
+    () => ({ path, pathname, navigate, setNavigationBlocker }),
+    [path, pathname, navigate, setNavigationBlocker],
   );
 
   return (

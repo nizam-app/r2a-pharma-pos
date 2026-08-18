@@ -16,6 +16,7 @@ import { useOwnerPath } from "@/lib/OwnerPathProvider";
 import {
   fetchOwnerProduct,
   receiveOwnerStock,
+  type BatchReturnStatus,
   type OwnerProductDetail,
   type OwnerProductUnit,
   type ProductUnitType,
@@ -73,6 +74,9 @@ export function ReceiveStockPage({ productId }: { productId: string }) {
   const [quantity, setQuantity] = useState("");
   const [costPerBase, setCostPerBase] = useState("");
   const [sellPerBase, setSellPerBase] = useState("");
+  const [supplierName, setSupplierName] = useState("");
+  const [returnStatus, setReturnStatus] =
+    useState<BatchReturnStatus>("NOT_ELIGIBLE");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -134,6 +138,8 @@ export function ReceiveStockPage({ productId }: { productId: string }) {
       quantityOnHand: quantityNumber,
       costPerBase: costNumber,
       sellPerBase: sellNumber,
+      ...(supplierName.trim() ? { supplierName: supplierName.trim() } : {}),
+      returnStatus,
     };
 
     setSubmitting(true);
@@ -266,6 +272,31 @@ export function ReceiveStockPage({ productId }: { productId: string }) {
                   </Field>
                   <Field label={t("inventory.receive.expiryDate")} required>
                     <input className={INPUT_CLASS} type="date" min={utcYmd(new Date())} value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} required />
+                  </Field>
+                  <Field label={t("inventory.receive.supplier")}>
+                    <input
+                      className={INPUT_CLASS}
+                      value={supplierName}
+                      maxLength={160}
+                      onChange={(event) => setSupplierName(event.target.value)}
+                      placeholder={t("inventory.receive.supplierPlaceholder")}
+                    />
+                  </Field>
+                  <Field label={t("inventory.receive.returnEligibility")}>
+                    <select
+                      className={INPUT_CLASS}
+                      value={returnStatus}
+                      onChange={(event) =>
+                        setReturnStatus(event.target.value as BatchReturnStatus)
+                      }
+                    >
+                      <option value="NOT_ELIGIBLE">{t("inventory.expiry.return.notEligible")}</option>
+                      <option value="ELIGIBLE">{t("inventory.expiry.return.eligible")}</option>
+                      <option value="MANIFEST_PREPARED">{t("inventory.expiry.return.manifestPrepared")}</option>
+                    </select>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      {t("inventory.receive.returnHint")}
+                    </p>
                   </Field>
                 </div>
 

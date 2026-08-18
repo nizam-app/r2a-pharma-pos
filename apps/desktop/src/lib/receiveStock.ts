@@ -1,9 +1,13 @@
 /**
  * Online GRN helpers for Settings → Receive stock (M5 Batch C).
- * Add lot → POST /api/v1/batches. Adjust qty → PATCH /api/v1/batches/:id
- * `{ quantityOnHand }` (absolute on-hand). Do not queue while offline.
+ * Add lot -> POST /api/v1/batches. Adjust qty -> signed, versioned
+ * POST /api/v1/batches/:id/adjustments. Do not queue while offline.
  */
 
+import type {
+  BatchAdjustmentInput,
+  InventoryAdjustmentReason,
+} from "@r2a/shared-types";
 import { apiRequest, ApiError } from "@/lib/api";
 
 export type ReceiveProductHit = {
@@ -17,6 +21,13 @@ export type ReceiveBatchRow = {
   batchNumber: string;
   expiryDate: string;
   quantityOnHand: number;
+  version: number;
+};
+
+export type ReceiveAdjustmentResult = {
+  id: string;
+  quantityOnHand: number;
+  version: number;
 };
 
 export type AddLotInput = {
@@ -101,6 +112,7 @@ export async function listReceiveBatches(
         batchNumber: str(b.batchNumber),
         expiryDate: expiryDate || "1970-01-01",
         quantityOnHand: Math.max(0, Math.trunc(num(b.quantityOnHand, 0))),
+        version: Math.max(0, Math.trunc(num(b.version, 0))),
       };
     })
     .filter((b): b is ReceiveBatchRow => b != null);
@@ -120,18 +132,30 @@ export async function postReceiveLot(input: AddLotInput): Promise<void> {
   });
 }
 
-export async function patchReceiveQty(
+export async function adjustReceiveQty(
   batchId: string,
-  quantityOnHand: number,
-): Promise<void> {
-  await apiRequest<unknown>(
-    `/api/v1/batches/${encodeURIComponent(batchId)}`,
+  input: BatchAdjustmentInput,
+): Promise<ReceiveAdjustmentResult> {
+  const result = await apiRequest<{
+    batch: Record<string, unknown>;
+  }>(
+    `/api/v1/batches/${encodeURIComponent(batchId)}/adjustments`,
     {
-      method: "PATCH",
-      body: { quantityOnHand },
+      method: "POST",
+      body: input,
     },
   );
+  return {
+    id: str(result.batch.id),
+    quantityOnHand: Math.max(
+      0,
+      Math.trunc(num(result.batch.quantityOnHand, 0)),
+    ),
+    version: Math.max(0, Math.trunc(num(result.batch.version, 0))),
+  };
 }
+
+export type { InventoryAdjustmentReason };
 
 export function receiveErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof ApiError) return err.message || fallback;
@@ -140,5 +164,9 @@ export function receiveErrorMessage(err: unknown, fallback: string): string {
 }
 
 export function isDuplicateBatchError(err: unknown): boolean {
+  return err instanceof ApiError && err.statusCode === 409;
+}
+
+export function isAdjustmentConflict(err: unknown): boolean {
   return err instanceof ApiError && err.statusCode === 409;
 }

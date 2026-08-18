@@ -1,4 +1,4 @@
-import { apiRequestEnvelope } from "./api";
+import { apiRequest, apiRequestEnvelope } from "./api";
 
 export type InventoryTab =
   | "all"
@@ -68,6 +68,20 @@ export type OwnerInventoryQuery = {
   limit?: number;
   offset?: number;
 };
+
+export type OwnerInventorySummary = {
+  totals: { productCount: number; onHandPieces: number; costValue: number };
+  lowStockCount: number;
+  outOfStockCount: number;
+  expiring30dCount: number;
+  expiring90dCount: number;
+  expiredCount: number;
+};
+
+/** Live OWNER inventory summary — replenishment attention for Purchasing. */
+export async function fetchInventorySummary(): Promise<OwnerInventorySummary> {
+  return apiRequest<OwnerInventorySummary>("/api/v1/owner/inventory-summary");
+}
 
 /** Live OWNER inventory list — one round-trip, includes cost/margin. */
 export async function fetchOwnerInventory(

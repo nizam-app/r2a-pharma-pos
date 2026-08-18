@@ -15,12 +15,14 @@ import { PosToast, type PosToastTone } from "@/features/shell/PosToast";
 import { useLocale } from "@/i18n";
 import {
   isDuplicateBatchError,
+  isAdjustmentConflict,
   listReceiveBatches,
-  patchReceiveQty,
+  adjustReceiveQty,
   postReceiveLot,
   receiveErrorMessage,
   searchReceiveProducts,
   type ReceiveBatchRow,
+  type InventoryAdjustmentReason,
   type ReceiveProductHit,
 } from "@/lib/receiveStock";
 
@@ -39,6 +41,21 @@ function parseNonNegInt(raw: string): number | null {
   return n;
 }
 
+function parseSignedInt(raw: string): number | null {
+  const value = raw.trim();
+  if (!/^[+-]?\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed === 0) return null;
+  return parsed;
+}
+
+function createAdjustmentEventId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `desktop-adjustment-${crypto.randomUUID()}`;
+  }
+  return `desktop-adjustment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function parseNonNegNumber(raw: string): number | null {
   const s = raw.trim();
   if (!/^\d+(\.\d+)?$/.test(s)) return null;
@@ -54,7 +71,7 @@ function isYmd(raw: string): boolean {
 /**
  * Settings → Receive stock form (M5 Batch C).
  * Owner/Manager only (parent omits the section for Cashier).
- * Online POST /batches + PATCH qty; catalogPull after save. No GRN queue.
+ * Online POST /batches + signed POST adjustment; catalogPull after save. No GRN queue.
  * ↑/↓ fields · Enter save / pick · Esc handled by Settings. No Tab nav.
  */
 export function ReceiveStockSection() {
@@ -79,6 +96,8 @@ export function ReceiveStockSection() {
   const [qty, setQty] = useState("");
   const [costPerBase, setCostPerBase] = useState("");
   const [sellPerBase, setSellPerBase] = useState("");
+  const [adjustmentReason, setAdjustmentReason] =
+    useState<InventoryAdjustmentReason>("COUNT_CORRECTION");
 
   const [batches, setBatches] = useState<ReceiveBatchRow[]>([]);
   const [batchFocus, setBatchFocus] = useState(0);
@@ -88,7 +107,14 @@ export function ReceiveStockSection() {
   );
 
   const [saving, setSaving] = useState(false);
+  const [refreshingCatalog, setRefreshingCatalog] = useState(false);
+  const [catalogRefreshRequired, setCatalogRefreshRequired] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const pendingAdjustmentRef = useRef<{
+    fingerprint: string;
+    eventId: string;
+  } | null>(null);
+  const selectionGenerationRef = useRef(0);
 
   const modeAddRef = useRef<HTMLButtonElement>(null);
   const modeAdjustRef = useRef<HTMLButtonElement>(null);
@@ -99,6 +125,7 @@ export function ReceiveStockSection() {
   const qtyRef = useRef<HTMLInputElement>(null);
   const costRef = useRef<HTMLInputElement>(null);
   const sellRef = useRef<HTMLInputElement>(null);
+  const adjustmentReasonRef = useRef<HTMLSelectElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
 
   const showToast = useCallback((message: string, tone: PosToastTone) => {
@@ -190,15 +217,19 @@ export function ReceiveStockSection() {
   }, [receiveMode, product, online]);
 
   const clearProduct = useCallback(() => {
+    selectionGenerationRef.current += 1;
     setProduct(null);
     setSelectedBatch(null);
     setBatches([]);
     setQuery("");
     setProductHits([]);
+    setQty("");
+    pendingAdjustmentRef.current = null;
     queueMicrotask(() => productSearchRef.current?.focus());
   }, []);
 
   const selectProduct = useCallback((hit: ReceiveProductHit) => {
+    selectionGenerationRef.current += 1;
     setProduct(hit);
     setQuery("");
     setProductHits([]);
@@ -210,12 +241,15 @@ export function ReceiveStockSection() {
   }, [receiveMode]);
 
   const selectBatch = useCallback((row: ReceiveBatchRow) => {
+    selectionGenerationRef.current += 1;
     setSelectedBatch(row);
-    setQty(String(row.quantityOnHand));
+    setQty("");
+    pendingAdjustmentRef.current = null;
     queueMicrotask(() => qtyRef.current?.focus());
   }, []);
 
   const switchMode = useCallback((next: ReceiveMode) => {
+    selectionGenerationRef.current += 1;
     setReceiveMode(next);
     setSelectedBatch(null);
     setBatchNumber("");
@@ -223,6 +257,8 @@ export function ReceiveStockSection() {
     setQty("");
     setCostPerBase("");
     setSellPerBase("");
+    setAdjustmentReason("COUNT_CORRECTION");
+    pendingAdjustmentRef.current = null;
   }, []);
 
   const collectFocusables = useCallback((): HTMLElement[] => {
@@ -242,6 +278,7 @@ export function ReceiveStockSection() {
       push(sellRef);
     } else {
       push(qtyRef);
+      push(adjustmentReasonRef);
     }
     push(saveRef);
     return els;
@@ -257,6 +294,10 @@ export function ReceiveStockSection() {
   const save = useCallback(async () => {
     if (saving) return;
     if (blockIfOffline()) return;
+    if (catalogRefreshRequired) {
+      showToast(t("settings.receiveStockRefreshRequired"), "error");
+      return;
+    }
 
     if (!product) {
       showToast(t("settings.receiveStockNeedProduct"), "error");
@@ -295,6 +336,7 @@ export function ReceiveStockSection() {
         return;
       }
       setSaving(true);
+      const generation = selectionGenerationRef.current;
       try {
         await postReceiveLot({
           productId: product.id,
@@ -304,14 +346,24 @@ export function ReceiveStockSection() {
           costPerBase: costN,
           sellPerBase: sellN,
         });
-        await pullCacheNow();
-        showToast(t("settings.receiveStockLotSaved"), "success");
-        setBatchNumber("");
-        setExpiryDate("");
-        setQty("");
-        setCostPerBase("");
-        setSellPerBase("");
-        queueMicrotask(() => batchNumberRef.current?.focus());
+        const refreshed = await pullCacheNow();
+        setCatalogRefreshRequired(!refreshed);
+        showToast(
+          t(
+            refreshed
+              ? "settings.receiveStockLotSaved"
+              : "settings.receiveStockSavedRefreshFailed",
+          ),
+          refreshed ? "success" : "error",
+        );
+        if (generation === selectionGenerationRef.current) {
+          setBatchNumber("");
+          setExpiryDate("");
+          setQty("");
+          setCostPerBase("");
+          setSellPerBase("");
+          queueMicrotask(() => batchNumberRef.current?.focus());
+        }
       } catch (err) {
         if (isDuplicateBatchError(err)) {
           showToast(t("settings.receiveStockDuplicate"), "error");
@@ -331,28 +383,98 @@ export function ReceiveStockSection() {
       showToast(t("settings.receiveStockNeedBatch"), "error");
       return;
     }
-    const qtyN = parseNonNegInt(qty);
-    if (qtyN == null) {
-      showToast(t("settings.receiveStockNeedQty"), "error");
+    const quantityChange = parseSignedInt(qty);
+    if (quantityChange == null) {
+      showToast(t("settings.receiveStockNeedQtyChange"), "error");
       qtyRef.current?.focus();
       return;
     }
+    if (selectedBatch.quantityOnHand + quantityChange < 0) {
+      showToast(t("settings.receiveStockWouldBeNegative"), "error");
+      qtyRef.current?.focus();
+      return;
+    }
+    const fingerprint = [
+      selectedBatch.id,
+      selectedBatch.version,
+      quantityChange,
+      adjustmentReason,
+    ].join(":");
+    const pending = pendingAdjustmentRef.current;
+    const eventId =
+      pending?.fingerprint === fingerprint
+        ? pending.eventId
+        : createAdjustmentEventId();
+    pendingAdjustmentRef.current = { fingerprint, eventId };
     setSaving(true);
+    const generation = selectionGenerationRef.current;
     try {
-      await patchReceiveQty(selectedBatch.id, qtyN);
-      await pullCacheNow();
-      showToast(t("settings.receiveStockQtySaved"), "success");
-      setSelectedBatch({ ...selectedBatch, quantityOnHand: qtyN });
-      setBatches((prev) =>
-        prev.map((b) =>
-          b.id === selectedBatch.id ? { ...b, quantityOnHand: qtyN } : b,
+      const updated = await adjustReceiveQty(selectedBatch.id, {
+        eventId,
+        expectedVersion: selectedBatch.version,
+        quantityChange,
+        reasonCode: adjustmentReason,
+      });
+      const updatedRow = {
+        ...selectedBatch,
+        quantityOnHand: updated.quantityOnHand,
+        version: updated.version,
+      };
+      if (generation === selectionGenerationRef.current) {
+        setSelectedBatch(updatedRow);
+        setBatches((prev) =>
+          prev.map((batch) => (batch.id === updatedRow.id ? updatedRow : batch)),
+        );
+        setQty("");
+      }
+      pendingAdjustmentRef.current = null;
+      const refreshed = await pullCacheNow();
+      setCatalogRefreshRequired(!refreshed);
+      showToast(
+        t(
+          refreshed
+            ? "settings.receiveStockQtySaved"
+            : "settings.receiveStockSavedRefreshFailed",
         ),
+        refreshed ? "success" : "error",
       );
     } catch (err) {
-      showToast(
-        receiveErrorMessage(err, t("settings.receiveStockSaveFailed")),
-        "error",
-      );
+      if (isAdjustmentConflict(err)) {
+        pendingAdjustmentRef.current = null;
+        let reloaded = false;
+        try {
+          const currentBatches = await listReceiveBatches(product.id);
+          const current = currentBatches.find(
+            (batch) => batch.id === selectedBatch.id,
+          );
+          if (generation === selectionGenerationRef.current) {
+            setBatches(currentBatches);
+            setSelectedBatch(current ?? null);
+            setQty("");
+          }
+          reloaded = await pullCacheNow();
+          setCatalogRefreshRequired(!reloaded);
+        } catch {
+          if (generation === selectionGenerationRef.current) {
+            setSelectedBatch(null);
+            setQty("");
+          }
+          setCatalogRefreshRequired(true);
+        }
+        showToast(
+          t(
+            reloaded
+              ? "settings.receiveStockAdjustmentConflict"
+              : "settings.receiveStockConflictRefreshFailed",
+          ),
+          "error",
+        );
+      } else {
+        showToast(
+          receiveErrorMessage(err, t("settings.receiveStockSaveFailed")),
+          "error",
+        );
+      }
     } finally {
       setSaving(false);
     }
@@ -367,6 +489,8 @@ export function ReceiveStockSection() {
     costPerBase,
     sellPerBase,
     selectedBatch,
+    adjustmentReason,
+    catalogRefreshRequired,
     pullCacheNow,
     showToast,
     t,
@@ -410,6 +534,8 @@ export function ReceiveStockSection() {
         setBatchFocus((i) => (i + delta + batches.length) % batches.length);
         return;
       }
+
+      if (document.activeElement === adjustmentReasonRef.current) return;
 
       const els = collectFocusables();
       const active = document.activeElement;
@@ -510,7 +636,38 @@ export function ReceiveStockSection() {
         {t("settings.receiveStockHelp")}
       </p>
 
+      {catalogRefreshRequired ? (
+        <div className="mt-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <p>{t("settings.receiveStockRefreshRequired")}</p>
+          <button
+            type="button"
+            className="mt-2 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+            disabled={refreshingCatalog}
+            onClick={() => {
+              setRefreshingCatalog(true);
+              void pullCacheNow().then((refreshed) => {
+                setRefreshingCatalog(false);
+                setCatalogRefreshRequired(!refreshed);
+                showToast(
+                  t(
+                    refreshed
+                      ? "settings.receiveStockRefreshRecovered"
+                      : "settings.receiveStockRefreshRequired",
+                  ),
+                  refreshed ? "success" : "error",
+                );
+              });
+            }}
+          >
+            {refreshingCatalog
+              ? t("settings.receiveStockRefreshing")
+              : t("settings.receiveStockRetryRefresh")}
+          </button>
+        </div>
+      ) : null}
+
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+        <fieldset disabled={saving} className="space-y-4">
         <div
           className="flex flex-wrap gap-3"
           role="group"
@@ -703,6 +860,7 @@ export function ReceiveStockSection() {
                       onClick={() => {
                         setSelectedBatch(null);
                         setQty("");
+                        pendingAdjustmentRef.current = null;
                       }}
                     >
                       {t("settings.receiveStockChangeBatch")}
@@ -759,18 +917,83 @@ export function ReceiveStockSection() {
               </div>
             ) : null}
             <label className="block text-sm font-medium text-foreground">
-              {t("settings.receiveStockQty")}
+              {t("settings.receiveStockQtyChange")}
               <input
                 ref={qtyRef}
                 type="text"
-                inputMode="numeric"
+                inputMode="text"
                 className={inputClass}
                 value={qty}
                 autoComplete="off"
                 disabled={!selectedBatch}
-                onChange={(e) => setQty(e.target.value)}
+                placeholder={t("settings.receiveStockQtyChangePlaceholder")}
+                onChange={(e) => {
+                  setQty(e.target.value);
+                  pendingAdjustmentRef.current = null;
+                }}
               />
+              <span className="mt-1 block text-xs font-normal text-muted">
+                {t("settings.receiveStockQtyChangeHint")}
+              </span>
             </label>
+            <label className="block text-sm font-medium text-foreground">
+              {t("settings.receiveStockAdjustmentReason")}
+              <select
+                ref={adjustmentReasonRef}
+                className={inputClass}
+                value={adjustmentReason}
+                disabled={!selectedBatch}
+                data-adjustment-reason="true"
+                onChange={(event) => {
+                  setAdjustmentReason(
+                    event.target.value as InventoryAdjustmentReason,
+                  );
+                  pendingAdjustmentRef.current = null;
+                }}
+              >
+                <option value="COUNT_CORRECTION">
+                  {t("settings.receiveStockReasonCount")}
+                </option>
+                <option value="DAMAGE">
+                  {t("settings.receiveStockReasonDamage")}
+                </option>
+                <option value="BREAKAGE">
+                  {t("settings.receiveStockReasonBreakage")}
+                </option>
+                <option value="RETURN">
+                  {t("settings.receiveStockReasonReturn")}
+                </option>
+                <option value="RECEIVE_CORRECTION">
+                  {t("settings.receiveStockReasonReceiveCorrection")}
+                </option>
+                <option value="OTHER">
+                  {t("settings.receiveStockReasonOther")}
+                </option>
+              </select>
+            </label>
+            {selectedBatch ? (
+              <div className="grid grid-cols-2 gap-3 rounded-md border border-border bg-shell/40 px-3 py-2 text-sm">
+                <div>
+                  <p className="text-xs text-muted">
+                    {t("settings.receiveStockCurrentQty")}
+                  </p>
+                  <p className="mt-0.5 font-semibold text-foreground">
+                    {selectedBatch.quantityOnHand}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted">
+                    {t("settings.receiveStockProjectedQty")}
+                  </p>
+                  <p className="mt-0.5 font-semibold text-foreground">
+                    {parseSignedInt(qty) == null ||
+                    selectedBatch.quantityOnHand + (parseSignedInt(qty) ?? 0) < 0
+                      ? "—"
+                      : selectedBatch.quantityOnHand + (parseSignedInt(qty) ?? 0)}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </>
         )}
 
@@ -788,6 +1011,7 @@ export function ReceiveStockSection() {
                 : t("settings.receiveStockSaveQty")}
           </button>
         </div>
+        </fieldset>
       </form>
 
       <p className="mt-8 text-xs text-muted">

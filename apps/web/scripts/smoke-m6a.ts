@@ -6,7 +6,7 @@
  * OWNER gate, login/me wiring. Does not require the cloud server.
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,15 +24,6 @@ function readSrc(rel: string): string {
 
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(msg);
-}
-
-function walkTs(dir: string, acc: string[] = []): string[] {
-  for (const ent of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, ent.name);
-    if (ent.isDirectory()) walkTs(p, acc);
-    else if (ent.name.endsWith(".ts") || ent.name.endsWith(".tsx")) acc.push(p);
-  }
-  return acc;
 }
 
 function checkPackageAndVite(): void {
@@ -142,26 +133,14 @@ function checkI18n(): void {
   console.log("  ✓ i18n en + bn-BD (default bn-BD)");
 }
 
-function checkScope(): void {
-  const files = walkTs(SRC);
-  const all = files.map((p) => readFileSync(p, "utf8")).join("\n");
-
-  assert(
-    !/\/api\/v1\/sales/.test(all),
-    "Must not add GET /sales (Batch E/H)",
-  );
-  assert(
-    !/prisma/i.test(all) && !/InventoryEvent/.test(all),
-    "Must not touch Prisma schema",
-  );
-
+function checkAppGate(): void {
   const app = readSrc("App.tsx");
   assert(
     app.includes("LoginPage") && app.includes("AppShell"),
     "AppGate must show LoginPage vs Owner AppShell",
   );
 
-  console.log("  ✓ login + shell; no GET /sales / no schema");
+  console.log("  ✓ login + authenticated Owner shell gate");
 }
 
 function main(): void {
@@ -169,7 +148,7 @@ function main(): void {
   checkPackageAndVite();
   checkOwnerGate();
   checkI18n();
-  checkScope();
+  checkAppGate();
   console.log("\nPASS");
 }
 

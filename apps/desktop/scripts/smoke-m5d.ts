@@ -182,8 +182,8 @@ function checkStubsAndGrnUntouched(): void {
     "FEFO PIN stub must remain (no pinHash)",
   );
   assert(
-    receive.includes("postReceiveLot") && receive.includes("patchReceiveQty"),
-    "Receive stock helpers must be unchanged in this batch",
+    receive.includes("postReceiveLot") && receive.includes("adjustReceiveQty"),
+    "Receive stock helpers must retain add lot and current signed adjustment",
   );
   console.log("  ✓ print stub + FEFO PIN stub + GRN helpers untouched");
 }

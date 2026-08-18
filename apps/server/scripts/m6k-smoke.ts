@@ -199,6 +199,7 @@ async function main(): Promise<void> {
   const units = Array.isArray(data?.units) ? data.units : [];
   const events = Array.isArray(data?.events) ? data.events : [];
   const kpis = asRecord(data?.kpis);
+  const fefo = asRecord(data?.fefo);
   const lotNums = batches
     .map(asRecord)
     .map((lot) => (typeof lot?.batchNumber === "string" ? lot.batchNumber : ""))
@@ -223,7 +224,10 @@ async function main(): Promise<void> {
     lotNums.includes("NP24031") &&
     lotNums.includes("NP24052") &&
     lotNums.includes("NP23010") &&
-    rank1?.batchNumber === "NP23091" &&
+    typeof rank1?.batchNumber === "string" &&
+    rank1.batchNumber === fefo?.batchNumber &&
+    rank1?.lifecycleStatus === "ACTIVE" &&
+    typeof rank1?.version === "number" &&
     expired?.fefoRank == null &&
     unitTypes.includes("PIECE") &&
     unitTypes.includes("STRIP") &&

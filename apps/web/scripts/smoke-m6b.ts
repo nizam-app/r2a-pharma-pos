@@ -2,8 +2,8 @@
  * M6 Batch B smoke — Owner chrome lock.
  * Run: npm run smoke:m6b -w @r2a/web
  *
- * Source guards only (no live API). Sidebar IA, disabled later nav,
- * no Purchasing route, store control display-only. Mock KPI totals stay forbidden.
+ * Source guards only (no live API). Sidebar IA, disabled unauthorized nav,
+ * store control display-only. Mock KPI totals stay forbidden.
  */
 
 import { readFileSync, readdirSync } from "node:fs";
@@ -83,19 +83,8 @@ function checkI18n(): void {
 function checkSidebar(): void {
   const nav = readSrc("features/shell/nav.ts");
   const sidebar = readSrc("features/shell/Sidebar.tsx");
-  const all = walkTs(SRC)
-    .map((p) => readFileSync(p, "utf8"))
-    .join("\n");
 
   assert(nav.includes('id: "purchasing"'), "PRIMARY_NAV must include purchasing");
-  assert(
-    /id:\s*"purchasing"[\s\S]*?live:\s*false/.test(nav),
-    "Purchasing must be live: false",
-  );
-  assert(
-    !/path:\s*["']\/purchasing["']/.test(nav),
-    "Purchasing must not have a path",
-  );
   assert(
     nav.includes('id: "suppliers"') &&
       nav.includes('id: "customers"') &&
@@ -122,14 +111,6 @@ function checkSidebar(): void {
     "Disabled nav must use disabled + later-slice hint",
   );
   assert(
-    !/navigate\(\s*["'`]\/purchasing["'`]/.test(all),
-    "Must not navigate to Purchasing",
-  );
-  assert(
-    !/href=["'`]\/purchasing["'`]/.test(all),
-    "Must not link to /purchasing",
-  );
-  assert(
     sidebar.includes("navigate(item.path)") && sidebar.includes("item.live"),
     "Sidebar must only navigate live items",
   );
@@ -137,12 +118,11 @@ function checkSidebar(): void {
   const ownerPath = readSrc("lib/ownerPath.ts");
   assert(
     ownerPath.includes('"/sales"') &&
-      ownerPath.includes('"/inventory"') &&
-      !ownerPath.includes("/purchasing"),
-    "Live paths are /, /sales, /inventory only",
+      ownerPath.includes('"/inventory"'),
+    "Core Slice 1 paths must remain live",
   );
 
-  console.log("  ✓ sidebar IA + disabled later items; no Purchasing route");
+  console.log("  ✓ sidebar IA + disabled unauthorized later items");
 }
 
 function checkStoreControl(): void {

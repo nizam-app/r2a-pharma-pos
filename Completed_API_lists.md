@@ -4,8 +4,8 @@
 **Package:** `@r2a/server` (`apps/server`)  
 **Base URL (dev):** `http://localhost:8787` (override with `PORT` / `BASE_URL`)  
 **API prefix:** `/api/v1`  
-**Last updated:** 2026-08-16  
-**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (§19) + **M5 MVP hardening DONE** (**§20 — M5**) + **M6 Slice 1 M** (`GET /sales` + Owner dashboard APIs + live Dashboard + Sales + Transaction Details + Inventory + Product Details + Add Product + Receive Stock; catalog §21 at Slice 1 exit)
+**Last updated:** 2026-08-18
+**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (**§19**) + **M5 MVP hardening DONE** (**§20**) + **M6 Owner Web Slice 1 A–O DONE** (**§21**) + Owner Web Missing Features **W1–W6 DONE** + **M6 Slice 2 P–U** (**§22; T–U web UI live**)
 
 > **Source of truth for contracts:** Zod schemas in `@r2a/shared-types`.  
 > **Live status:** [`Current_Status.md`](Current_Status.md).  
@@ -19,20 +19,26 @@
 > **M3 closed (2026-08-13):** Desktop POS shell complete. Later screens → Slice 7+. No new cloud routes in M3.  
 > **M4 closed (2026-08-14):** One-way offline→cloud sync. New cloud route `POST /api/v1/sync/ingest` (reuses `ingestSale`). Desktop 15s worker + Sync Queue panel. See **§19**.  
 > **M5 closed (2026-08-14):** **§20 — M5** — PATCH RBAC, desktop Receive stock (no new routes), Sync Queue 409 copy, paged catalog pull. Print / FEFO PIN stay stubs. See **§20**.  
-> **M6 Batch D (2026-08-15):** `POST /sales/ingest` and `/sync/ingest` persist `receiptNo`, `costPerBaseAtSale`, optional loyalty snapshots, FEFO flags, and `InventoryEvent` SALE. `POST /batches` → RECEIVE; `PATCH` qty → ADJUST. Old payloads still work. No new routes. Catalog §21 at Slice 1 exit.  
+> **M6 Batch D (2026-08-15, historical):** `POST /sales/ingest` and `/sync/ingest` persist `receiptNo`, `costPerBaseAtSale`, optional loyalty snapshots, FEFO flags, and `InventoryEvent` SALE. `POST /batches` writes RECEIVE. Its original absolute PATCH adjustment was superseded by W6 signed adjustments.
 > **M6 Batch E (2026-08-15):** `GET /api/v1/sales` + `GET /api/v1/sales/:id` (`:id` = `Sale.id`). Any authenticated. Owner sees `costPerBaseAtSale` / `lineCogs` / `cogs` / `netProfit` (`sale.total − COGS`). Manager/Cashier omit those keys. Full §21 at Slice 1 exit.  
 > **M6 Batch F (2026-08-16):** `GET /api/v1/owner/dashboard`, `GET /owner/inventory-summary`, `GET /owner/expiry`. **`restrictTo("OWNER")`** (Manager/Cashier 403). Net profit = `sum(sale.total) − sum(costPerBaseAtSale * quantityBase)`. Dashboard UI = Batch G. Full §21 at Slice 1 exit.
 > **M6 Batch G (2026-08-16):** Owner web Dashboard consumes `GET /owner/dashboard`. Live KPIs (no mock ৳124,850). Recent row → `/sales/:id` (detail = Batch I).
 > **M6 Batch H (2026-08-16):** Owner web Sales list consumes `GET /sales` + dashboard `salesKpis` / `paymentMix` / `topCashier` / `cashiers`. Net sales = gross − discounts (no returns). Date `to` on list is end-of-UTC-day when date-only. Detail layout = Batch I.  
 > **M6 Batch I (2026-08-16):** Owner web Transaction Details consumes `GET /sales/:id`. FEFO OVERRIDE from `fefoOverride`. Loyalty grid from snapshots (hidden for walk-in). Reprint = on-screen preview from sale JSON (no Tauri). Amount Due ৳0. More Actions disabled. No void.  
 > **M6 Batch J (2026-08-16):** `GET /api/v1/owner/inventory` OWNER-only paged list (tabs, search, cost/sell/margin). Owner web Inventory list live. Product Details = Batch K. Full §21 at Slice 1 exit.  
-> **M6 Batch K (2026-08-16):** `GET /api/v1/owner/products/:id` OWNER-only product detail (lots, FEFO rank on sellable lots, units, recent InventoryEvents). Owner web Product Details live. Edit Product stays disabled. Add Product = Batch L. Full §21 at Slice 1 exit.  
-> **M6 Batch M (2026-08-16):** Owner web Receive Stock uses existing `GET /owner/products/:id` context + `POST /batches`; new lots create `InventoryEvent` RECEIVE. Supplier/PO/invoice and offline GRN are omitted. No new cloud route. Full §21 at Slice 1 exit.
+> **M6 Batch K (2026-08-16):** `GET /api/v1/owner/products/:id` OWNER-only product detail (lots, FEFO rank on sellable lots, units, recent InventoryEvents). Owner web Product Details live; W2 subsequently added Edit Product. Full §21 below.
+> **M6 Batch M (2026-08-16):** Owner web Receive Stock uses existing `GET /owner/products/:id` context + `POST /batches`; new lots create `InventoryEvent` RECEIVE. PO/invoice and offline GRN are omitted. Batch N repair added optional supplier/return metadata. Full §21 below.
+> **M6 Batch N (2026-08-18):** Owner web Expiry Management consumes `GET /owner/expiry`; live bucket/search/filter/select/CSV UI. Batch-level `supplierName` and `returnStatus` are persisted metadata. Prepare Supplier Return remains disabled; no manifest workflow.
+> **M6 Batch Q (2026-08-18):** OWNER-only Supplier CRUD (no delete) and Purchase Order list/create/get/draft-update APIs are live. POs use `PO-YYMMDD-####`, server-calculated totals, and do not change inventory.
+> **M6 Batch R (2026-08-18):** OWNER-only confirmed GRN and supplier-return APIs are live. GRNs create lots + RECEIVE events and advance PO quantities/status. Return dispatch writes idempotent signed ADJUST events; rejection does not restore stock. No Slice 2 web UI yet (GRN/return UI still later).
+> **M6 Batch T (2026-08-18):** Owner web Purchasing list live on `GET /owner/purchase-orders` — KPI cards, PO table, search/status filter, pagination, Create PO → `/purchasing/new`. `smoke:m6t` PASS.
+> **M6 Batch U (2026-08-18):** Owner web Create Purchase Order live — supplier dropdown from `GET /owner/suppliers?isActive=true`, product line search, Add Suggested Items, Save as Draft / Create (SENT) / Cancel, order-summary rail; `POST /owner/purchase-orders`; creating a PO has **no** inventory effect. Seed now ships **3 ACTIVE suppliers** (Beximco · Square · SMC). `smoke:m6u` PASS.
 > **M5 Batch A (2026-08-14):** `PATCH /customers/:id` and `PATCH /batches/:id` are **`OWNER`, `MANAGER`** (cashier `403`, including batch qty). No new routes.  
-> **M5 Batch C (2026-08-14):** Desktop Settings → Receive stock (Owner/Manager, online only) uses existing `POST /api/v1/batches` and `PATCH /api/v1/batches/:id` (`quantityOnHand`). No new cloud routes.  
+> **M5 Batch C (2026-08-14, historical; superseded by W6):** Desktop Settings → Receive stock originally used `POST /api/v1/batches` and absolute quantity PATCH. Current stock correction uses signed `/adjustments`.
 > **M5 Batch E (2026-08-14):** Desktop `catalogPull` pages `GET /products` and `GET /batches` (`limit=100` + `offset` until `meta.total`, cap 50 pages / 5000 rows). Still **no** `costPerBase` in the local cache. No new cloud routes. No CSV.  
+> **Owner Web Missing Features W1–W6 (2026-08-18):** Batch lifecycle/version/audit foundation, historical sale snapshots, Edit Product, Batch Management, correction/adjustment/void/retire APIs, ACTIVE-only FEFO/POS lists, and desktop signed/versioned/reasoned online adjustments. General `PATCH /batches/:id` no longer accepts `quantityOnHand`.
 > **FEFO display (desktop):** Search cards prefer the earliest **sellable** (non-expired) lot. Cloud `GET …/fefo-batch` still returns the earliest **in-stock** lot by expiry (may be expired). See §8.5.  
-> **Demo seed:** Napa `NAPA-500` ships with **4 lots** for Select Batch UX (`NP23091` FEFO · `NP24031` · `NP24052` · `NP23010` expired). Customer **Karim** ships with **120** loyalty points. Re-run `npm run db:seed` after pull.
+> **Demo seed:** Napa `NAPA-500` ships with **4 lots** for Select Batch UX (`NP23091` FEFO · `NP24031` · `NP24052` · `NP23010` expired). Customer **Karim** ships with **120** loyalty points. **3 ACTIVE suppliers** (Beximco Distribution Ltd. · Square Distribution Ltd. · SMC Distribution) ship for the Create PO supplier dropdown. Re-run `npm run db:seed` after pull.
 
 ---
 
@@ -179,7 +185,11 @@ Owners / managers see `costPerBase` on batch payloads.
 | GET | `/api/v1/batches` | Bearer | Any authenticated |
 | POST | `/api/v1/batches` | Bearer | `OWNER`, `MANAGER` |
 | GET | `/api/v1/batches/:id` | Bearer | Any authenticated |
-| PATCH | `/api/v1/batches/:id` | Bearer | `OWNER`, `MANAGER` (cashier `403`, including qty) |
+| PATCH | `/api/v1/batches/:id` | Bearer | `OWNER`, `MANAGER`; metadata/prices only, never quantity |
+| POST | `/api/v1/batches/:id/corrections` | Bearer | `OWNER`, `MANAGER` |
+| POST | `/api/v1/batches/:id/adjustments` | Bearer | `OWNER`, `MANAGER` |
+| POST | `/api/v1/batches/:id/void` | Bearer | **`OWNER` only** |
+| POST | `/api/v1/batches/:id/retire` | Bearer | **`OWNER` only** |
 | GET | `/api/v1/customers` | Bearer | Any authenticated |
 | POST | `/api/v1/customers` | Bearer | **`OWNER` only** (not Manager; not on desktop POS — Owner web later) |
 | GET | `/api/v1/customers/:id` | Bearer | Any authenticated |
@@ -191,6 +201,19 @@ Owners / managers see `costPerBase` on batch payloads.
 | GET | `/api/v1/owner/inventory-summary` | Bearer | **`OWNER` only** |
 | GET | `/api/v1/owner/expiry` | Bearer | **`OWNER` only** |
 | GET | `/api/v1/owner/inventory` | Bearer | **`OWNER` only** |
+| GET | `/api/v1/owner/products/:id` | Bearer | **`OWNER` only** |
+| GET | `/api/v1/owner/batches/:id` | Bearer | **`OWNER` only** |
+| GET, POST | `/api/v1/owner/suppliers` | Bearer | **`OWNER` only** |
+| GET, PATCH | `/api/v1/owner/suppliers/:supplierId` | Bearer | **`OWNER` only**; no delete route |
+| GET, POST | `/api/v1/owner/purchase-orders` | Bearer | **`OWNER` only** |
+| GET, PATCH | `/api/v1/owner/purchase-orders/:poId` | Bearer | **`OWNER` only**; PATCH only while `DRAFT` |
+| POST | `/api/v1/owner/purchase-orders/:poId/receipts` | Bearer | **`OWNER` only**; confirmed GRN |
+| GET | `/api/v1/owner/returns/queue` | Bearer | **`OWNER` only** |
+| POST | `/api/v1/owner/return-manifests` | Bearer | **`OWNER` only** |
+| GET | `/api/v1/owner/return-manifests/:manifestId` | Bearer | **`OWNER` only** |
+| POST | `/api/v1/owner/return-manifests/:manifestId/dispatch` | Bearer | **`OWNER` only**; idempotent stock-out |
+| POST | `/api/v1/owner/return-manifests/:manifestId/decision` | Bearer | **`OWNER` only** |
+| POST | `/api/v1/owner/return-manifests/:manifestId/complete` | Bearer | **`OWNER` only** |
 | POST | `/api/v1/sync/ingest` | Bearer | Any authenticated |
 
 Cashier GET still omits `costPerBase`. Price-field `403` remains defense-in-depth on PATCH; the route itself is Owner/Manager only (M5 Batch A).
@@ -389,7 +412,7 @@ Sending `tenantId` in the body has **no effect** (stripped).
 |-------|------|----------|-------|
 | `name` | string | yes | Medicine name |
 | `genericName` | string | no | Active ingredient |
-| `manufacturer` | string | no | Free text; no Supplier table |
+| `manufacturer` | string | no | Free-text manufacturer; not linked to the purchasing Supplier entity |
 | `strength` | string | no | e.g. "500 mg" |
 | `form` | string | no | e.g. "Tablet", "Capsule" |
 | `sku` | string | no | Tenant-unique internal identifier |
@@ -480,7 +503,7 @@ All prices/qty are in **PIECE** base units.
 
 Cashiers without an explicit `storeId` query are limited to their JWT store when set.
 
-**Success `200`** — `data` array of batches; `meta` pagination. Cashier responses omit `costPerBase`.
+**Success `200`** — `data` array of **ACTIVE** batches; `meta` pagination. Cashier responses omit `costPerBase`. RETIRED/VOIDED rows remain available through Owner product/batch management detail, not POS lists.
 
 ### 9.2 `POST /api/v1/batches`
 
@@ -497,6 +520,8 @@ Cashiers without an explicit `storeId` query are limited to their JWT store when
 | `quantityOnHand` | int ≥ 0 | yes | |
 | `costPerBase` | number ≥ 0 | yes | |
 | `sellPerBase` | number ≥ 0 | yes | |
+| `supplierName` | string \| null | no | Batch-level display label; Supplier/PO linkage is handled by the Slice 2 purchasing flow |
+| `returnStatus` | enum | no | `ELIGIBLE` \| `NOT_ELIGIBLE` \| `MANIFEST_PREPARED`; metadata only |
 
 **Success `201`**.
 
@@ -506,11 +531,33 @@ Cashiers without an explicit `storeId` query are limited to their JWT store when
 
 ### 9.4 `PATCH /api/v1/batches/:id`
 
-**Auth:** Bearer · **`restrictTo("OWNER", "MANAGER")`** (M5 Batch A). Cashiers receive **`403`** for any PATCH, including `{ "quantityOnHand": … }`. Receiving / qty adjust is Owner/Manager only.
+**Auth:** Bearer · **`restrictTo("OWNER", "MANAGER")`**. Cashiers receive **`403`**.
 
-Updatable: `batchNumber`, `expiryDate`, `quantityOnHand`, `costPerBase`, `sellPerBase` (at least one required).
+Updatable: `batchNumber`, `expiryDate`, `costPerBase`, `sellPerBase`, `supplierName`, `returnStatus` (at least one required; strict body). `quantityOnHand` is rejected. New web correction flows use the audited corrections endpoint below.
 
 If body includes `costPerBase` or `sellPerBase` and role is `CASHIER` → **`403`** `"Cashiers cannot mutate costPerBase or sellPerBase"` (defense-in-depth; cashiers no longer reach this handler).
+
+### 9.5 `POST /api/v1/batches/:id/corrections`
+
+**Auth:** Bearer · **RBAC:** `OWNER` | `MANAGER`. Body: `operationId`, `expectedVersion`, reason, and at least one of `batchNumber`, `expiryDate`, `costPerBase`, `sellPerBase`, `supplierName`, `returnStatus`. Idempotent by `operationId`; writes append-only `BatchRevision`; stale version and duplicate batch number return `409`.
+
+### 9.6 `POST /api/v1/batches/:id/adjustments`
+
+**Auth:** Bearer · **RBAC:** `OWNER` | `MANAGER`. Body: `eventId`, `expectedVersion`, non-zero signed `quantityChange`, `reasonCode`, optional `note`. Applies the delta atomically, rejects negative result/stale version with `409`, increments version, and writes one idempotent ADJUST `InventoryEvent` with `quantityAfter`.
+
+Reason codes: `COUNT_CORRECTION`, `DAMAGE`, `BREAKAGE`, `RETURN`, `RECEIVE_CORRECTION`, `OTHER`.
+
+### 9.7 `POST /api/v1/batches/:id/void`
+
+**Auth:** Bearer · **RBAC:** **`OWNER` only**. Requires `operationId`, `expectedVersion`, reason. Only a batch with no SaleItem references can be voided. Atomically removes remaining stock, writes compensating ADJUST + VOID revision, and preserves the batch/RECEIVE history.
+
+### 9.8 `POST /api/v1/batches/:id/retire`
+
+**Auth:** Bearer · **RBAC:** **`OWNER` only**. Same versioned/reasoned lifecycle envelope. Removes remaining stock, writes compensating ADJUST + RETIRE revision, and preserves sales/history. RETIRED batches are unavailable to FEFO/POS.
+
+### 9.9 `GET /api/v1/owner/batches/:id`
+
+**Auth:** Bearer · **RBAC:** **`OWNER` only**. Returns product context, prices, quantity, status/version, sale-reference count, `canVoid`, recent adjustments, and correction/lifecycle revisions.
 
 ---
 
@@ -596,7 +643,7 @@ Response objects may include `loyaltyPoints` and `creditBalance`. Desktop Select
 6. **M6 D:** fill `costPerBaseAtSale` from the batch (never trust client cost). Cashiers omit this key on the ingest response.
 7. **M6 D:** persist line `fefoOverride` / `fefoAuthorizedByName`.
 8. **M6 D:** if `customerId` **and** loyalty fields present → snapshot `loyaltyPrevious`, apply used/earned, update `Customer.loyaltyPoints`. Omitted fields → snapshots 0, no point change.
-9. **M6 D:** write `InventoryEvent` `SALE` per line (`quantityBaseChange` negative). `POST /batches` writes `RECEIVE`; `PATCH` qty writes `ADJUST` (delta).
+9. Write `InventoryEvent` `SALE` per line (`quantityBaseChange` negative). `POST /batches` writes `RECEIVE`; signed `/batches/:id/adjustments` and lifecycle compensation write `ADJUST`.
 10. No sale delete endpoint.
 
 #### Responses
@@ -723,7 +770,7 @@ Same payload shape and redaction as a list row. **404** if missing / other tenan
 
 **Query:** `bucket` = `0_30` \| `31_60` \| `61_90` \| `expired` (optional; omit = all four). Always returns `counts` for every bucket.
 
-**Rows:** `productName`, `genericName`, `batchNumber`, `expiryDate`, `quantityOnHand`, `costValue`, `fefoRank` (1 = earliest expiry among in-stock lots of that product). **No** supplier column. **No** return eligibility. Max 500 rows.
+**Rows:** `productId`, `productName`, `genericName`, `batchId`, `batchNumber`, `expiryDate`, `quantityOnHand`, `costValue`, `fefoRank` (1 = earliest expiry among in-stock lots of that product), `supplierName`, and `returnStatus`. Supplier/return values are batch metadata only; no manifest workflow. Max 500 rows.
 
 ---
 
@@ -770,6 +817,7 @@ POST /products → POST /batches → POST /users (cashier)
 | Users | `apps/server/src/modules/user/` |
 | Products / FEFO / substitutes | `apps/server/src/modules/product/` |
 | Batches | `apps/server/src/modules/batch/` |
+| Suppliers / purchase orders | `apps/server/src/modules/purchasing/` |
 | Customers | `apps/server/src/modules/customer/` |
 | Sales ingest + list/detail | `apps/server/src/modules/sale/` |
 | Sync ingest | `apps/server/src/modules/sync/` |
@@ -1203,6 +1251,8 @@ npm run smoke:m4 -w @r2a/desktop
 
 **§20 — M5** closes Milestone 5. **No new cloud routes.** Desktop POS + existing M2/M4 APIs. Print stub and FEFO PIN stub stay. Owner web remains a stub (**M6**).
 
+> **Current-contract amendment (W6, 2026-08-18):** M5 shipped the absolute PATCH workflow documented below. It is historical and superseded. Desktop now uses signed `POST /batches/:id/adjustments`; general PATCH cannot mutate quantity. Sale void remains forbidden; batch void/retire are separate audited lifecycle operations.
+
 ### 20.1 PATCH roles (Batch A)
 
 | Method | Path | Roles after M5 |
@@ -1254,7 +1304,169 @@ Dev runbook: [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md).
 
 ---
 
-## 21. Change log
+## 21. M6 — Owner Web Slice 1 (Batch O)
+
+Slice 1 is **DONE**. The overall M6 milestone remains **IN PROGRESS** because purchasing, Manager web, bi-directional sync, n8n, and PostgreSQL RLS are later authorized slices.
+
+### 21.1 Owner web surface
+
+`apps/web` is OWNER-only. Manager and Cashier sessions are rejected by the web client after authenticated user resolution.
+
+| Screen | Web route | Live API |
+|--------|-----------|----------|
+| Dashboard | `/` | `GET /api/v1/owner/dashboard` |
+| Sales | `/sales` | `GET /api/v1/sales` + dashboard summary fields |
+| Transaction Details | `/sales/:id` | `GET /api/v1/sales/:id` |
+| Inventory | `/inventory` | `GET /api/v1/owner/inventory` |
+| Expiry Management | `/inventory/expiry` | `GET /api/v1/owner/expiry` |
+| Add Product | `/inventory/new` | `POST /api/v1/products` |
+| Product Details | `/inventory/:productId` | `GET /api/v1/owner/products/:id` |
+| Edit Product | `/inventory/:productId/edit` | `PATCH /api/v1/products/:id` |
+| Receive Stock | `/inventory/:productId/receive` | `POST /api/v1/batches` |
+| Manage Batch | `/inventory/:productId/batches/:batchId` | `GET /api/v1/owner/batches/:id` + audited batch operations |
+
+All Owner web interface copy uses `en` / `bn-BD` translation keys. Runtime product, customer, batch, receipt, SKU, barcode, phone, and transaction values are not translated.
+
+### 21.2 Sales ingest extensions
+
+`POST /sales/ingest` and offline `POST /sync/ingest` share the same ingest service:
+
+- Server generates tenant-unique `receiptNo`; clients cannot supply it.
+- Server snapshots batch cost into `SaleItem.costPerBaseAtSale`; client cost is never trusted.
+- Optional `loyaltyUsed` / `loyaltyEarned` update the selected customer's balance once and persist sale snapshots.
+- Optional line `fefoOverride` / `fefoAuthorizedByName` persist the override audit signal.
+- Idempotent `eventId` replay never repeats stock, loyalty, sale, or InventoryEvent mutations.
+- Historical product/generic/batch/expiry values remain on `SaleItem` after later catalog edits.
+
+### 21.3 Owner read APIs and redaction
+
+| Method | Path | Access / contract |
+|--------|------|-------------------|
+| `GET` | `/api/v1/sales` | Any authenticated; tenant/store scoped; pagination `meta.total` |
+| `GET` | `/api/v1/sales/:id` | Any authenticated; `:id` is `Sale.id` |
+| `GET` | `/api/v1/owner/dashboard` | OWNER only; sales/profit/trend/payment/cashier/inventory KPIs |
+| `GET` | `/api/v1/owner/inventory-summary` | OWNER only; product/on-hand/value and risk counts |
+| `GET` | `/api/v1/owner/inventory` | OWNER only; paged inventory rows with cost/sell/margin |
+| `GET` | `/api/v1/owner/products/:id` | OWNER only; product, units, lots, FEFO ranks, recent ledger |
+| `GET` | `/api/v1/owner/batches/:id` | OWNER only; batch status/version, references, revisions, adjustments |
+| `GET` | `/api/v1/owner/expiry` | OWNER only; expiry buckets, supplier/return metadata, max 500 rows |
+
+Only OWNER responses expose `costPerBaseAtSale`, line COGS/margin, sale COGS, and net profit. Manager/Cashier sales reads omit those keys. Cashier catalog/batch responses still omit `costPerBase`.
+
+### 21.4 Product and batch extras
+
+Product create/update supports `manufacturer`, `strength`, `form`, `category`, `requiresPrescription`, `coldChain`, `storageNotes`, `reorderLevel`, `isActive`, and Piece/Strip/Box `ProductUnit` hierarchy. Creating a product does not create stock.
+
+Batch create/update/correction supports optional `supplierName` and `returnStatus`. These are batch metadata only:
+
+- `ELIGIBLE`
+- `NOT_ELIGIBLE`
+- `MANIFEST_PREPARED`
+
+`MANIFEST_PREPARED` does not create a manifest, reserve stock, or dispatch a return. Prepare Supplier Return remains disabled in Slice 1.
+
+### 21.5 Inventory ledger and lifecycle
+
+`InventoryEvent` is append-only and tenant/store scoped:
+
+| Type | Writer | Delta |
+|------|--------|-------|
+| `RECEIVE` | `POST /batches` | Positive received PIECE quantity |
+| `ADJUST` | Signed `/batches/:id/adjustments` or lifecycle compensation | Signed PIECE delta with resulting quantity |
+| `SALE` | Sale/sync ingest | Negative sold PIECE quantity |
+
+General `PATCH /batches/:id` never changes quantity. Signed adjustments require reason, `expectedVersion`, and idempotent `eventId`. Corrections require reason, version, and `operationId`. Batch void/retire is OWNER-only and preserves batch, revision, event, and sale history. Sales remain append-only with no void/update/delete route.
+
+### 21.6 Expiry Management
+
+`GET /owner/expiry` returns counts for `0_30`, `31_60`, `61_90`, and `expired`, plus rows with product/batch identity, quantity, cost value, FEFO rank, supplier label, and return status. The web screen provides medicine/batch/supplier search, bucket and metadata filters, row selection, and client-side CSV export of selected or filtered rows.
+
+### 21.7 Slice 1 verification
+
+```bash
+# API must already be running on BASE_URL (default http://localhost:8787)
+npm run smoke:m6s1
+```
+
+The composed smoke runs durable M6 A–N web guards, live M6 D–L server checks, and `smoke:m2`. Batch O result: **PASS** on 2026-08-18.
+
+### 21.8 Later M6 backlog
+
+Not part of Slice 1: Purchasing/Supplier/PO UI, Manager web, customer/staff/report/settings screens, real supplier-return manifests, bi-directional sync, n8n, PostgreSQL RLS, cloud shifts, real FEFO PIN, printer IPC, card SDK, MFS APIs, multi-branch, and Super Admin console. Supplier/PO APIs began in Slice 2 Batch Q (§22).
+
+---
+
+## 22. M6 — Slice 2 APIs (in progress)
+
+Batch S is complete. Slice 2 and overall M6 remain in progress. Supplier, PO, GRN, and return-manifest cloud APIs are live. Owner web has live Purchasing list (T) and Create Purchase Order (U); PO Details (V), Receive Stock against PO (W), Suppliers screens (X–Z), Expiry Returns (AA–AB) and manifest details (AC) are still later batches. Suppliers and Purchasing are no longer route shells.
+
+### 22.1 Suppliers
+
+All routes are tenant-scoped from the JWT and protected by `restrictTo("OWNER")`. Manager and Cashier receive `403`.
+
+| Method | Path | Contract |
+|--------|------|----------|
+| `GET` | `/api/v1/owner/suppliers` | Query `q`, `status`, `isActive`, `limit`, `offset`; returns `meta.total` |
+| `POST` | `/api/v1/owner/suppliers` | Creates `ACTIVE`, `HOLD`, or `DRAFT` supplier with purchasing/return-policy fields |
+| `GET` | `/api/v1/owner/suppliers/:supplierId` | Tenant supplier detail and relation counts |
+| `PATCH` | `/api/v1/owner/suppliers/:supplierId` | Partial update, including `HOLD`/active state |
+
+There is no supplier delete route. Name and non-null registration number are tenant-unique; conflicts return `409`.
+
+### 22.2 Purchase orders
+
+| Method | Path | Contract |
+|--------|------|----------|
+| `GET` | `/api/v1/owner/purchase-orders` | Query `q`, `status`, `supplierId`, `limit`, `offset`; returns `meta.total` and header `kpis` |
+| `POST` | `/api/v1/owner/purchase-orders` | Creates `SENT` by default; explicit `DRAFT` is Save as Draft |
+| `GET` | `/api/v1/owner/purchase-orders/:poId` | Supplier/store/creator, product lines, quantities, costs, and receipt collection |
+| `PATCH` | `/api/v1/owner/purchase-orders/:poId` | Replaces/updates draft fields and lines; non-draft PO returns `409` |
+
+PO numbers are server-generated as `PO-YYMMDD-####` and unique per tenant. Each product may appear once. Quantities are PIECE base units; line cost is `costPerBase`. The server calculates `estimatedSubtotal`, `estimatedTax`, and `estimatedTotal`. Creating or updating a PO has no batch, stock, or `InventoryEvent` effect.
+
+### 22.3 Confirmed goods receipts
+
+`POST /api/v1/owner/purchase-orders/:poId/receipts` confirms a GRN against a `SENT` or `PARTIALLY_RECEIVED` PO.
+
+**Body:** optional `supplierInvoiceRef`, optional `deliveryNote`, optional `receivedAt`, and `lines` (min 1). Each line requires `purchaseOrderLineId`, matching `productId`, positive PIECE `qty`, `batchNumber`, `expiryDate`, `costPerBase`, and `sellPerBase`.
+
+The transaction:
+
+- Rejects a line not belonging to the PO and rejects aggregate over-receipt with `409`.
+- Generates tenant-unique `GRN-YYMM-####`.
+- Creates one linked Batch per receipt line with Supplier id/name; return-enabled suppliers produce `ELIGIBLE` lots, otherwise `NOT_ELIGIBLE`.
+- Writes a positive `InventoryEvent` RECEIVE with reason `PURCHASE_ORDER_RECEIPT`.
+- Increments `PurchaseOrderLine.qtyReceived` and moves the PO to `PARTIALLY_RECEIVED` or `RECEIVED`.
+
+Success `201` returns `data: { receipt, purchaseOrder }`. There is no draft GRN or offline GRN queue. Inventory's existing ad-hoc `POST /batches` receive path remains separate.
+
+### 22.4 Supplier return queue and manifests
+
+| Method | Path | Contract |
+|--------|------|----------|
+| `GET` | `/api/v1/owner/returns/queue` | Supplier-linked ACTIVE lots with stock; query `q`, `supplierId`, `returnStatus`, `limit`, `offset`; returns `meta.total` |
+| `POST` | `/api/v1/owner/return-manifests` | Prepare one-supplier/one-store manifest from unique `ELIGIBLE` batches; snapshots cost and sets batches to `MANIFEST_PREPARED` without moving stock |
+| `GET` | `/api/v1/owner/return-manifests/:manifestId` | Supplier/store/actor details, lines, product and current batch state |
+| `POST` | `/api/v1/owner/return-manifests/:manifestId/dispatch` | PREPARED only; requires `operationId`; atomically decrements each batch and writes ADJUST events with `SUPPLIER_RETURN_DISPATCH` |
+| `POST` | `/api/v1/owner/return-manifests/:manifestId/decision` | DISPATCHED only; decision `ACCEPTED` or `REJECTED`; optional supplier reference/notes |
+| `POST` | `/api/v1/owner/return-manifests/:manifestId/complete` | ACCEPTED only; closes as COMPLETED with no further stock movement |
+
+Manifest numbers are server-generated as `SRM-YYMMDD-####`. Dispatch derives a unique event id per line from the operation id; replaying the same operation returns `meta.idempotent: true` even after later lifecycle transitions and never deducts stock twice. A rejected return is terminal and does not auto-restore stock.
+
+### 22.5 Batch Q–U verification
+
+```bash
+npm run smoke:m6q -w @r2a/server
+npm run smoke:m6r -w @r2a/server
+npm run smoke:m6t -w @r2a/web
+npm run smoke:m6u -w @r2a/web
+```
+
+Results on 2026-08-18: `smoke:m6q` **18/18 PASS**; `smoke:m6r` **17/17 PASS**; `smoke:m6t` **PASS** (Purchasing list); `smoke:m6u` **PASS** (Create Purchase Order; no stock write).
+
+---
+
+## 23. Change log
 
 | Date | Change |
 |------|--------|
@@ -1279,3 +1491,10 @@ Dev runbook: [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md).
 | 2026-08-16 | **M6 Batch K:** `GET /owner/products/:id` OWNER-only product detail + live Product Details UI; FEFO rank; InventoryEvent; `smoke:m6k`; Add Product still Batch L |
 | 2026-08-16 | **M6 Batch L:** Extended `POST /products` + `PATCH /products/:id` — added `manufacturer`, `strength`, `form`, `category`, `requiresPrescription`, `coldChain`, `storageNotes`, `reorderLevel`; live Add Product form in `apps/web` with Piece→Strip→Box unit hierarchy, Rx / cold chain toggles, 0 initial stock notice, and auto-redirect to Product Details on create; `smoke:m6l` 7/7 server + 4/4 web; no batch creation in Add Product form |
 | 2026-08-16 | **M6 Batch M:** Owner web Receive Stock live on existing `POST /batches`; product context, packaging math, cost/retail/margin, stock impact; RECEIVE event from Batch D; Supplier/PO/invoice + offline GRN omitted; `smoke:m6m` |
+| 2026-08-18 | **Owner Web Missing Features W1–W6 DONE:** data-integrity migration + sale snapshots; Edit Product; audited/versioned/idempotent batch correction and signed adjustment; void/retire; localized Batch Management UI; desktop migrated off absolute PATCH; `smoke:web-w1` through `smoke:web-w6` |
+| 2026-08-18 | **M6 Batch N:** live localized Expiry Management; supplier/return metadata; filters, selection, CSV; return workflow disabled; `smoke:m6n` |
+| 2026-08-18 | **M6 Batch O / Slice 1 DONE:** §21 catalog + composed `smoke:m6s1` PASS; overall M6 remains IN PROGRESS |
+| 2026-08-18 | **M6 Batch Q:** §22 OWNER-only Supplier + PO APIs; draft lock, server totals/numbers, no inventory effect; `smoke:m6q` 18/18 PASS; no GRN/return routes or web UI |
+| 2026-08-18 | **M6 Batch R:** §22 OWNER-only confirmed GRN + return queue/manifest lifecycle APIs; over-receive protection; RECEIVE ledger; idempotent dispatch ADJUST events; `smoke:m6r` 17/17 PASS; no web UI |
+| 2026-08-18 | **M6 Batch T:** §22 live Purchasing list (KPI cards, PO table, search/status, pagination, CTAs); Create PO → `/purchasing/new`; `smoke:m6t` PASS |
+| 2026-08-18 | **M6 Batch U:** §22 live Create Purchase Order (ACTIVE-supplier dropdown, product line search, Add Suggested Items, Save as Draft / Create SENT / Cancel, order-summary rail; no inventory effect); seed ships 3 ACTIVE suppliers (Beximco · Square · SMC); `smoke:m6u` PASS |

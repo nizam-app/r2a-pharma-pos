@@ -13,7 +13,7 @@
  *   (manager/cashier share SEED_OWNER_PASSWORD unless SEED_STAFF_PASSWORD is set)
  */
 
-import { PrismaClient, Role, UnitType } from "@prisma/client";
+import { BatchReturnStatus, PrismaClient, Role, UnitType } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -27,7 +27,42 @@ type SeedBatch = {
   quantityOnHand: number;
   costPerBase: number;
   sellPerBase: number;
+  supplierName: string;
+  returnStatus: BatchReturnStatus;
 };
+
+type SeedSupplier = {
+  name: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  city: string;
+};
+
+/** Active suppliers — names match the batch.supplierName demo values. */
+const SUPPLIERS: SeedSupplier[] = [
+  {
+    name: "Beximco Distribution Ltd.",
+    contactPerson: "Rafiq Chowdhury",
+    phone: "01712000001",
+    email: "sales@beximco-distribution.example",
+    city: "Dhaka",
+  },
+  {
+    name: "Square Distribution Ltd.",
+    contactPerson: "Sabina Akter",
+    phone: "01712000002",
+    email: "sales@square-distribution.example",
+    city: "Dhaka",
+  },
+  {
+    name: "SMC Distribution",
+    contactPerson: "Mahmudul Hasan",
+    phone: "01712000003",
+    email: "sales@smc-distribution.example",
+    city: "Dhaka",
+  },
+];
 
 type SeedProduct = {
   name: string;
@@ -67,6 +102,8 @@ const PRODUCTS: SeedProduct[] = [
         quantityOnHand: 14,
         costPerBase: 0.8,
         sellPerBase: 1.2,
+        supplierName: "Beximco Distribution Ltd.",
+        returnStatus: BatchReturnStatus.ELIGIBLE,
       },
       {
         batchNumber: "NP24031",
@@ -74,6 +111,8 @@ const PRODUCTS: SeedProduct[] = [
         quantityOnHand: 124,
         costPerBase: 0.8,
         sellPerBase: 1.2,
+        supplierName: "Beximco Distribution Ltd.",
+        returnStatus: BatchReturnStatus.MANIFEST_PREPARED,
       },
       {
         batchNumber: "NP24052",
@@ -81,6 +120,8 @@ const PRODUCTS: SeedProduct[] = [
         quantityOnHand: 86,
         costPerBase: 0.8,
         sellPerBase: 1.2,
+        supplierName: "Beximco Distribution Ltd.",
+        returnStatus: BatchReturnStatus.NOT_ELIGIBLE,
       },
       {
         batchNumber: "NP23010",
@@ -88,6 +129,8 @@ const PRODUCTS: SeedProduct[] = [
         quantityOnHand: 12,
         costPerBase: 0.8,
         sellPerBase: 1.2,
+        supplierName: "Beximco Distribution Ltd.",
+        returnStatus: BatchReturnStatus.NOT_ELIGIBLE,
       },
     ],
   },
@@ -111,6 +154,8 @@ const PRODUCTS: SeedProduct[] = [
         quantityOnHand: 300,
         costPerBase: 2.5,
         sellPerBase: 4.0,
+        supplierName: "Square Distribution Ltd.",
+        returnStatus: BatchReturnStatus.NOT_ELIGIBLE,
       },
     ],
   },
@@ -133,6 +178,8 @@ const PRODUCTS: SeedProduct[] = [
         quantityOnHand: 200,
         costPerBase: 4.0,
         sellPerBase: 6.0,
+        supplierName: "SMC Distribution",
+        returnStatus: BatchReturnStatus.NOT_ELIGIBLE,
       },
     ],
   },
@@ -156,6 +203,8 @@ const PRODUCTS: SeedProduct[] = [
         quantityOnHand: 250,
         costPerBase: 0.5,
         sellPerBase: 1.0,
+        supplierName: "Beximco Distribution Ltd.",
+        returnStatus: BatchReturnStatus.NOT_ELIGIBLE,
       },
     ],
   },
@@ -179,6 +228,8 @@ const PRODUCTS: SeedProduct[] = [
         quantityOnHand: 400,
         costPerBase: 0.7,
         sellPerBase: 1.1,
+        supplierName: "Square Distribution Ltd.",
+        returnStatus: BatchReturnStatus.NOT_ELIGIBLE,
       },
     ],
   },
@@ -364,6 +415,8 @@ async function main() {
           quantityOnHand: batch.quantityOnHand,
           costPerBase: batch.costPerBase,
           sellPerBase: batch.sellPerBase,
+          supplierName: batch.supplierName,
+          returnStatus: batch.returnStatus,
         },
         create: {
           tenantId: tenant.id,
@@ -374,6 +427,8 @@ async function main() {
           quantityOnHand: batch.quantityOnHand,
           costPerBase: batch.costPerBase,
           sellPerBase: batch.sellPerBase,
+          supplierName: batch.supplierName,
+          returnStatus: batch.returnStatus,
         },
       });
     }
@@ -388,6 +443,32 @@ async function main() {
         batchNumber: { notIn: keepBatchNumbers },
       },
       data: { quantityOnHand: 0 },
+    });
+  }
+
+  for (const supplier of SUPPLIERS) {
+    await prisma.supplier.upsert({
+      where: {
+        tenantId_name: { tenantId: tenant.id, name: supplier.name },
+      },
+      update: {
+        contactPerson: supplier.contactPerson,
+        phone: supplier.phone,
+        email: supplier.email,
+        city: supplier.city,
+        status: "ACTIVE",
+        isActive: true,
+      },
+      create: {
+        tenantId: tenant.id,
+        name: supplier.name,
+        contactPerson: supplier.contactPerson,
+        phone: supplier.phone,
+        email: supplier.email,
+        city: supplier.city,
+        status: "ACTIVE",
+        isActive: true,
+      },
     });
   }
 
@@ -438,6 +519,7 @@ async function main() {
   console.log(`  cashier: ${cashier.email} (${cashier.role})`);
   console.log(`  products: ${PRODUCTS.length}`);
   console.log(`  batches:  ${batchCount} (Napa: 4 lots for Select Batch demo)`);
+  console.log(`  suppliers: ${SUPPLIERS.length} (Beximco · Square · SMC)`);
   console.log(`  customers: Karim 120 pts · Nusrat 25 pts (below redeem threshold)`);
 }
 

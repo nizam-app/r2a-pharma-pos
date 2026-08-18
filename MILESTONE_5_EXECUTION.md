@@ -10,6 +10,8 @@
 **Prerequisite:** Milestone 0–**4** **DONE** (cloud API + desktop POS shell + one-way sync).  
 **Do not start:** M6 owner web / bi-di sync / n8n / RLS / loyalty persist, Slice 7+ POS screens, real printer IPC, real FEFO `pinHash`, real card SDK / MFS APIs, cloud `GET /sales`, cloud shift, hard reservation / cloud hold, on-account tender — unless the user re-authorizes.
 
+> **W6 compatibility amendment (2026-08-18):** This file preserves what M5 shipped. The current desktop no longer performs absolute `{ quantityOnHand }` PATCH. Owner/Manager adjustments now use signed, versioned, idempotent `POST /api/v1/batches/:id/adjustments` with a required reason; general batch PATCH is metadata/price only.
+
 ---
 
 ## How to use this file

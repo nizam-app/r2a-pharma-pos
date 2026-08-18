@@ -91,6 +91,18 @@ export function formatExpiryMonthYear(iso: string): string {
   return `${month}/${d.getUTCFullYear()}`;
 }
 
+/** UTC date-only value (e.g. PO expected delivery), e.g. 20 Aug 2026. */
+export function formatUtcDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
+}
+
 /** Initials from a person name (customer / cashier). */
 export function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);

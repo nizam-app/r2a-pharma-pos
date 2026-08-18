@@ -47,7 +47,7 @@ type LocalDbContextValue = {
   deadCount: number;
   refreshPendingCount: () => Promise<number>;
   refreshQueueStats: () => Promise<void>;
-  pullCacheNow: () => Promise<void>;
+  pullCacheNow: () => Promise<boolean>;
 };
 
 const LocalDbContext = createContext<LocalDbContextValue | null>(null);
@@ -73,7 +73,8 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
   const [lastPullError, setLastPullError] = useState<string | null>(null);
   const [lastFlushAt, setLastFlushAt] = useState<string | null>(null);
   const [deadCount, setDeadCount] = useState(0);
-  const pullInFlight = useRef(false);
+  const pullInFlight = useRef<Promise<boolean> | null>(null);
+  const pullQueued = useRef(false);
   const pulledThisOnlineSession = useRef(false);
   const [truncToast, setTruncToast] = useState<string | null>(null);
 
@@ -98,21 +99,41 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
   }, [refreshPendingCount]);
 
   const pullCacheNow = useCallback(async () => {
-    if (pullInFlight.current) return;
-    pullInFlight.current = true;
+    if (pullInFlight.current) {
+      pullQueued.current = true;
+      return await pullInFlight.current;
+    }
+
+    const run = async () => {
+      let lastPullSucceeded = false;
+      do {
+        pullQueued.current = false;
+        try {
+          const result = await pullCatalogCache();
+          setLastPullAt(new Date().toISOString());
+          setLastPullError(null);
+          pulledThisOnlineSession.current = true;
+          if (result.truncated) {
+            setTruncToast(t("catalog.truncated"));
+          }
+          lastPullSucceeded = true;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Catalog pull failed";
+          setLastPullError(msg);
+          lastPullSucceeded = false;
+        }
+      } while (pullQueued.current);
+      return lastPullSucceeded;
+    };
+
+    const pending = run();
+    pullInFlight.current = pending;
     try {
-      const result = await pullCatalogCache();
-      setLastPullAt(new Date().toISOString());
-      setLastPullError(null);
-      pulledThisOnlineSession.current = true;
-      if (result.truncated) {
-        setTruncToast(t("catalog.truncated"));
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Catalog pull failed";
-      setLastPullError(msg);
+      return await pending;
     } finally {
-      pullInFlight.current = false;
+      if (pullInFlight.current === pending) {
+        pullInFlight.current = null;
+      }
     }
   }, [t]);
 

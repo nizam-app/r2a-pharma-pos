@@ -3,7 +3,7 @@
 **Document type:** Canonical RBAC spec for the whole system (POS + future Owner/Manager surfaces)  
 **Product:** PharmaSync POS — Multi-Tenant Pharmacy POS & Inventory SaaS  
 **Version:** 2.0.0  
-**Last updated:** 2026-08-16  
+**Last updated:** 2026-08-18
 **Audience:** Engineering, product, Cursor agents
 
 ---
@@ -54,7 +54,7 @@ Prisma / JWT roles (locked): `SUPER_ADMIN` \| `OWNER` \| `MANAGER` \| `CASHIER`.
 ### Pharmacy Owner
 
 * **Access:** Root authority for one tenant.
-* **Target UI:** Owner web (`apps/web`) — **M6**; login + chrome + live Dashboard + Sales + Transaction Details + Inventory + Product Details + Add Product + Receive Stock (Slice 1 Batches A–M). Owner aggregate APIs live (Batch F / J / K).
+* **Live UI:** Owner web (`apps/web`) — **M6 Slice 1 A–O DONE**; login + chrome, Dashboard, Sales/Transaction Details, Inventory, Product Add/Edit/Details, Receive Stock, Batch Management, and Expiry Management.
 * **Until web exists:** Owner may log into desktop POS (`apps/desktop`) with the same JWT role. Desktop remains a **cashier workstation**, not the executive suite.
 * **Scope:** Financials and margins, staff, catalog/pricing, settings, audit, n8n (M6), multi-branch (M7).
 
@@ -87,12 +87,13 @@ Prisma / JWT roles (locked): `SUPER_ADMIN` \| `OWNER` \| `MANAGER` \| `CASHIER`.
 | `POST /customers` — **Owner only** | **Live** | Owner web UI = **M6** |
 | FEFO override on POS | **Stub PIN** (any 4-digit + local “Authorized By”). **M6 D:** ingest persists `fefoOverride` + authorizer name. | Real `pinHash` when **authorized** |
 | Shift open/close | **Local** `shiftStore` (no cash count, no cloud) | Cloud shift + blind count when **authorized** |
-| Purchase / GRN / stock entry UI | **Live** — desktop Settings (Owner/Manager) + Owner web Receive Stock (Owner; online `POST`/`PATCH /batches`) | Supplier/PO workflows later |
+| Purchase / GRN / stock entry UI | Add lot + signed adjustment live; **M6 R Supplier/PO/GRN/return APIs live (OWNER-only); M6 T–U Purchasing list + Create PO web UI live** | PO Details, Receive against PO, Suppliers screens, return workflow in later Slice 2 batches |
 | Owner web dashboard | **Live** (M6 G — KPIs, bars, inventory health, FEFO, recent sales) | Sales list = **live** (M6 H). Transaction Details = **live** (M6 I). Inventory list = **live** (M6 J). Product Details = **live** (M6 K) |
 | **Owner web Add Product** | **Live** (M6 L — `POST /products` with Piece→Strip→Box units, Rx, cold chain, reorder level, storage notes; 0 initial stock; redirect to Product Details) | Receive Stock is **live** (M6 M) |
+| **Owner web Expiry Management** | **Live** (M6 N — OWNER-only expiry API, supplier/return metadata, filters/selection/CSV; return action disabled) | Real supplier return workflow later |
 | Loyalty earn/redeem persistence | **Live** on ingest snapshots (`loyaltyUsed` / `loyaltyEarned` + customer balance). POS session calc unchanged. OTP stub stays. | Owner web Transaction Details = **live** (M6 I) |
 | n8n, RLS, bi-di sync | Not started | **M6** |
-| Supplier return bucket, supplier ledger | Not started | **M6** |
+| Supplier return bucket, supplier ledger | Supplier profiles, PO, return queue, and manifest lifecycle APIs live; Purchasing list + Create PO web UI live | Later authorized M6 Slice 2 batches |
 | Super Admin console, multi-branch, transfers | Not started | **M7** |
 | Sale void / delete | **Forbidden** (append-only) | Only if the user **re-authorizes** |
 | On-account / customer due tender | **Forbidden** | Never |
@@ -113,6 +114,8 @@ Legend: ✅ allowed · ❌ denied · ⚠️ cashier may **request**; Owner/Manag
 | Create batches / receive stock (GRN) | ❌ | ✅ | ✅ | ❌ |
 | Patch batch **prices** (`costPerBase`, `sellPerBase`) | ❌ | ✅ | ✅ *(API today)* | ❌ |
 | Patch batch non-price fields | ❌ | ✅ | ✅ | ❌ |
+| Signed stock adjustment with reason | ❌ | ✅ | ✅ | ❌ |
+| Void / retire batch | ❌ | ✅ | ❌ | ❌ |
 | Create staff (`CASHIER` / `MANAGER` only) | ❌ | ✅ | ✅ | ❌ |
 | Create `OWNER` / `SUPER_ADMIN` via `POST /users` | ❌ | ❌ | ❌ | ❌ |
 | Assign / rotate FEFO override PIN | ❌ | ✅ *(later)* | ❌ | ❌ |
@@ -137,7 +140,10 @@ Matches `Completed_API_lists.md`. JWT claims: `{ sub, role, tenantId, storeId }`
 | `POST /api/v1/users` | `OWNER`, `MANAGER` — body role `CASHIER` \| `MANAGER` only |
 | `POST /api/v1/products`, `PATCH /products/:id` | `OWNER`, `MANAGER` |
 | `POST /api/v1/batches` | `OWNER`, `MANAGER` |
-| `PATCH /api/v1/batches/:id` | `OWNER`, `MANAGER` — cashier `403` (including qty). Receiving is the qty path |
+| `PATCH /api/v1/batches/:id` | `OWNER`, `MANAGER` — cashier `403`; metadata/prices only; `quantityOnHand` rejected |
+| `POST /api/v1/batches/:id/corrections` | `OWNER`, `MANAGER` — reason + expected version + idempotency key |
+| `POST /api/v1/batches/:id/adjustments` | `OWNER`, `MANAGER` — signed delta + reason + expected version; cashier `403` |
+| `POST /api/v1/batches/:id/void`, `/retire` | **`OWNER` only** |
 | `POST /api/v1/customers` | **`OWNER` only** (`403` for Manager and Cashier) |
 | `GET /api/v1/customers` | Any authenticated |
 | `PATCH /api/v1/customers/:id` | `OWNER`, `MANAGER` — cashier `403` (search-only at POS) |
@@ -146,6 +152,13 @@ Matches `Completed_API_lists.md`. JWT claims: `{ sub, role, tenantId, storeId }`
 | `GET /api/v1/owner/dashboard`, `/owner/inventory-summary`, `/owner/expiry` | **`OWNER` only** (`403` for Manager and Cashier) |
 | `GET /api/v1/owner/inventory` | **`OWNER` only** (`403` for Manager and Cashier) |
 | `GET /api/v1/owner/products/:id` | **`OWNER` only** — full product detail + batches + FEFO rank + InventoryEvent (M6K) |
+| `GET /api/v1/owner/batches/:id` | **`OWNER` only** — management context + revisions/adjustments |
+| `GET/POST /api/v1/owner/suppliers`, `GET/PATCH /owner/suppliers/:id` | **`OWNER` only** — no delete |
+| `GET/POST /api/v1/owner/purchase-orders`, `GET/PATCH /owner/purchase-orders/:id` | **`OWNER` only** — PO PATCH only while `DRAFT`; no inventory effect |
+| `POST /api/v1/owner/purchase-orders/:id/receipts` | **`OWNER` only** — confirmed GRN creates batches + RECEIVE events and advances PO quantities/status |
+| `GET /api/v1/owner/returns/queue` | **`OWNER` only** — supplier-linked return candidates |
+| `POST /api/v1/owner/return-manifests`, `GET /owner/return-manifests/:id` | **`OWNER` only** — prepare/get supplier return |
+| `POST /api/v1/owner/return-manifests/:id/dispatch`, `/decision`, `/complete` | **`OWNER` only** — dispatch stock delta is idempotent; decision/complete do not restore/move stock |
 | Batch payloads | Cashier: omit `costPerBase`; `sellPerBase` allowed |
 
 > **M6L:** Owner web `POST /products` (via `apps/web` Add Product form) creates catalog-only rows — zero initial stock. Extended fields: `manufacturer`, `strength`, `form`, `category`, `requiresPrescription`, `coldChain`, `storageNotes`, `reorderLevel`. Cashier `403`.
@@ -163,9 +176,9 @@ Matches `Completed_API_lists.md`. JWT claims: `{ sub, role, tenantId, storeId }`
 
 ---
 
-## 6. Owner — target executive suite
+## 6. Owner — executive suite
 
-Build in **M6** web unless a slice is authorized earlier. Do not invent these on cashier POS.
+Slice 1 Owner screens are live. Remaining items below require their matching later M6/M7 authorization and must not be invented on cashier POS.
 
 * Revenue, COGS, gross profit, net margin (Owner only — never Cashier, never Manager).
 * Staff: create / deactivate Manager and Cashier; audit who changed prices or stock.
@@ -312,3 +325,10 @@ Do **not** implement:
 | 2026-08-16 | **M6 Batch J** — Owner web Inventory list live (`GET /owner/inventory`). OWNER cost/sell/margin. |
 | 2026-08-16 | **M6 Batch K** — Owner web Product Details live (`GET /owner/products/:id`). Edit Product disabled. |
 | 2026-08-16 | **M6 Batch M** — Owner web Receive Stock live using existing OWNER/MANAGER `POST /batches`; Owner web remains OWNER-only. Supplier/PO/invoice omitted. |
+| 2026-08-18 | **Owner Web W1–W6** — Edit Product + Batch Management live; correction/adjustment Owner/Manager APIs; lifecycle Owner-only; desktop stock adjustment migrated to signed/versioned/reasoned online POST; absolute quantity PATCH removed. |
+| 2026-08-18 | **M6 Owner Web Slice 1 A–O DONE** — Expiry Management live; catalog §21 and composed `smoke:m6s1` pass. Manager web remains later. |
+| 2026-08-18 | **M6 Batch Q** — Supplier and Purchase Order cloud APIs are OWNER-only; Manager/Cashier 403; no supplier delete, GRN/return API, or Slice 2 UI yet. |
+| 2026-08-18 | **M6 Batch R** — confirmed GRN, return queue, and return-manifest lifecycle APIs are OWNER-only; dispatch writes idempotent signed stock-out events; no Slice 2 UI yet. |
+| 2026-08-18 | **M6 Batch S** — Owner web Purchasing and Suppliers navigation is live with localized placeholder shells; management tables remain deferred. |
+| 2026-08-18 | **M6 Batch T** — Owner web Purchasing list live (OWNER-only GET purchase-orders; KPI cards, PO table, search/status, pagination); Create PO → `/purchasing/new`. |
+| 2026-08-18 | **M6 Batch U** — Owner web Create Purchase Order live (ACTIVE-supplier dropdown, product line search, Save as Draft / Create SENT / Cancel; no inventory effect). Seed ships 3 ACTIVE suppliers for the dropdown. |

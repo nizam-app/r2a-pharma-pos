@@ -5,6 +5,7 @@ import {
   Clock,
   GripVertical,
   Pencil,
+  Settings2,
   ShoppingCart,
   type LucideIcon,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import {
   fetchOwnerProduct,
   type InventoryEventType,
   type OwnerProductBatch,
+  type BatchLifecycleStatus,
   type OwnerProductDetail,
   type OwnerProductEvent,
   type OwnerProductUnit,
@@ -43,6 +45,12 @@ const LOT_STATUS_KEYS: Record<ProductLotStatus, MessageKey> = {
   active: "inventory.detail.status.active",
   expired: "inventory.detail.status.expired",
   empty: "inventory.detail.status.empty",
+};
+
+const LIFECYCLE_STATUS_KEYS: Record<BatchLifecycleStatus, MessageKey> = {
+  ACTIVE: "inventory.batch.lifecycle.active",
+  RETIRED: "inventory.batch.lifecycle.retired",
+  VOIDED: "inventory.batch.lifecycle.voided",
 };
 
 const EVENT_TITLE: Record<InventoryEventType, MessageKey> = {
@@ -135,8 +143,16 @@ export function ProductDetailPage({ productId }: { productId: string }) {
       {product ? (
         <ProductDetailBody
           product={product}
+          onEdit={() =>
+            navigate(`/inventory/${encodeURIComponent(product.id)}/edit`)
+          }
           onReceive={() =>
             navigate(`/inventory/${encodeURIComponent(product.id)}/receive`)
+          }
+          onManageBatch={(batchId) =>
+            navigate(
+              `/inventory/${encodeURIComponent(product.id)}/batches/${encodeURIComponent(batchId)}`,
+            )
           }
         />
       ) : null}
@@ -146,10 +162,14 @@ export function ProductDetailPage({ productId }: { productId: string }) {
 
 function ProductDetailBody({
   product,
+  onEdit,
   onReceive,
+  onManageBatch,
 }: {
   product: OwnerProductDetail;
+  onEdit: () => void;
   onReceive: () => void;
+  onManageBatch: (batchId: string) => void;
 }) {
   const { t } = useLocale();
   const { kpis } = product;
@@ -192,9 +212,8 @@ function ProductDetailBody({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            disabled
-            title={t("inventory.detail.editSoon")}
-            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-muted"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground hover:bg-canvas"
+            onClick={onEdit}
           >
             <Pencil className="size-3.5" strokeWidth={1.75} />
             {t("inventory.detail.edit")}
@@ -295,7 +314,7 @@ function ProductDetailBody({
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[48rem] text-left text-sm">
+              <table className="w-full min-w-[56rem] text-left text-sm">
                 <thead>
                   <tr className="border-b border-border bg-slate-50 text-xs font-medium uppercase tracking-wide text-muted">
                     <th className="px-4 py-2.5 font-medium">
@@ -322,11 +341,18 @@ function ProductDetailBody({
                     <th className="px-3 py-2.5 pr-4 font-medium">
                       {t("inventory.detail.col.status")}
                     </th>
+                    <th className="px-3 py-2.5 pr-4 text-right font-medium">
+                      {t("inventory.detail.col.actions")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {product.batches.map((lot) => (
-                    <BatchRow key={lot.id} lot={lot} />
+                    <BatchRow
+                      key={lot.id}
+                      lot={lot}
+                      onManage={() => onManageBatch(lot.id)}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -486,9 +512,18 @@ function FefoConversionPanel({ product }: { product: OwnerProductDetail }) {
   );
 }
 
-function BatchRow({ lot }: { lot: OwnerProductBatch }) {
+function BatchRow({
+  lot,
+  onManage,
+}: {
+  lot: OwnerProductBatch;
+  onManage: () => void;
+}) {
   const { t } = useLocale();
-  const muted = lot.status === "expired" || lot.status === "empty";
+  const muted =
+    lot.lifecycleStatus !== "ACTIVE" ||
+    lot.status === "expired" ||
+    lot.status === "empty";
   return (
     <tr
       className={`border-b border-border last:border-b-0 ${muted ? "text-muted" : "text-foreground"}`}
@@ -505,9 +540,39 @@ function BatchRow({ lot }: { lot: OwnerProductBatch }) {
         {lot.fefoRank != null ? formatCount(lot.fefoRank) : "—"}
       </td>
       <td className="px-3 py-3 pr-4">
-        <LotStatusBadge status={lot.status} />
+        <div className="flex flex-wrap gap-1.5">
+          <LifecycleStatusBadge status={lot.lifecycleStatus} />
+          {lot.lifecycleStatus === "ACTIVE" && lot.status !== "active" ? (
+            <LotStatusBadge status={lot.status} />
+          ) : null}
+        </div>
+      </td>
+      <td className="px-3 py-3 pr-4 text-right">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-teal-600 hover:text-teal-700"
+          onClick={onManage}
+        >
+          <Settings2 className="size-3.5" strokeWidth={1.75} />
+          {t("inventory.detail.manage")}
+        </button>
       </td>
     </tr>
+  );
+}
+
+function LifecycleStatusBadge({ status }: { status: BatchLifecycleStatus }) {
+  const { t } = useLocale();
+  const cls =
+    status === "ACTIVE"
+      ? "bg-emerald-50 text-emerald-800"
+      : status === "RETIRED"
+        ? "bg-amber-50 text-amber-800"
+        : "bg-red-50 text-red-700";
+  return (
+    <span className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold ${cls}`}>
+      {t(LIFECYCLE_STATUS_KEYS[status])}
+    </span>
   );
 }
 
