@@ -206,7 +206,7 @@ Track status in this table. Agents must only implement the milestone the user au
 | M3 | Desktop POS shell | **DONE** | Slice 1–6; later screens → Slice 7+. See `MILESTONE_3_EXECUTION.md` |
 | M4 | One-way sync | **DONE** | Batches A–F (queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue UI + catalog §19) |
 | M5 | MVP hardening | **DONE** | RBAC E2E, Receive stock, 409 copy, paged catalog, print stub, `smoke:m5`, runbook |
-| M6 | Growth (Phase 2) | **IN PROGRESS** | Slice 1 A–O + W1–W6 **DONE**. Slice 2 P–U **DONE**; V–AD planned. See `MILESTONE_6_EXECUTION.md`. |
+| M6 | Growth (Phase 2) | **IN PROGRESS** | Slice 1 A–O + W1–W6 **DONE**. Slice 2 P–Y **DONE**; Z–AD planned. See `MILESTONE_6_EXECUTION.md`. |
 | M7 | Scale (Phase 3) | PENDING | Multi-branch, transfers, enterprise RBAC |
 
 ---
@@ -352,14 +352,14 @@ Runbook: [`docs/DEV_RUNBOOK.md`](docs/DEV_RUNBOOK.md).
 
 ### Milestone 6 — Growth (PRD Phase 2)
 
-Detailed batches (Slice 1 **A–O DONE**, Slice 2 **P–U DONE**, V–AD planned): [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md). Owner Web Missing Features [`WEB_MISSING_FEATURES_PLAN.md`](WEB_MISSING_FEATURES_PLAN.md) — **W1–W6 DONE**. Full M6 is **not** complete.
+Detailed batches (Slice 1 **A–O DONE**, Slice 2 **P–Z DONE**, AA–AD planned): [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md). Owner Web Missing Features [`WEB_MISSING_FEATURES_PLAN.md`](WEB_MISSING_FEATURES_PLAN.md) — **W1–W6 DONE**. Full M6 is **not** complete.
 
 - Bi-directional sync (cloud catalog/stock → local)
 - Loyalty points earn/redeem — ingest snapshots live (M6 D); refill events later
 - Supplier return bucket (≈90 days to expiry)
 - API webhooks → n8n (WhatsApp/SMS, PO dispatch)
 - `apps/web` Owner Web Slice 1 — OWNER login/chrome, Dashboard, Sales/Transaction Details, Inventory, Product Add/Edit/Details, Receive Stock, audited Batch Management, and Expiry Management are live
-- `apps/web` Owner Web Slice 2 — Supplier/PO/GRN/return APIs (Q–R) and Purchasing list + Create Purchase Order (T–U) live; PO Details (V) and later are pending
+- `apps/web` Owner Web Slice 2 — Supplier/PO/GRN/return APIs (Q–R), Purchasing list + Create Purchase Order + PO Details + Receive against PO (T–W), Suppliers directory (X), Add Supplier (Y), and Supplier Details (Z) live; Expiry Returns (AA) and later are pending
 - Desktop manual stock correction uses online signed deltas with reason, optimistic version, idempotent event ID, and authoritative catalog refresh; general batch PATCH never changes quantity
 - Postgres RLS policies
 
@@ -392,7 +392,7 @@ Follow @PROJECT_MASTER_PLAN.md @Current_Status.md @ROLES_AND_PERMISSIONS.md @Com
 M0–M5 are DONE. Do not start M6 / Slice 7+ / hardware unless the user authorizes it in a new chat.
 ```
 
-M0–M5 are complete. **M6 Owner Web Slice 1 A–O, W1–W6, and Slice 2 P–U are DONE.** V–AD are planned. Next = **Authorize M6 Batch V**. Do not start later M6 work from this file alone.
+M0–M5 are complete. **M6 Owner Web Slice 1 A–O, W1–W6, and Slice 2 P–Z are DONE.** AA–AD are planned. Next = **Authorize M6 Batch AA** (Expiry Returns queue). Do not start later M6 work from this file alone.
 
 ---
 
@@ -482,3 +482,8 @@ M0–M5 are complete. **M6 Owner Web Slice 1 A–O, W1–W6, and Slice 2 P–U a
 | 2026-08-18 | **M6 Batch S completed:** Purchasing and Suppliers sidebar routes enabled with localized placeholder shells; all other later nav remains disabled; no tables; smoke:m6s PASS; next = Authorize M6 Batch T |
 | 2026-08-18 | **M6 Batch T completed:** live Purchasing list (KPI cards, PO table, search/status, pagination, CTAs); Create PO → /purchasing/new; smoke:m6t PASS; next = Authorize M6 Batch U |
 | 2026-08-18 | **M6 Batch U completed:** live Create Purchase Order (ACTIVE-supplier dropdown, product line search w/ low-stock hint, Add Suggested Items, Save as Draft / Create SENT / Cancel, order-summary rail; no inventory effect); seed ships 3 ACTIVE suppliers (Beximco · Square · SMC); smoke:m6u PASS; next = Authorize M6 Batch V |
+| 2026-08-19 | **M6 Batch V completed:** live Purchase Order Details (GET /owner/purchase-orders/:poId; header, KPIs, receiving progress, line received/remaining, GRN history; Export/Print/More disabled; Receive Stock → /purchasing/:poId/receive when remaining qty > 0 on SENT/partial; GRN form is Batch W); full purchasing.detail i18n; smoke:m6v PASS; next = Authorize M6 Batch W |
+| 2026-08-19 | **M6 Batch W completed:** live Receive Stock against PO at `/purchasing/:poId/receive` (Receipt Details; Received Items table with + Add Batch / Lot #N rows, Valid/Incomplete/Exceeds status; Receipt Summary; Inventory Impact projection; Save as Draft disabled; Confirm → Batch R `POST /owner/purchase-orders/:poId/receipts` → back to PO Details; Inventory ad-hoc Receive untouched); full purchasing.receive i18n en + bn-BD; smoke:m6w PASS; next = Authorize M6 Batch X |
+| 2026-08-19 | **M6 Batch X completed:** live Suppliers directory at `/suppliers` (4 KPI cards — Active Suppliers, Open POs, Purchases MTD w/ trend, Avg. Delivery Time; Supplier Directory card with search, status filter, SUPPLIER/CONTACT/ACTIVE PRODUCTS/LAST PURCHASE/OPEN POs/PURCHASES MTD table, pagination; 194px Supplier Attention rail — Overdue/Open/Expiry Return/On Hold with Review links to existing pages, Review All Issues disabled; Expiry Returns → /suppliers/returns, Add Supplier → /suppliers/new, Add form NOT built); `GET /owner/suppliers` extended additively with per-item stats + kpis + attention (m6q shape preserved); full suppliers i18n en + bn-BD; smoke:m6x PASS, smoke:m6s updated; next = Authorize M6 Batch Y |
+| 2026-08-19 | **M6 Batch Y completed:** live Add Supplier form at `/suppliers/new` (invented to match the Admin Portal family — the shared Supplier Details screen is Batch Z): all `supplierCreateSchema` fields incl. preferred contact + expiry-returns window + lead time + ৳ min order value, live Setup Summary rail; suppliers always created ACTIVE — Save as Draft disabled, no Edit Supplier route; unsaved-changes guard; create → `POST /api/v1/owner/suppliers` → navigate to `/suppliers/:supplierId` (Details placeholder until Batch Z); new `createOwnerSupplier` client; full `suppliers.add.*` i18n en + bn-BD; superseded `suppliers.placeholder.new*` removed; smoke:m6y PASS, smoke:m6x updated; lint + build clean; next = Authorize M6 Batch Z |
+| 2026-08-19 | **M6 Batch Z completed:** live Supplier Details at `/suppliers/:supplierId` (header name + status badge + contact line + Expiry Returns → `/suppliers/returns` + Create Purchase Order → `/purchasing/new`); honest KPI row — Purchases 12 Months, Avg. Delivery Time, Expiry Return Rate, Active Products — computed from live data (zeros/— when none; no invented ৳2,480,000 / 94% / 1.8% / 2.4 days); Supplier Information 2-col grid + Performance card (on-time / short supply / expiry accepted progress + avg credit note time); Purchase Orders table → `/purchasing/:poId`; Products Supplied table from batches + PO lines with live stock; View All POs / View All Products disabled (no supplier filter in Purchasing/Inventory); `GET /owner/suppliers/:supplierId` additively returns `detail` (kpis incl. openOrders + lastPurchaseAt, performance, purchaseOrders, products; m6q shape preserved); superseded `suppliers.placeholder.detail*` removed; full `suppliers.detail.*` i18n en + bn-BD; smoke:m6z PASS, smoke:m6x updated; server + web lint/build clean; next = Authorize M6 Batch AA |

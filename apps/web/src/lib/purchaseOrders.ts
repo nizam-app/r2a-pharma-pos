@@ -123,3 +123,136 @@ export async function createPurchaseOrder(
     },
   });
 }
+
+export type PurchaseOrderDetailLine = {
+  id: string;
+  qtyOrdered: number;
+  qtyReceived: number;
+  costPerBase: number;
+  product: {
+    id: string;
+    name: string;
+    genericName: string | null;
+    manufacturer: string | null;
+    sku: string | null;
+  };
+};
+
+export type PurchaseOrderReceiptSummary = {
+  id: string;
+  grnNumber: string;
+  supplierInvoiceRef: string | null;
+  deliveryNote: string | null;
+  receivedAt: string;
+  receivedBy: { id: string; name: string };
+  _count: { lines: number };
+};
+
+export type PurchaseOrderDetail = {
+  id: string;
+  poNumber: string;
+  status: PurchaseOrderStatus;
+  reference: string | null;
+  expectedDelivery: string | null;
+  createdAt: string;
+  updatedAt: string;
+  estimatedSubtotal: number;
+  estimatedTax: number;
+  estimatedTotal: number;
+  supplier: {
+    id: string;
+    name: string;
+    contactPerson: string | null;
+    phone: string | null;
+    city: string | null;
+  } | null;
+  store: { id: string; name: string; code: string } | null;
+  createdBy: { id: string; name: string };
+  lines: PurchaseOrderDetailLine[];
+  goodsReceipts: PurchaseOrderReceiptSummary[];
+};
+
+/** Live OWNER purchase order detail — lines, receiving progress, GRN history. */
+export async function fetchPurchaseOrder(
+  poId: string,
+): Promise<PurchaseOrderDetail> {
+  return apiRequest<PurchaseOrderDetail>(
+    `/api/v1/owner/purchase-orders/${encodeURIComponent(poId)}`,
+  );
+}
+
+/** One received lot in a goods receipt. Quantities are in pieces (PIECE). */
+export type GoodsReceiptLineInput = {
+  purchaseOrderLineId: string;
+  productId: string;
+  qty: number;
+  batchNumber: string;
+  expiryDate: string;
+  costPerBase: number;
+  sellPerBase: number;
+};
+
+/** Goods receipt (GRN) create input — Batch R API contract. */
+export type ConfirmGoodsReceiptInput = {
+  supplierInvoiceRef?: string;
+  deliveryNote?: string;
+  receivedAt?: string;
+  lines: GoodsReceiptLineInput[];
+};
+
+/** Confirmed receipt plus the refreshed purchase order. */
+export type GoodsReceiptConfirmed = {
+  receipt: {
+    id: string;
+    grnNumber: string;
+    receivedAt: string;
+    supplierInvoiceRef: string | null;
+    deliveryNote: string | null;
+    lines: Array<{
+      id: string;
+      purchaseOrderLineId: string;
+      qty: number;
+      batchNumber: string;
+      expiryDate: string;
+      costPerBase: number;
+      sellPerBase: number;
+      product: {
+        id: string;
+        name: string;
+        genericName: string | null;
+        sku: string | null;
+      };
+      batch: {
+        id: string;
+        batchNumber: string;
+        expiryDate: string;
+        quantityOnHand: number;
+        costPerBase: number;
+        sellPerBase: number;
+      };
+    }>;
+  };
+  purchaseOrder: PurchaseOrderDetail;
+};
+
+/**
+ * Confirm stock receipt against a purchase order (Batch W → Batch R API).
+ * Posts lots, records the GRN, and advances PO receiving progress.
+ */
+export async function confirmGoodsReceipt(
+  poId: string,
+  input: ConfirmGoodsReceiptInput,
+): Promise<GoodsReceiptConfirmed> {
+  return apiRequest<GoodsReceiptConfirmed>(
+    `/api/v1/owner/purchase-orders/${encodeURIComponent(poId)}/receipts`,
+    {
+      method: "POST",
+      body: {
+        supplierInvoiceRef: input.supplierInvoiceRef?.trim() || undefined,
+        deliveryNote: input.deliveryNote?.trim() || undefined,
+        receivedAt: input.receivedAt || undefined,
+        lines: input.lines,
+      },
+    },
+  );
+}

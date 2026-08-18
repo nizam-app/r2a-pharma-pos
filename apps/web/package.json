@@ -25,6 +25,11 @@
     "smoke:m6s1": "tsx scripts/smoke-m6s1.ts",
     "smoke:m6t": "tsx scripts/smoke-m6t.ts",
     "smoke:m6u": "tsx scripts/smoke-m6u.ts",
+    "smoke:m6v": "tsx scripts/smoke-m6v.ts",
+    "smoke:m6w": "tsx scripts/smoke-m6w.ts",
+    "smoke:m6x": "tsx scripts/smoke-m6x.ts",
+    "smoke:m6y": "tsx scripts/smoke-m6y.ts",
+    "smoke:m6z": "tsx scripts/smoke-m6z.ts",
     "smoke:web-w2": "tsx scripts/web-w2-smoke.ts",
     "smoke:web-w5": "tsx scripts/web-w5-smoke.ts"
   },

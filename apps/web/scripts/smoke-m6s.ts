@@ -66,8 +66,10 @@ function main(): void {
       shell.includes("PurchasingPage") &&
       shell.includes("PurchasingPlaceholder") &&
       shell.includes('path === "/suppliers"') &&
-      shell.includes('section="suppliers"'),
-    "AppShell must render Purchasing list + placeholder subroutes and Suppliers shell",
+      shell.includes("SuppliersPage") &&
+      shell.includes("SupplierPlaceholder") &&
+      shell.includes("suppliersSubpath"),
+    "AppShell must render Purchasing + Suppliers live lists and placeholder subroutes",
   );
   assert(!shell.includes("<table"), "AppShell must not inline list tables");
 

@@ -9,12 +9,19 @@ import {
   ReceiveStockPage,
 } from "@/features/inventory";
 import { SaleDetailPage, SalesPage } from "@/features/sales";
-import { CreatePurchaseOrderPage, PurchasingPage } from "@/features/purchasing";
+import {
+  CreatePurchaseOrderPage,
+  PurchaseOrderDetailPage,
+  PurchasingPage,
+  ReceiveAgainstPurchaseOrderPage,
+} from "@/features/purchasing";
+import { AddSupplierPage, SupplierDetailsPage, SuppliersPage } from "@/features/suppliers";
 import { useLocale } from "@/i18n";
 import {
   inventorySubpath,
   purchasingSubpath,
   salesDetailIdFromPath,
+  suppliersSubpath,
 } from "@/lib/ownerPath";
 import { useOwnerPath } from "@/lib/OwnerPathProvider";
 import { useEffect, useState } from "react";
@@ -59,37 +66,52 @@ function ShellMain() {
     const sub = purchasingSubpath(pathname);
     if (sub.kind === "list") return <PurchasingPage />;
     if (sub.kind === "new") return <CreatePurchaseOrderPage />;
-    return <PurchasingPlaceholder kind={sub.kind} />;
+    if (sub.kind === "detail") {
+      return <PurchaseOrderDetailPage poId={sub.poId} />;
+    }
+    if (sub.kind === "receive") {
+      return (
+        <ReceiveAgainstPurchaseOrderPage
+          key={sub.poId}
+          poId={sub.poId}
+        />
+      );
+    }
+    return <PurchasingPlaceholder />;
   }
   if (path === "/suppliers") {
-    return <SectionPlaceholder section="suppliers" />;
+    const sub = suppliersSubpath(pathname);
+    if (sub.kind === "list") return <SuppliersPage />;
+    if (sub.kind === "new") return <AddSupplierPage />;
+    if (sub.kind === "detail") {
+      return <SupplierDetailsPage supplierId={sub.supplierId} />;
+    }
+    if (sub.kind === "returns") {
+      return (
+        <SupplierPlaceholder
+          titleKey="suppliers.placeholder.returnsTitle"
+          hintKey="suppliers.placeholder.returns"
+        />
+      );
+    }
+    return (
+      <SupplierPlaceholder
+        titleKey="suppliers.placeholder.returnsTitle"
+        hintKey="suppliers.placeholder.returns"
+      />
+    );
   }
   return <DashboardPage />;
 }
 
-function PurchasingPlaceholder({
-  kind,
+function SupplierPlaceholder({
+  titleKey,
+  hintKey,
 }: {
-  kind: "new" | "detail" | "receive" | "edit";
+  titleKey: "suppliers.placeholder.returnsTitle";
+  hintKey: "suppliers.placeholder.returns";
 }) {
   const { t } = useLocale();
-  const titleKey =
-    kind === "new"
-      ? "purchasing.placeholder.newTitle"
-      : kind === "receive"
-        ? "purchasing.placeholder.receiveTitle"
-        : kind === "edit"
-          ? "purchasing.placeholder.editTitle"
-          : "purchasing.placeholder.detailTitle";
-  const hintKey =
-    kind === "new"
-      ? "purchasing.placeholder.new"
-      : kind === "receive"
-        ? "purchasing.placeholder.receive"
-        : kind === "edit"
-          ? "purchasing.placeholder.edit"
-          : "purchasing.placeholder.detail";
-
   return (
     <section className="mx-auto w-full max-w-7xl p-4 sm:p-6">
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
@@ -100,24 +122,17 @@ function PurchasingPlaceholder({
   );
 }
 
-function SectionPlaceholder({
-  section,
-}: {
-  section: "purchasing" | "suppliers";
-}) {
+function PurchasingPlaceholder() {
   const { t } = useLocale();
-  const titleKey =
-    section === "purchasing"
-      ? "page.purchasingTitle"
-      : "page.suppliersTitle";
-  const hintKey =
-    section === "purchasing" ? "page.purchasingHint" : "page.suppliersHint";
-
   return (
     <section className="mx-auto w-full max-w-7xl p-4 sm:p-6">
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-        <h1 className="text-xl font-semibold text-foreground">{t(titleKey)}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted">{t(hintKey)}</p>
+        <h1 className="text-xl font-semibold text-foreground">
+          {t("purchasing.placeholder.editTitle")}
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted">
+          {t("purchasing.placeholder.edit")}
+        </p>
       </div>
     </section>
   );
@@ -128,7 +143,13 @@ function SectionPlaceholder({
  * Transaction Details is Batch I; Inventory list is Batch J; Product Details is Batch K;
  * Receive Stock is Batch M. Expiry Management is Batch N. Batch S enables
  * Purchasing and Suppliers as localized placeholder shells. Batch T fills the
- * Purchasing list; its create/detail/receive/edit routes render localized placeholders.
+ * Purchasing list; Batch U fills Create Purchase Order; Batch V fills the
+ * Purchase Order Details page; Batch W fills Receive Stock against a PO
+ * (/purchasing/:poId/receive). edit still renders a localized placeholder.
+ * Batch X fills the Suppliers directory. Batch Y fills the Add Supplier form
+ * (/suppliers/new). Batch Z fills the live Supplier Details page
+ * (/suppliers/:supplierId). /suppliers/returns and /suppliers/returns/new still
+ * render localized placeholders.
  */
 export function AppShell() {
   const { t } = useLocale();

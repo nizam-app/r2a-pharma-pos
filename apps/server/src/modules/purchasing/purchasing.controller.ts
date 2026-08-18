@@ -30,6 +30,8 @@ export const listSuppliers = catchAsync(async (req: Request, res: Response) => {
       total: result.total,
       limit: result.limit,
       offset: result.offset,
+      kpis: result.kpis,
+      attention: result.attention,
     },
   });
 });

@@ -128,6 +128,299 @@ const supplierCounts = {
   returnManifests: true,
 } as const;
 
+const OPEN_PO_STATUSES: Array<"SENT" | "PARTIALLY_RECEIVED"> = [
+  "SENT",
+  "PARTIALLY_RECEIVED",
+];
+
+function startOfUtcDay(now: Date): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+function startOfUtcMonth(now: Date): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
+
+type SupplierStats = {
+  activeProducts: number;
+  lastPurchaseAt: string | null;
+  openOrders: number;
+  purchasesMtd: number;
+};
+
+async function supplierStatsBySupplier(
+  ctx: TenantContext,
+  supplierIds: string[],
+): Promise<Map<string, SupplierStats>> {
+  const stats = new Map<string, SupplierStats>();
+  if (supplierIds.length === 0) return stats;
+  for (const id of supplierIds) {
+    stats.set(id, {
+      activeProducts: 0,
+      lastPurchaseAt: null,
+      openOrders: 0,
+      purchasesMtd: 0,
+    });
+  }
+  const storeScope = purchaseOrderStoreScope(ctx);
+  const monthStart = startOfUtcMonth(new Date());
+
+  const [batchRows, lastPurchaseRows, openOrderRows, mtdRows] = await Promise.all([
+    prisma.batch.findMany({
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        supplierId: { in: supplierIds },
+        status: "ACTIVE",
+      },
+      select: { supplierId: true, productId: true },
+    }),
+    prisma.purchaseOrder.groupBy({
+      by: ["supplierId"],
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        supplierId: { in: supplierIds },
+      },
+      _max: { createdAt: true },
+    }),
+    prisma.purchaseOrder.groupBy({
+      by: ["supplierId"],
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        supplierId: { in: supplierIds },
+        status: { in: OPEN_PO_STATUSES },
+      },
+      _count: { _all: true },
+    }),
+    prisma.purchaseOrder.groupBy({
+      by: ["supplierId"],
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        supplierId: { in: supplierIds },
+        createdAt: { gte: monthStart },
+      },
+      _sum: { estimatedTotal: true },
+    }),
+  ]);
+
+  const productsBySupplier = new Map<string, Set<string>>();
+  for (const row of batchRows) {
+    if (!row.supplierId) continue;
+    let products = productsBySupplier.get(row.supplierId);
+    if (!products) {
+      products = new Set();
+      productsBySupplier.set(row.supplierId, products);
+    }
+    products.add(row.productId);
+  }
+  for (const [supplierId, products] of productsBySupplier) {
+    const current = stats.get(supplierId);
+    if (current) current.activeProducts = products.size;
+  }
+  for (const row of lastPurchaseRows) {
+    const current = stats.get(row.supplierId);
+    if (current && row._max.createdAt) {
+      current.lastPurchaseAt = row._max.createdAt.toISOString();
+    }
+  }
+  for (const row of openOrderRows) {
+    const current = stats.get(row.supplierId);
+    if (current) current.openOrders = row._count._all;
+  }
+  for (const row of mtdRows) {
+    const current = stats.get(row.supplierId);
+    if (current && row._sum.estimatedTotal != null) {
+      current.purchasesMtd = roundMoney(toNumber(row._sum.estimatedTotal));
+    }
+  }
+  return stats;
+}
+
+type SupplierOverview = {
+  kpis: {
+    activeSuppliers: number;
+    onHoldSuppliers: number;
+    openOrders: number;
+    purchasesMtd: number;
+    purchasesPrevMtd: number;
+    avgDeliveryDays: number | null;
+  };
+  attention: {
+    overdueOrders: Array<{
+      id: string;
+      poNumber: string;
+      supplierId: string;
+      supplierName: string | null;
+      expectedDelivery: string | null;
+      daysOverdue: number;
+    }>;
+    openOrders: number;
+    returnQueue: number;
+    onHoldSuppliers: Array<{ id: string; name: string }>;
+  };
+};
+
+async function supplierOverview(ctx: TenantContext): Promise<SupplierOverview> {
+  const storeScope = purchaseOrderStoreScope(ctx);
+  const now = new Date();
+  const dayStart = startOfUtcDay(now);
+  const monthStart = startOfUtcMonth(now);
+  const prevMonthStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
+  );
+
+  const [
+    statusRows,
+    openGrouped,
+    mtdAgg,
+    prevAgg,
+    overdueRows,
+    returnQueueCount,
+    holdSuppliers,
+    completedPos,
+  ] = await Promise.all([
+    prisma.supplier.groupBy({
+      by: ["status"],
+      where: { tenantId: ctx.tenantId },
+      _count: { _all: true },
+    }),
+    prisma.purchaseOrder.groupBy({
+      by: ["status"],
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        status: { in: OPEN_PO_STATUSES },
+      },
+      _count: { _all: true },
+    }),
+    prisma.purchaseOrder.aggregate({
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        createdAt: { gte: monthStart },
+      },
+      _sum: { estimatedTotal: true },
+    }),
+    prisma.purchaseOrder.aggregate({
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        createdAt: { gte: prevMonthStart, lt: monthStart },
+      },
+      _sum: { estimatedTotal: true },
+    }),
+    prisma.purchaseOrder.findMany({
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        status: { in: OPEN_PO_STATUSES },
+        expectedDelivery: { not: null, lt: dayStart },
+      },
+      select: {
+        id: true,
+        poNumber: true,
+        supplierId: true,
+        supplier: { select: { name: true } },
+        expectedDelivery: true,
+      },
+      orderBy: { expectedDelivery: "asc" as const },
+      take: 3,
+    }),
+    prisma.batch.count({
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        supplierId: { not: null },
+        status: "ACTIVE",
+        quantityOnHand: { gt: 0 },
+        returnStatus: "ELIGIBLE",
+      },
+    }),
+    prisma.supplier.findMany({
+      where: { tenantId: ctx.tenantId, status: "HOLD" },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+      take: 3,
+    }),
+    prisma.purchaseOrder.findMany({
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        goodsReceipts: { some: {} },
+      },
+      select: {
+        createdAt: true,
+        goodsReceipts: {
+          select: { receivedAt: true },
+          orderBy: { receivedAt: "asc" as const },
+          take: 1,
+        },
+      },
+    }),
+  ]);
+
+  const statusCounts = new Map(
+    statusRows.map((row) => [row.status, row._count._all] as const),
+  );
+  const openOrders = openGrouped.reduce((sum, row) => sum + row._count._all, 0);
+  const purchasesMtd =
+    mtdAgg._sum.estimatedTotal == null
+      ? 0
+      : roundMoney(toNumber(mtdAgg._sum.estimatedTotal));
+  const purchasesPrevMtd =
+    prevAgg._sum.estimatedTotal == null
+      ? 0
+      : roundMoney(toNumber(prevAgg._sum.estimatedTotal));
+
+  let avgDeliveryDays: number | null = null;
+  if (completedPos.length > 0) {
+    const totalDays = completedPos.reduce((sum, po) => {
+      const firstReceipt = po.goodsReceipts[0];
+      if (!firstReceipt) return sum;
+      const milliseconds = firstReceipt.receivedAt.getTime() - po.createdAt.getTime();
+      return sum + Math.max(0, milliseconds) / 86_400_000;
+    }, 0);
+    avgDeliveryDays = Math.round((totalDays / completedPos.length) * 10) / 10;
+  }
+
+  return {
+    kpis: {
+      activeSuppliers: statusCounts.get("ACTIVE") ?? 0,
+      onHoldSuppliers: statusCounts.get("HOLD") ?? 0,
+      openOrders,
+      purchasesMtd,
+      purchasesPrevMtd,
+      avgDeliveryDays,
+    },
+    attention: {
+      overdueOrders: overdueRows.map((po) => ({
+        id: po.id,
+        poNumber: po.poNumber,
+        supplierId: po.supplierId,
+        supplierName: po.supplier?.name ?? null,
+        expectedDelivery: po.expectedDelivery?.toISOString() ?? null,
+        daysOverdue: po.expectedDelivery
+          ? Math.max(
+              1,
+              Math.floor(
+                (dayStart.getTime() - po.expectedDelivery.getTime()) / 86_400_000,
+              ),
+            )
+          : 0,
+      })),
+      openOrders,
+      returnQueue: returnQueueCount,
+      onHoldSuppliers: holdSuppliers.map((supplier) => ({
+        id: supplier.id,
+        name: supplier.name,
+      })),
+    },
+  };
+}
+
 const purchaseOrderListInclude = {
   supplier: {
     select: { id: true, name: true, status: true, phone: true },
@@ -247,11 +540,29 @@ export async function listSuppliers(
     prisma.supplier.count({ where }),
   ]);
 
+  const [stats, overview] = await Promise.all([
+    supplierStatsBySupplier(
+      ctx,
+      items.map((supplier) => supplier.id),
+    ),
+    supplierOverview(ctx),
+  ]);
+
   return {
-    items: items.map(serializeSupplier),
+    items: items.map((supplier) => ({
+      ...serializeSupplier(supplier),
+      stats: stats.get(supplier.id) ?? {
+        activeProducts: 0,
+        lastPurchaseAt: null,
+        openOrders: 0,
+        purchasesMtd: 0,
+      },
+    })),
     total,
     limit: query.limit,
     offset: query.offset,
+    kpis: overview.kpis,
+    attention: overview.attention,
   };
 }
 
@@ -302,7 +613,358 @@ export async function getSupplier(ctx: TenantContext, supplierId: string) {
     include: { _count: { select: supplierCounts } },
   });
   if (!supplier) throw new AppError("Supplier not found", 404);
-  return serializeSupplier(supplier);
+  return {
+    ...serializeSupplier(supplier),
+    detail: await supplierDetail(ctx, supplierId, supplier),
+  };
+}
+
+type SupplierDetailProducts = Array<{
+  productId: string;
+  name: string;
+  genericName: string | null;
+  manufacturer: string | null;
+  quantityOnHand: number;
+  costPerBase: number;
+  status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
+}>;
+
+const SUPPLIER_DETAIL_PO_LIMIT = 10;
+const SUPPLIER_DETAIL_PRODUCT_LIMIT = 10;
+
+/**
+ * Batch Z — Supplier Details. Honest KPIs/performance: computed from what
+ * exists; null (→ "—") when there is no underlying data. Nothing is invented.
+ */
+async function supplierDetail(
+  ctx: TenantContext,
+  supplierId: string,
+  supplier: { expiryReturnsAccepted: boolean },
+) {
+  const storeScope = purchaseOrderStoreScope(ctx);
+  const now = new Date();
+  const twelveMonthsAgo = new Date(
+    Date.UTC(now.getUTCFullYear() - 1, now.getUTCMonth(), now.getUTCDate()),
+  );
+
+  const [
+    purchases12mAgg,
+    receiptRows,
+    poRows,
+    lineRows,
+    returnLines,
+    poValueAgg,
+    lastPurchaseAgg,
+    openOrders,
+    creditRows,
+    supplierBatches,
+    poSourceLines,
+  ] = await Promise.all([
+    prisma.purchaseOrder.aggregate({
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        supplierId,
+        createdAt: { gte: twelveMonthsAgo },
+      },
+      _sum: { estimatedTotal: true },
+    }),
+    prisma.purchaseOrder.findMany({
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        supplierId,
+        goodsReceipts: { some: {} },
+      },
+      select: {
+        createdAt: true,
+        expectedDelivery: true,
+        goodsReceipts: {
+          select: { receivedAt: true },
+          orderBy: { receivedAt: "asc" as const },
+          take: 1,
+        },
+      },
+    }),
+    prisma.purchaseOrder.findMany({
+      where: { tenantId: ctx.tenantId, ...storeScope, supplierId },
+      select: {
+        id: true,
+        poNumber: true,
+        createdAt: true,
+        expectedDelivery: true,
+        estimatedTotal: true,
+        status: true,
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: SUPPLIER_DETAIL_PO_LIMIT,
+    }),
+    prisma.purchaseOrderLine.findMany({
+      where: {
+        purchaseOrder: {
+          tenantId: ctx.tenantId,
+          ...storeScope,
+          supplierId,
+        },
+      },
+      select: { qtyOrdered: true, qtyReceived: true },
+    }),
+    prisma.returnManifestLine.findMany({
+      where: {
+        returnManifest: {
+          tenantId: ctx.tenantId,
+          ...storeScope,
+          supplierId,
+          status: { in: ["DISPATCHED", "ACCEPTED", "COMPLETED"] },
+        },
+      },
+      select: { costPerBase: true, returnQty: true },
+    }),
+    prisma.purchaseOrder.aggregate({
+      where: { tenantId: ctx.tenantId, ...storeScope, supplierId },
+      _sum: { estimatedTotal: true },
+    }),
+    prisma.purchaseOrder.aggregate({
+      where: { tenantId: ctx.tenantId, ...storeScope, supplierId },
+      _max: { createdAt: true },
+    }),
+    prisma.purchaseOrder.count({
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        supplierId,
+        status: { in: OPEN_PO_STATUSES },
+      },
+    }),
+    prisma.returnManifest.findMany({
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        supplierId,
+        status: { in: ["ACCEPTED", "COMPLETED"] },
+        decidedAt: { not: null },
+        dispatchedAt: { not: null },
+      },
+      select: { decidedAt: true, dispatchedAt: true },
+    }),
+    prisma.batch.findMany({
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        supplierId,
+        status: "ACTIVE",
+      },
+      select: {
+        productId: true,
+        costPerBase: true,
+        product: {
+          select: {
+            id: true,
+            name: true,
+            genericName: true,
+            manufacturer: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" as const },
+    }),
+    prisma.purchaseOrderLine.findMany({
+      where: {
+        purchaseOrder: {
+          tenantId: ctx.tenantId,
+          ...storeScope,
+          supplierId,
+        },
+      },
+      select: {
+        productId: true,
+        costPerBase: true,
+        createdAt: true,
+        product: {
+          select: {
+            id: true,
+            name: true,
+            genericName: true,
+            manufacturer: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" as const },
+    }),
+  ]);
+
+  const purchases12m =
+    purchases12mAgg._sum.estimatedTotal == null
+      ? 0
+      : roundMoney(toNumber(purchases12mAgg._sum.estimatedTotal));
+
+  let avgDeliveryDays: number | null = null;
+  if (receiptRows.length > 0) {
+    const totalDays = receiptRows.reduce((sum, po) => {
+      const firstReceipt = po.goodsReceipts[0];
+      if (!firstReceipt) return sum;
+      const milliseconds =
+        firstReceipt.receivedAt.getTime() - po.createdAt.getTime();
+      return sum + Math.max(0, milliseconds) / 86_400_000;
+    }, 0);
+    avgDeliveryDays = Math.round((totalDays / receiptRows.length) * 10) / 10;
+  }
+
+  let onTimeEligible = 0;
+  let onTimeCount = 0;
+  for (const po of receiptRows) {
+    const firstReceipt = po.goodsReceipts[0];
+    if (!firstReceipt || !po.expectedDelivery) continue;
+    onTimeEligible += 1;
+    if (
+      firstReceipt.receivedAt.getTime() <
+      po.expectedDelivery.getTime() + 86_400_000
+    ) {
+      onTimeCount += 1;
+    }
+  }
+  const onTimeDeliveryPct =
+    onTimeEligible > 0
+      ? Math.round((onTimeCount / onTimeEligible) * 1000) / 10
+      : null;
+
+  const deliveredLines = lineRows.filter((line) => line.qtyReceived > 0);
+  const shortLines = deliveredLines.filter(
+    (line) => line.qtyReceived < line.qtyOrdered,
+  );
+  const shortSupplyPct =
+    deliveredLines.length > 0
+      ? Math.round((shortLines.length / deliveredLines.length) * 1000) / 10
+      : null;
+
+  const returnValue = returnLines.reduce(
+    (sum, line) => sum + toNumber(line.costPerBase) * line.returnQty,
+    0,
+  );
+  const poValue =
+    poValueAgg._sum.estimatedTotal == null
+      ? 0
+      : toNumber(poValueAgg._sum.estimatedTotal);
+  const expiryReturnRatePct =
+    returnLines.length > 0 && poValue > 0
+      ? Math.round((returnValue / poValue) * 1000) / 10
+      : null;
+
+  let avgCreditNoteDays: number | null = null;
+  if (creditRows.length > 0) {
+    const totalDays = creditRows.reduce((sum, manifest) => {
+      if (!manifest.decidedAt || !manifest.dispatchedAt) return sum;
+      const milliseconds =
+        manifest.decidedAt.getTime() - manifest.dispatchedAt.getTime();
+      return sum + Math.max(0, milliseconds) / 86_400_000;
+    }, 0);
+    avgCreditNoteDays = Math.round((totalDays / creditRows.length) * 10) / 10;
+  }
+
+  const [stockRows, reorderRows] = await Promise.all([
+    prisma.batch.groupBy({
+      by: ["productId"],
+      where: {
+        tenantId: ctx.tenantId,
+        ...storeScope,
+        status: "ACTIVE",
+      },
+      _sum: { quantityOnHand: true },
+    }),
+    prisma.product.findMany({
+      where: {
+        tenantId: ctx.tenantId,
+        id: {
+          in: [...new Set([
+            ...supplierBatches.map((batch) => batch.productId),
+            ...poSourceLines.map((line) => line.productId),
+          ])],
+        },
+      },
+      select: { id: true, reorderLevel: true },
+    }),
+  ]);
+  const stockByProduct = new Map<string, number>();
+  for (const row of stockRows) {
+    if (row._sum.quantityOnHand != null) {
+      stockByProduct.set(row.productId, row._sum.quantityOnHand);
+    }
+  }
+  const reorderByProduct = new Map<string, number | null>(
+    reorderRows.map((row) => [row.id, row.reorderLevel] as const),
+  );
+
+  const productEntries = new Map<
+    string,
+    {
+      productId: string;
+      name: string;
+      genericName: string | null;
+      manufacturer: string | null;
+      costPerBase: number;
+    }
+  >();
+  for (const batch of supplierBatches) {
+    if (productEntries.has(batch.productId)) continue;
+    productEntries.set(batch.productId, {
+      productId: batch.productId,
+      name: batch.product.name,
+      genericName: batch.product.genericName,
+      manufacturer: batch.product.manufacturer,
+      costPerBase: toNumber(batch.costPerBase),
+    });
+  }
+  for (const line of poSourceLines) {
+    if (productEntries.has(line.productId)) continue;
+    productEntries.set(line.productId, {
+      productId: line.productId,
+      name: line.product.name,
+      genericName: line.product.genericName,
+      manufacturer: line.product.manufacturer,
+      costPerBase: toNumber(line.costPerBase),
+    });
+  }
+
+  const products: SupplierDetailProducts = [...productEntries.values()]
+    .map((entry) => {
+      const quantityOnHand = stockByProduct.get(entry.productId) ?? 0;
+      const reorderLevel = reorderByProduct.get(entry.productId) ?? null;
+      const status: SupplierDetailProducts[number]["status"] =
+        quantityOnHand <= 0
+          ? "OUT_OF_STOCK"
+          : reorderLevel != null && quantityOnHand <= reorderLevel
+            ? "LOW_STOCK"
+            : "IN_STOCK";
+      return { ...entry, quantityOnHand, status };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, SUPPLIER_DETAIL_PRODUCT_LIMIT);
+
+  return {
+    kpis: {
+      purchases12m,
+      avgDeliveryDays,
+      expiryReturnRatePct,
+      activeProducts: productEntries.size,
+      openOrders,
+      lastPurchaseAt: lastPurchaseAgg._max.createdAt?.toISOString() ?? null,
+    },
+    performance: {
+      onTimeDeliveryPct,
+      shortSupplyPct,
+      expiryReturnsAcceptedPct: supplier.expiryReturnsAccepted ? 100 : 0,
+      avgCreditNoteDays,
+    },
+    purchaseOrders: poRows.map((po) => ({
+      id: po.id,
+      poNumber: po.poNumber,
+      createdAt: po.createdAt.toISOString(),
+      expectedDelivery: po.expectedDelivery?.toISOString() ?? null,
+      estimatedTotal: toNumber(po.estimatedTotal),
+      status: po.status,
+    })),
+    products,
+  };
 }
 
 export async function updateSupplier(

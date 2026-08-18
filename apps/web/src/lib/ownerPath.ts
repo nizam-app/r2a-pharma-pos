@@ -6,6 +6,9 @@
  * Receive Stock is Batch M. W2 adds Edit Product; Batch N adds `/inventory/expiry`.
  * Batch T: `/purchasing` is the live list; `/purchasing/new`, `/purchasing/:poId`,
  * `/purchasing/:poId/receive`, and `/purchasing/:poId/edit` are registered subpaths.
+ * Batch X: `/suppliers` is the live directory; `/suppliers/new`,
+ * `/suppliers/returns`, `/suppliers/returns/new`, `/suppliers/returns/:manifestId`,
+ * and `/suppliers/:supplierId` are registered subpaths.
  */
 
 export const OWNER_PATHS = [
@@ -34,9 +37,15 @@ export function isLiveOwnerUrl(pathname: string): boolean {
   ) {
     return true;
   }
-  if (
+if (
     pathname.startsWith("/purchasing/") &&
     pathname.length > "/purchasing/".length
+  ) {
+    return true;
+  }
+  if (
+    pathname.startsWith("/suppliers/") &&
+    pathname.length > "/suppliers/".length
   ) {
     return true;
   }
@@ -52,7 +61,9 @@ if (pathname === "/inventory" || pathname.startsWith("/inventory/")) {
   if (pathname === "/purchasing" || pathname.startsWith("/purchasing/")) {
     return "/purchasing";
   }
-  if (pathname === "/suppliers") return "/suppliers";
+  if (pathname === "/suppliers" || pathname.startsWith("/suppliers/")) {
+    return "/suppliers";
+  }
   return "/";
 }
 
@@ -152,6 +163,36 @@ export function purchasingSubpath(pathname: string): PurchasingSubpath {
   }
   if (parts.length === 1 && parts[0]) {
     return { kind: "detail", poId: decodeSegment(parts[0]) };
+  }
+  return { kind: "list" };
+}
+
+export type SuppliersSubpath =
+  | { kind: "list" }
+  | { kind: "new" }
+  | { kind: "detail"; supplierId: string }
+  | { kind: "returns" }
+  | { kind: "returnsNew" }
+  | { kind: "returnsManifest"; manifestId: string };
+
+/**
+ * Batch X suppliers routes. `/suppliers/returns` and `/suppliers/new` before
+ * `/:id` params; `/suppliers/returns/:manifestId` after `/suppliers/returns`.
+ */
+export function suppliersSubpath(pathname: string): SuppliersSubpath {
+  if (pathname === "/suppliers") return { kind: "list" };
+  if (!pathname.startsWith("/suppliers/")) return { kind: "list" };
+  const parts = pathname.slice("/suppliers/".length).split("/").filter(Boolean);
+  if (parts.length === 1 && parts[0] === "returns") return { kind: "returns" };
+  if (parts.length === 1 && parts[0] === "new") return { kind: "new" };
+  if (parts.length === 2 && parts[0] === "returns" && parts[1] === "new") {
+    return { kind: "returnsNew" };
+  }
+  if (parts.length === 2 && parts[0] === "returns" && parts[1]) {
+    return { kind: "returnsManifest", manifestId: decodeSegment(parts[1]) };
+  }
+  if (parts.length === 1 && parts[0]) {
+    return { kind: "detail", supplierId: decodeSegment(parts[0]) };
   }
   return { kind: "list" };
 }
