@@ -4,8 +4,8 @@
 **Package:** `@r2a/server` (`apps/server`)  
 **Base URL (dev):** `http://localhost:8787` (override with `PORT` / `BASE_URL`)  
 **API prefix:** `/api/v1`  
-**Last updated:** 2026-08-19
-**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (**§19**) + **M5 MVP hardening DONE** (**§20**) + **M6 Owner Web Slice 1 A–O DONE** (**§21**) + Owner Web Missing Features **W1–W6 DONE** + **M6 Slice 2 P–AB** (**§22; T–AB web UI live; AC–AD deferred**) + **M6 Slice 3 AE DONE** (Customer schema + Zod; AF–AM planned; catalog **§23** at Batch AM)
+**Last updated:** 2026-08-20
+**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (**§19**) + **M5 MVP hardening DONE** (**§20**) + **M6 Owner Web Slice 1 A–O DONE** (**§21**) + Owner Web Missing Features **W1–W6 DONE** + **M6 Slice 2 P–AB** (**§22; T–AB web UI live; AC–AD deferred**) + **M6 Slice 3 AE–AJ DONE** (Customer schema + Zod + role-aware APIs + enabled Customers nav + live Customers directory + live Add Customer + live Customer Details; AK–AM planned; catalog **§23** at Batch AM)
 
 > **Source of truth for contracts:** Zod schemas in `@r2a/shared-types`.  
 > **Live status:** [`Current_Status.md`](Current_Status.md).  
@@ -37,7 +37,8 @@
 > **M6 Batch W (2026-08-19):** Owner web Receive Stock against PO live at `/purchasing/:poId/receive` — Receipt Details, Received Items table (`+ Add Batch` / `Lot #N` rows with Valid / Incomplete / Exceeds status), Receipt Summary, and Inventory Impact projection. Submits to the Batch R route `POST /owner/purchase-orders/:poId/receipts` (**no new cloud route**) and returns to PO Details. Inventory ad-hoc `POST /batches` Receive Stock untouched. `smoke:m6w` PASS.
 > **M6 Batch X (2026-08-19):** Owner web Suppliers directory live at `/suppliers` — 4 KPI cards, Supplier Directory card (search, status filter, table, pagination), and a Supplier Attention rail. `GET /owner/suppliers` now additively returns `meta.kpis`, `meta.attention`, and per-item `stats` (response shape otherwise unchanged). No new cloud routes. `smoke:m6x` PASS.
 > **M6 Batch AB (2026-08-19):** Owner web Create Return Manifest live at `/suppliers/returns/new` — reviews the Expiry Returns session draft, supplier policy, editable return qty; posts existing `POST /owner/return-manifests` (optional `supplierReference`); Save as Draft disabled; no stock movement; Manifest Details still Batch AC (**deferred**). `smoke:m6ab` PASS.
-> **M6 Slice 3 AE (2026-08-19):** Customer Prisma + Zod landed. `POST /customers` stays Owner-only until Batch AF. Catalog **§23** at Batch AM.
+> **M6 Slice 3 AE–AG (2026-08-20):** Customer Prisma + Zod landed (AE). Customer APIs are live (AF): role-aware `POST /customers` (Owner Active; Cashier/Manager Pending + extras stripped), Active-only `GET /customers`, `GET /customers/phone-check`, Owner `GET /owner/customers` + `/:id` + approve/reject, `GET /sales?customerId=`, ingest Active-only guard, 403 on `/owner/customers*` for non-owners. Batch AG enables the Owner web Customers nav as a live chrome route with placeholder shells (`/customers`, `/customers/new`, `/customers/:id`, `/customers/:id/review`); Staff/Help/Owner Profile remain disabled. Catalog **§23** at Batch AM.
+> **M6 Batch AJ (2026-08-20):** Owner web Customer Details live at `/customers/:customerId`. `GET /owner/customers/:id` **additively** returns `profile.storeName`, `purchaseHistory.lastPurchaseAt`, `purchaseHistory.rows` (id/receiptNo/soldAt/total/storeName), and `loyaltyActivity.rows` (id/soldAt/loyaltyPrevious/loyaltyUsed/loyaltyEarned) — prior shape preserved (`smoke:m6af` valid). No new cloud routes; `/customers/:id/review` stays a placeholder until Batch AK. `smoke:m6aj` PASS.
 > **M5 Batch A (2026-08-14):** `PATCH /customers/:id` and `PATCH /batches/:id` are **`OWNER`, `MANAGER`** (cashier `403`, including batch qty). No new routes.  
 > **M5 Batch C (2026-08-14, historical; superseded by W6):** Desktop Settings → Receive stock originally used `POST /api/v1/batches` and absolute quantity PATCH. Current stock correction uses signed `/adjustments`.
 > **M5 Batch E (2026-08-14):** Desktop `catalogPull` pages `GET /products` and `GET /batches` (`limit=100` + `offset` until `meta.total`, cap 50 pages / 5000 rows). Still **no** `costPerBase` in the local cache. No new cloud routes. No CSV.  
@@ -570,21 +571,29 @@ Reason codes: `COUNT_CORRECTION`, `DAMAGE`, `BREAKAGE`, `RETURN`, `RECEIVE_CORRE
 
 ### 10.1 `GET /api/v1/customers`
 
-**Auth:** Bearer  
+**Auth:** Bearer (any authenticated).  
 
 **Query:** `q?` (name/phone/email contains), `phone?`, `name?`, `limit` (20), `offset` (0).
 
+**Returns:** `ACTIVE` customers only (POS F8). `PENDING_APPROVAL` / `INACTIVE` / `REJECTED` are excluded. **M6 AF.**
+
 ### 10.2 `POST /api/v1/customers`
 
-**Auth:** Bearer · **`restrictTo("OWNER")` only** (2026-08-12). Managers and Cashiers receive `403` until **M6 Slice 3 Batch AF** (then Cashier/Manager POS create is **Pending**). Desktop POS has **no** Create Customer UI until **Batch AL**.
+**Auth:** Bearer · **`OWNER`** → `ACTIVE` + `OWNER_CREATED` (or `POS_REGISTRATION` if `source` sent). **`MANAGER` / `CASHIER`** → `PENDING_APPROVAL` + `POS_REGISTRATION`; **extras stripped to name + phone only**. **M6 AF.**
 
-**Body:** `{ "name": string, "phone": string, "email"?: string }` — **M6 AE:** `phone` is required (DB + Zod). Optional profile extras (`dateOfBirth`, `gender`, `address`, `storeId`) are accepted by Zod but **not persisted** until Batch AF. New rows default `ACTIVE` / `OWNER_CREATED`. Response envelope is unchanged (no status/source fields yet). 
+**Body:** `{ "name": string, "phone": string, "email"?: string, "dateOfBirth"?: date, "gender"?: "MALE"|"FEMALE"|"OTHER", "address"?: string, "storeId"?: string, "source"?: "OWNER_CREATED"|"POS_REGISTRATION" }`. Owner accepts all profile extras; Cashier/Manager accepts **only** `name` + `phone` (extras ignored). `storeId` defaults to the JWT store for Cashier/Manager.
 
-**Success `201`**. **Errors:** `403` non-owner; `409` duplicate phone in tenant.
+**Success `201`** returns full customer object including `status`, `source`, profile, and audit fields. **Errors:** `409` duplicate phone in tenant (unique per non-rejected customer).
 
 ### 10.3 `GET /api/v1/customers/:id`
 
-**Auth:** Bearer
+**Auth:** Bearer. Returns any customer status (incl. pending/inactive) for back-office lookup. POS search-only is Active-filtered via `GET /` (§10.1).
+
+### 10.4 `GET /api/v1/customers/phone-check`
+
+**Auth:** Bearer (any authenticated). **M6 AF.**
+
+**Query:** `phone` (required). Checks whether the phone exists as a customer in the tenant (excluding rejected). Returns `{ exists: bool, customer?: { id, name, phone, status, source } }`. Used by Owner web Add Customer and POS Create (Batch AL).
 
 ### 10.4 `PATCH /api/v1/customers/:id`
 
@@ -611,7 +620,7 @@ Response objects may include `loyaltyPoints` and `creditBalance`. Desktop Select
 |-------|------|----------|-------|
 | `eventId` | string | yes | Global unique idempotency key → `Sale.eventId` |
 | `storeId` | string | yes | Must belong to JWT tenant (cashiers: match assigned store) |
-| `customerId` | string | no | Must be in tenant |
+| `customerId` | string | no | Must be in tenant and **ACTIVE** (else `400`/`404`). **M6 AF:** ingest rejects non-active customers |
 | `soldAt` | date | no | Defaults to now |
 | `subtotal` | number ≥ 0 | yes | Must equal sum of `lineTotal`s |
 | `discount` | number ≥ 0 | no | Default `0`; `total` must equal `subtotal − discount` |
@@ -719,7 +728,7 @@ M2 already accepts `total: 0` and payment `amount: 0` (`nonnegative`). Desktop m
 **Auth:** Bearer (any authenticated). No `restrictTo`.  
 **Purpose:** Paged tenant sales list. **M6 E.** Owner web Sales table = **Batch H** (live).
 
-**Query:** `q` (receiptNo / eventId / customer name|phone / cashier name), `paymentMethod` (`CASH`\|`CARD`\|`MFS`), `userId`, `from`, `to`, `limit` (default 25, max 100), `offset` (default 0). Date-only `to` (UTC midnight) is treated as **end of that UTC day**.
+**Query:** `q` (receiptNo / eventId / customer name|phone / cashier name), `paymentMethod` (`CASH`\|`CARD`\|`MFS`), `userId`, `customerId`, `from`, `to`, `limit` (default 25, max 100), `offset` (default 0). Date-only `to` (UTC midnight) is treated as **end of that UTC day**.
 
 **Envelope:** `{ status, message, data: Sale[], meta: { total, limit, offset } }`.
 
@@ -1403,7 +1412,7 @@ Not part of Slice 1: Purchasing/Supplier/PO UI, Manager web, customer/staff/repo
 
 ## 22. M6 — Slice 2 APIs (in progress)
 
-Slice 2 **P–AB** is complete. **AC–AD are deferred.** Overall M6 remains in progress. Supplier, PO, GRN, and return-manifest cloud APIs are live. Owner web has live Purchasing, Create PO, PO Details, Receive against PO, Suppliers, Expiry Returns, and Create Return Manifest. `/suppliers/returns/:manifestId` stays a parked placeholder. Slice 3 **AE DONE** (Customer schema + Zod); AF–AM planned; catalog **§23** at Batch AM.
+Slice 2 **P–AB** is complete. **AC–AD are deferred.** Overall M6 remains in progress. Supplier, PO, GRN, and return-manifest cloud APIs are live. Owner web has live Purchasing, Create PO, PO Details, Receive against PO, Suppliers, Expiry Returns, and Create Return Manifest. `/suppliers/returns/:manifestId` stays a parked placeholder. Slice 3 **AE–AI DONE** (Customer schema + Zod; role-aware create, Active-only search, owner list/detail/approve/reject, phone-check, sale customerId filter, ingest Active guard; Owner web Customers nav enabled, a live Customers directory at `/customers` with KPIs/tabs/search/Status/Source/Sort/pagination, and a live Add Customer at `/customers/new` with debounced phone-check + checkbox-gated Create Confirm); **AJ–AM planned**.
 
 ### 22.1 Suppliers
 
@@ -1471,7 +1480,38 @@ Results on 2026-08-18: `smoke:m6q` **18/18 PASS**; `smoke:m6r` **17/17 PASS**; `
 
 ---
 
-## 23. Change log
+## 23. M6 — Slice 3 Customer APIs (Batch AF)
+
+Role-aware customer create, owner directory, review/approve, phone-check, sale-customer filter, and ingest Active guard. No web screens.
+
+All routes are tenant-scoped from the JWT. `POST /customers` is role-aware (not Owner-only); `/owner/customers*` are **`OWNER` only** — Manager and Cashier receive `403`.
+
+| Method | Path | Contract |
+|--------|------|----------|
+| `POST` | `/api/v1/customers` | OWNER → `ACTIVE` + `OWNER_CREATED` (or `POS_REGISTRATION` if `source` sent); MANAGER/CASHIER → `PENDING_APPROVAL` + `POS_REGISTRATION`, extras stripped to name+phone only. `409` on duplicate phone |
+| `GET` | `/api/v1/customers` | `ACTIVE` only (POS F8). Query `q`, `phone`, `name`, `limit`, `offset` |
+| `GET` | `/api/v1/customers/phone-check?phone=` | Any authenticated. Returns `{ exists, customer? { id, name, phone, status, source } }` excluding rejected |
+| `GET` | `/api/v1/owner/customers` | **OWNER only.** Tabs by `status` (All/Pending/Active/Inactive; Rejected always hidden). Filters `q`, `status`, `source`, `sort` (`name`\|`createdAt`\|`loyaltyPoints`). `meta.total` + `meta.kpis` (registered, pending, active-90d, loyaltyPointsIssued = sum of current `loyaltyPoints` on Active). Honest zeros |
+| `GET` | `/api/v1/owner/customers/:customerId` | **OWNER only.** `data.profile` (name, phone, email, DOB, gender, address, status, source, storeId, loyaltyPoints, dates), `data.audit` (createdBy/approvedBy/rejectedBy users + timestamps + rejectionNote), `data.purchaseHistory` (saleCount, totalSpent), `data.loyaltyActivity` (pointsUsed, pointsEarned from sale snapshots) |
+| `POST` | `/api/v1/owner/customers/:customerId/approve` | **OWNER only.** Pending only (else `404`). Optional profile patch → `ACTIVE` + `approvedAt` + `approvedByUserId` |
+| `POST` | `/api/v1/owner/customers/:customerId/reject` | **OWNER only.** Pending only (else `404`). Optional `rejectionNote` → `REJECTED` + `rejectedAt` + `rejectedByUserId` (hidden from directory) |
+| `GET` | `/api/v1/sales?customerId=` | Additive filter on `GET /sales` (any authenticated, role-scoped redaction as usual) |
+
+**Ingest guard:** `POST /sales/ingest` and `POST /sync/ingest` — if `customerId` is supplied the customer must be `ACTIVE` (else `400` / `404`).
+
+**Unchanged:** `PATCH /customers/:id` remains Owner+Manager only; no Inactive mutation. Cashiers cannot create/edit customers; Manager create goes to Pending.
+
+### 23.1 Status matrix
+
+| Actor | `POST /customers` | `GET /customers` | `GET /owner/customers*` | Ingest with customerId |
+|-------|--------------------|--------------------|--------------------------|------------------------|
+| OWNER | Active immediately | Active only | 200 (full) | Active-only check |
+| MANAGER | Pending + POS_REGISTRATION | Active only | **403** | Active-only check |
+| CASHIER | Pending + POS_REGISTRATION | Active only | **403** | Active-only check |
+
+---
+
+## 24. Change log
 
 | Date | Change |
 |------|--------|
@@ -1507,3 +1547,4 @@ Results on 2026-08-18: `smoke:m6q` **18/18 PASS**; `smoke:m6r` **17/17 PASS**; `
 | 2026-08-19 | **M6 Batch AB:** live Create Return Manifest at `/suppliers/returns/new` (session draft from queue, supplier policy, editable return qty); `POST /owner/return-manifests` with optional `supplierReference`; Save as Draft disabled; no dispatch/stock-out; `smoke:m6ab` PASS |
 | 2026-08-19 | **M6 Slice 2 AC–AD deferred. Slice 3 planned:** Customers + POS pending-approval registration; `POST /customers` stays Owner-only until AF; catalog §23 at AM |
 | 2026-08-19 | **M6 Batch AE:** Customer Prisma status/source/profile + partial unique phone + Zod stubs; POST still OWNER-only; no new routes; catalog §23 still at AM |
+| 2026-08-20 | **M6 Batch AF:** §23 — role-aware `POST /customers` (Owner Active, Cashier/Manager Pending + extras stripped), Active-only `GET /customers`, `GET /customers/phone-check`, Owner `GET /owner/customers` + `/:id` + approve/reject (KPIs, audit, purchase history, loyalty activity), `GET /sales?customerId=` additive filter, ingest Active-only customer guard, Cashier/Manager 403 on `/owner/customers*`; `PATCH /customers/:id` unchanged; `smoke:m6af`

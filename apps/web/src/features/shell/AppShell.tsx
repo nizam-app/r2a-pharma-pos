@@ -22,8 +22,14 @@ import {
   SupplierDetailsPage,
   SuppliersPage,
 } from "@/features/suppliers";
+import {
+  AddCustomerPage,
+  CustomerDetailsPage,
+  CustomersPage,
+} from "@/features/customers";
 import { useLocale } from "@/i18n";
 import {
+  customersSubpath,
   inventorySubpath,
   purchasingSubpath,
   salesDetailIdFromPath,
@@ -104,6 +110,15 @@ function ShellMain() {
     }
     return <SuppliersPage />;
   }
+  if (path === "/customers") {
+    const sub = customersSubpath(pathname);
+    if (sub.kind === "list") return <CustomersPage />;
+    if (sub.kind === "new") return <AddCustomerPage />;
+    if (sub.kind === "review") return <CustomersPlaceholder />;
+    if (sub.kind === "detail") {
+      return <CustomerDetailsPage key={sub.customerId} customerId={sub.customerId} />;
+    }
+  }
   return <DashboardPage />;
 }
 
@@ -142,6 +157,27 @@ function PurchasingPlaceholder() {
 }
 
 /**
+ * Batch AG — Customers nav is enabled with placeholder shells only.
+ * The directory table and Add Customer are live (AH–AI); Details and
+ * Registration Review are later batches (AJ–AK). Do not build list tables here.
+ */
+function CustomersPlaceholder() {
+  const { t } = useLocale();
+  return (
+    <section className="mx-auto w-full max-w-7xl p-4 sm:p-6">
+      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+        <h1 className="text-xl font-semibold text-foreground">
+          {t("page.customersTitle")}
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted">
+          {t("customers.placeholder.hint")}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/**
  * Locked Admin Portal chrome. Dashboard KPIs are Batch G; Sales list is Batch H;
  * Transaction Details is Batch I; Inventory list is Batch J; Product Details is Batch K;
  * Receive Stock is Batch M. Expiry Management is Batch N. Batch S enables
@@ -154,6 +190,12 @@ function PurchasingPlaceholder() {
  * (/suppliers/:supplierId). Batch AA fills the Expiry Returns queue at
  * /suppliers/returns. Batch AB fills Create Return Manifest at
  * /suppliers/returns/new. /suppliers/returns/:manifestId stays a placeholder.
+ * Batch AG enables Customers as a live chrome route (/customers,
+ * /customers/new, /customers/:id, /customers/:id/review) with placeholder
+ * shells; Batch AH fills the directory, Batch AI fills /customers/new
+ * (Add Customer + create confirm), Batch AJ fills /customers/:id
+ * (Customer Details; pending redirects to Review). Review stays a
+ * placeholder until Batch AK.
  */
 export function AppShell() {
   const { t } = useLocale();

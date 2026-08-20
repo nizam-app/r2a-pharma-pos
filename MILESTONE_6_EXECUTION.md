@@ -6,7 +6,7 @@
 **API catalog:** [`Completed_API_lists.md`](Completed_API_lists.md)  
 **RBAC contract:** [`ROLES_AND_PERMISSIONS.md`](ROLES_AND_PERMISSIONS.md) (v2.0.0)  
 **Authorized plans:** [`.cursor/plans/m6_slice_1_owner_33de6430.plan.md`](.cursor/plans/m6_slice_1_owner_33de6430.plan.md) (Slice 1) · Slice 3 Customers plan (2026-08-19).
-**Status of M6:** **IN PROGRESS** — Owner Web Slice 1 **A–O DONE**; W1–W6 **DONE**; Slice 2 **P–AB DONE**, **AC–AD DEFERRED**. Slice 3 **AE DONE**, **AF–AM planned** (Customers + POS registration approval). Staff/Reports/Audit/Settings, Manager web, n8n, RLS, bi-di stay unauthorized.
+**Status of M6:** **IN PROGRESS** — Owner Web Slice 1 **A–O DONE**; W1–W6 **DONE**; Slice 2 **P–AB DONE**, **AC–AD DEFERRED**. Slice 3 **AE–AI DONE**, AJ–AM planned (Customers+POS). Staff/Reports/Audit/Settings, Manager web, n8n, RLS, bi-di stay unauthorized.
 **Prerequisite:** Milestone 0–**5**, Owner Web Slice 1, W1–W6, and Slice 2 P–AB **DONE**.
 **Do not start:** Slice 2 AC/AD (deferred), Manager web, Staff/Reports/Audit & FEFO/Settings/Help/Owner Profile, Edit Customer, Edit Supplier, GRN list, Review Reorder Suggestions extra page, bi-di sync, n8n, Postgres RLS, Slice 7+ POS, real printer IPC, card SDK, MFS APIs, FEFO `pinHash`, cloud shift, multi-branch switch, on-account tender — unless the user re-authorizes.
 
@@ -253,7 +253,7 @@ This section records that `PROJECT_MASTER_PLAN.md`, `Current_Status.md`, `Comple
 
 Full M6: bi-di sync, loyalty persist, refill/n8n, supplier return, Owner web, RLS.
 
-**This file = Slice 1 (DONE) + Slice 2 (P–AB DONE; AC–AD deferred) + Slice 3 (AE DONE; AF–AM planned).** Full M6 still needs later slices.
+**This file = Slice 1 (DONE) + Slice 2 (P–AB DONE; AC–AD deferred) + Slice 3 (AE–AI DONE; AJ–AM planned).** Full M6 still needs later slices.
 
 ---
 
@@ -261,7 +261,7 @@ Full M6: bi-di sync, loyalty persist, refill/n8n, supplier return, Owner web, RL
 
 | Rule | Behavior |
 |------|----------|
-| Active scope | **Slice 3** (batches AE–AM). **AE DONE.** Slice 1 A–O **DONE**. Slice 2 **P–AB DONE**; **AC–AD deferred** |
+| Active scope | **Slice 3** (batches AE–AM). **AE–AI DONE.** Slice 1 A–O **DONE**. Slice 2 **P–AB DONE**; **AC–AD deferred** |
 | More Owner screens later | User shares → agent **appends Slice 4+** |
 | Slice 1 complete | Batch O exit — **DONE** 2026-08-18 |
 | Slice 2 complete | **Paused.** P–AB DONE. AC–AD **deferred** (not cancelled). No Batch AD exit until AC is authorized later |
@@ -1166,7 +1166,7 @@ When done, paste the short M6 Batch O report and the user walkthrough.
 
 **Next after PASS:** Share the next Owner screens for **Slice 2**. Do not start n8n / RLS / bi-di unless authorized.
 
-**Slice 2 P–AB DONE. AC–AD deferred.** Slice 3 **AE DONE**. Next implement: `Authorize M6 Batch AF`.
+**Slice 2 P–AB DONE. AC–AD deferred.** Slice 3 **AE–AI DONE**. Next implement: `Authorize M6 Batch AJ`.
 
 ---
 
@@ -1724,7 +1724,7 @@ When done, paste the short M6 Batch AB report.
 
 **YOU DO:** Create a manifest from two Eligible lots of one supplier.
 
-**Next:** Slice 2 AC–AD are **deferred**. Slice 3 **AE DONE**. `Authorize M6 Batch AF`. `/suppliers/returns/:manifestId` stays a parked placeholder.
+**Next:** Slice 2 AC–AD are **deferred**. Slice 3 **AE–AI DONE**. `Authorize M6 Batch AJ`. `/suppliers/returns/:manifestId` stays a parked placeholder.
 
 ---
 
@@ -1757,7 +1757,7 @@ When done, paste the short M6 Batch AC report.
 
 **YOU DO:** Dispatch (stock drops). Accept. Complete. Optional: second manifest → Reject (no restore).
 
-**Next:** Deferred. Do not authorize AD until AC is done. Slice 3 **AE DONE**; next = `Authorize M6 Batch AF`.
+**Next:** Deferred. Do not authorize AD until AC is done. Slice 3 **AE–AI DONE**; next = `Authorize M6 Batch AJ`.
 
 ---
 
@@ -1788,7 +1788,7 @@ When done, paste the short M6 Batch AD report.
 
 **YOU DO:** Owner: create supplier → PO → partial GRN → expiry return → dispatch. POS still sells. Cashier still cannot use web.
 
-**Next after PASS (when AC/AD are later authorized):** continue remaining M6. **Now:** `Authorize M6 Batch AF`.
+**Next after PASS (when AC/AD are later authorized):** continue remaining M6. **Now:** `Authorize M6 Batch AJ`.
 
 ---
 
@@ -1909,6 +1909,8 @@ Keep `loyaltyPoints` and unused `creditBalance`. Do **not** drop `@@unique([tena
 
 Order: **AE → AF → AG → AH → AI → AJ → AK → AL → AM**.
 
+**AE DONE.** **AF DONE.** **AG DONE.** **AH DONE.** **AI DONE.** **AJ DONE** — next: `Authorize M6 Batch AK`.
+
 ---
 
 ## Batch AE — Prisma + shared-types (Slice 3)
@@ -1941,7 +1943,7 @@ When done, paste the short M6 Batch AE report.
 
 **YOU DO:** Confirm migrate. Optional smokes.
 
-**Next:** `Authorize M6 Batch AF`.
+**Next:** `Authorize M6 Batch AJ`.
 
 ---
 
@@ -1953,19 +1955,19 @@ When done, paste the short M6 Batch AE report.
 
 ### Tasks
 
-- [ ] `POST /api/v1/customers` — `OWNER` \| `MANAGER` \| `CASHIER`. Owner → Active (`OWNER_CREATED` from web body, or `POS_REGISTRATION` if POS). Cashier/Manager → Pending + `POS_REGISTRATION`; strip extras (name + phone only)
-- [ ] `GET /api/v1/customers` — Active only (POS F8). Envelope unchanged
-- [ ] `GET /api/v1/customers/phone-check?phone=` — any authenticated
-- [ ] `GET /api/v1/owner/customers` — OWNER; tabs/filters/sort/pagination; KPIs (registered, pending, active-90d, loyalty points issued = sum of current `loyaltyPoints` on accepted profiles). Honest zeros
-- [ ] `GET /api/v1/owner/customers/:id` — profile, creation/approval audit, purchase history, loyalty activity from sale snapshots
-- [ ] `POST /api/v1/owner/customers/:id/approve` — pending only; optional profile patch → Active
-- [ ] `POST /api/v1/owner/customers/:id/reject` — pending only; optional note → Rejected (hidden)
-- [ ] `GET /api/v1/sales?customerId=` additive
-- [ ] Ingest: `customerId` must be **ACTIVE** (else 400/404)
-- [ ] Cashier/Manager **403** on `/owner/customers*`
-- [ ] `PATCH /customers/:id` unchanged (Edit parked; no Inactive mutation)
-- [ ] `smoke:m6af`
-- [ ] Do **not** build UI
+- [x] `POST /api/v1/customers` — `OWNER` | `MANAGER` | `CASHIER`. Owner → Active (`OWNER_CREATED` from web body, or `POS_REGISTRATION` if POS). Cashier/Manager → Pending + `POS_REGISTRATION`; strip extras (name + phone only)
+- [x] `GET /api/v1/customers` — Active only (POS F8). Envelope unchanged
+- [x] `GET /api/v1/customers/phone-check?phone=` — any authenticated
+- [x] `GET /api/v1/owner/customers` — OWNER; tabs/filters/sort/pagination; KPIs (registered, pending, active-90d, loyalty points issued = sum of current `loyaltyPoints` on accepted profiles). Honest zeros
+- [x] `GET /api/v1/owner/customers/:id` — profile, creation/approval audit, purchase history, loyalty activity from sale snapshots
+- [x] `POST /api/v1/owner/customers/:id/approve` — pending only; optional profile patch → Active
+- [x] `POST /api/v1/owner/customers/:id/reject` — pending only; optional note → Rejected (hidden)
+- [x] `GET /api/v1/sales?customerId=` additive
+- [x] Ingest: `customerId` must be **ACTIVE** (else 400/404)
+- [x] Cashier/Manager **403** on `/owner/customers*`
+- [x] `PATCH /customers/:id` unchanged (Edit parked; no Inactive mutation)
+- [x] `smoke:m6af` — 14/14 PASS
+- [x] Do **not** build UI
 
 ### Agent prompt
 
@@ -1979,7 +1981,7 @@ When done, paste the short M6 Batch AF report.
 
 **YOU DO:** none if smoke PASS.
 
-**Next:** `Authorize M6 Batch AG`.
+**Next:** `Authorize M6 Batch AJ`.
 
 ---
 
@@ -1991,11 +1993,11 @@ When done, paste the short M6 Batch AF report.
 
 ### Tasks
 
-- [ ] Live nav + routes `/customers`, `/customers/new`, `/customers/:id`, `/customers/:id/review` shells with i18n titles
-- [ ] Register `/customers/new` before `/:id`
-- [ ] Help / Owner Profile / Staff / … still disabled
-- [ ] `smoke:m6ag`: Customers clickable; no Staff route
-- [ ] Do **not** build the directory table (AH)
+- [x] Live nav + routes `/customers`, `/customers/new`, `/customers/:id`, `/customers/:id/review` shells with i18n titles
+- [x] Register `/customers/new` before `/:id`
+- [x] Help / Owner Profile / Staff / … still disabled
+- [x] `smoke:m6ag`: Customers clickable; no Staff route
+- [x] Do **not** build the directory table (AH)
 
 ### Agent prompt
 
@@ -2008,7 +2010,7 @@ When done, paste the short M6 Batch AG report.
 
 **YOU DO:** Owner web — Customers opens. Staff still dead.
 
-**Next:** `Authorize M6 Batch AH`.
+**Next:** `Authorize M6 Batch AJ`.
 
 ---
 
@@ -2020,12 +2022,12 @@ When done, paste the short M6 Batch AG report.
 
 ### Tasks
 
-- [ ] Ask for screenshot; stop until reply / use prior
-- [ ] KPI cards, tabs (All / Pending / Active / Inactive), search name or phone, Status / Source / Sort, pagination
-- [ ] Pending name → `/customers/:id/review`. Active/Inactive name → `/customers/:id`. Add Customer → `/customers/new`
-- [ ] No hard-coded 2,417 / mock ৳ totals
-- [ ] `smoke:m6ah`
-- [ ] Do **not** build Add form (AI)
+- [x] Ask for screenshot; stop until reply / use prior
+- [x] KPI cards, tabs (All / Pending / Active / Inactive), search name or phone, Status / Source / Sort, pagination
+- [x] Pending name → `/customers/:id/review`. Active/Inactive name → `/customers/:id`. Add Customer → `/customers/new`
+- [x] No hard-coded 2,417 / mock ৳ totals
+- [x] `smoke:m6ah`
+- [x] Do **not** build Add form (AI)
 
 ### Agent prompt
 
@@ -2039,7 +2041,7 @@ When done, paste the short M6 Batch AH report.
 
 **YOU DO:** Open Customers. Confirm seed Karim (Active) and the pending POS demo.
 
-**Next:** `Authorize M6 Batch AI`.
+**Next:** `Authorize M6 Batch AJ`.
 
 ---
 
@@ -2051,13 +2053,13 @@ When done, paste the short M6 Batch AH report.
 
 ### Tasks
 
-- [ ] Ask; stop until reply / use prior
-- [ ] Form: name *, phone *, email optional, DOB, gender, address. Live phone-check
-- [ ] Right rail: Direct Customer Creation copy + System Information (source Owner Created, branch, created by)
-- [ ] Confirm modal: checkbox required; then `POST /customers` with `OWNER_CREATED`
-- [ ] Success → Customer Details. Cancel → list
-- [ ] `smoke:m6ai`
-- [ ] Do **not** build Details layout (AJ)
+- [x] Ask; stop until reply / use prior (Add Customer not re-shared; UI_SPEC.md used)
+- [x] Form: name *, phone *, email optional, DOB, gender, address. Live phone-check
+- [x] Right rail: Direct Customer Creation copy + System Information (source Owner Created, branch, created by)
+- [x] Confirm modal: checkbox required; then `POST /customers` with `OWNER_CREATED`
+- [x] Success → Customer Details. Cancel → list
+- [x] `smoke:m6ai`
+- [x] Do **not** build Details layout (AJ)
 
 ### Agent prompt
 
@@ -2083,14 +2085,14 @@ When done, paste the short M6 Batch AI report.
 
 ### Tasks
 
-- [ ] Ask; stop until reply / use prior
-- [ ] Header, KPIs (loyalty / total purchases / visits / last purchase), profile grid, purchase history, loyalty activity from snapshots
-- [ ] Creation Information rail from `source` / actor / dates. Activity timeline from known facts only
-- [ ] Purchase row → `/sales/:id`. Empty states honest
-- [ ] Edit Customer + More Actions **disabled**
-- [ ] Pending id → redirect to Review
-- [ ] `smoke:m6aj`
-- [ ] Do **not** build Review (AK)
+- [x] Ask; stop until reply / use prior (Customer Details not re-shared; UI_SPEC.md used)
+- [x] Header, KPIs (loyalty / total purchases / visits / last purchase), profile grid, purchase history, loyalty activity from snapshots
+- [x] Creation Information rail from `source` / actor / dates. Activity timeline from known facts only
+- [x] Purchase row → `/sales/:id`. Empty states honest
+- [x] Edit Customer + More Actions **disabled**
+- [x] Pending id → redirect to Review
+- [x] `smoke:m6aj`
+- [x] Do **not** build Review (AK)
 
 ### Agent prompt
 
@@ -2251,5 +2253,10 @@ When done, paste the short M6 Batch AM report.
 | 2026-08-19 | **Batch Z DONE** — live Supplier Details at `/suppliers/:supplierId` (shared Supplier Details screen; UI_SPEC.md used): header (name + status badge + contact line; Expiry Returns → `/suppliers/returns`, Create Purchase Order → `/purchasing/new`); honest KPI row — Purchases 12 Months (৳), Avg. Delivery Time, Expiry Return Rate, Active Products — **computed from live data**; zeros / em dash when no data; the decorative sample values (৳2,480,000 / 2.4 days / 1.8% / 148 / 94% / 3.2% / 86% / 9 days) are NOT invented; Supplier Information 2-col grid (supplier / contact person / phone / email | last purchase / open POs / payment terms / status; `tel:` + `mailto:` links) + Performance card (On-time Delivery, Short Supply Rate, Expiry Returns Accepted progress bars + divider + Avg. Credit Note Time); Purchase Orders table (this supplier) with PO Number teal link → `/purchasing/:poId`, Created, Expected, Total, Status badge; Products Supplied table from **batches + PO lines** with live stock (Medicine, Stock w/ low/out emphasis, Cost ৳, status badge); View All POs + View All Products **disabled** (Purchasing list and Inventory search cannot filter by supplier yet — the cheap route doesn't exist); empty states w/ Create PO CTA; `GET /owner/suppliers/:supplierId` additively returns `detail` (`kpis` incl. openOrders + lastPurchaseAt, `performance`, `purchaseOrders`, `products`); `smoke:m6q` shape preserved; superseded `suppliers.placeholder.detail*` keys removed; full `suppliers.detail.*` i18n en + bn-BD; `smoke:m6z` PASS; smoke:m6x updated (detail placeholder superseded); server + web lint/build clean; next = Batch AA. |
 | 2026-08-19 | **Batch AA DONE** — live Expiry Returns queue at `/suppliers/returns` (UI_SPEC.md used): 4 KPI cards (Eligible Batches, Eligible Cost Value, Manifests Prepared, Needs Review) from additive `GET /owner/returns/queue` meta; search + Supplier + Return Status filters; table (medicine/batch/expiry/qty/cost/supplier/status) with Eligible-only selection; teal selection bar; mixed-supplier selection cannot create; header Create Return Manifest enabled only on a valid one-supplier Eligible selection and navigates to `/suppliers/returns/new` (layout NOT built — Batch AB) with session draft of selected lot ids; Export / Print disabled; Inventory Expiry Prepare Supplier Return enabled → this page; full `suppliers.returns.*` i18n en + bn-BD; `smoke:m6aa` PASS; smoke:m6n + smoke:m6x updated; next = Batch AB. |
 | 2026-08-19 | **Batch AB DONE** — live Create Return Manifest at `/suppliers/returns/new` (shared Create Return Manifest screen): reviews Batch AA session draft, live Eligible lots, supplier policy, editable return qty, Confirm → `POST /owner/return-manifests` (optional `supplierReference`); SRM number generated on create; Save as Draft disabled (no DRAFT status); preparing does not move stock; navigates to `/suppliers/returns/:manifestId` (Details still Batch AC); full `suppliers.manifest.*` i18n en + bn-BD; `smoke:m6ab` PASS; next = Batch AC. |
-| 2026-08-19 | **Slice 2 AC–AD DEFERRED.** Manifest Details + Slice 2 exit paused (placeholder remains). **Slice 3 planned (AE–AM not started):** Owner web Customers + POS cashier/manager registration pending Owner approval; Owner create Active immediately. Edit Customer parked. Reject + POS Create invented. Next = Authorize M6 Batch AE. |
-| 2026-08-19 | **Batch AE DONE** — additive Customer Prisma (`CustomerStatus` / `CustomerSource` / `CustomerGender`, required phone, profile extras, approval audit) + partial unique `(tenantId, phone) WHERE status <> REJECTED`; Zod DTOs + `saleListQuerySchema.customerId` stub; seed Karim/Nusrat ACTIVE OWNER_CREATED + Farhan pending POS; `POST /customers` still OWNER-only; no Owner web Customers routes. Next = Authorize M6 Batch AF. |
+| 2026-08-19 | **Slice 2 AC–AD DEFERRED.** Manifest Details + Slice 2 exit paused (placeholder remains). **Slice 3 AE–AF DONE (planned AG–AM):** Owner web Customers + POS cashier/manager registration pending Owner approval; Owner create Active immediately. Edit Customer parked. Reject + POS Create invented. Next = Authorize M6 Batch AG. |
+| 2026-08-19 | **Batch AE DONE** — additive Customer Prisma (`CustomerStatus` / `CustomerSource` / `CustomerGender`, required phone, profile extras, approval audit) + partial unique `(tenantId, phone) WHERE status <> REJECTED`; Zod DTOs + `saleListQuerySchema.customerId` defined; seed Karim/Nusrat ACTIVE OWNER_CREATED + Farhan pending POS; `POST /customers` still OWNER-only; no Owner web Customers routes. Next = Authorize M6 Batch AH. |
+| 2026-08-20 | **Batch AF DONE** — §23 Customer APIs: role-aware `POST /customers` (Owner Active, Cashier/Manager Pending + extras stripped); Active-only `GET /customers`; `GET /customers/phone-check`; Owner `GET /owner/customers` + `/:id` + approve/reject (KPIs, audit, purchaseHistory, loyaltyActivity, REJECTED hidden); `GET /sales?customerId=` additive; ingest Active-only customer guard; Cashier/Manager 403 on `/owner/customers*`; `PATCH /customers/:id` unchanged. `smoke:m6af` 14/14 PASS (m2 16/16, m6e 15/15 no regressions). Next = Authorize M6 Batch AG. |
+| 2026-08-20 | **Batch AG DONE** — Customers sidebar item becomes a live chrome route. `nav.ts` marks `customers` `live: true` with `path: "/customers"`. `ownerPath.ts` adds `/customers` to `OWNER_PATHS`, maps `/customers/*` in `isLiveOwnerUrl`/`matchOwnerPath`/`ownerPathTitleKey`, and adds `customersSubpath` (list/new/detail/review; `/customers/new` before `/:id`). `AppShell.tsx` routes `/customers*` to a `CustomersPlaceholder` shell (i18n `page.customersTitle`/`customers.placeholder.hint`). Staff/Help/Owner Profile remain disabled. New `smoke:m6ag` 5/5 PASS; lint + build clean. Next = Authorize M6 Batch AH. |
+| 2026-08-20 | **Batch AH DONE** — live Customers directory at `/customers` (shared Customers screen; UI_SPEC.md used — re-share screenshot unreadable/absent, spec used): 4 KPI cards (Registered Customers, Pending Approval, Active — 90 Days, Loyalty Points Issued) from `GET /owner/customers` meta `kpis` (no invented 2,417 / ৳ totals); Customer Directory card with tabs All/Pending/Active/Inactive (tab + Status filter share one status state), name-or-phone search (`q`), Source filter (Owner Created / POS Registration), Sort (Name / Registered / Loyalty Points), table (CUSTOMER teal link + email, PHONE, SOURCE, LOYALTY POINTS, REGISTERED, STATUS badge teal/amber/gray) + pagination + showing footer; Pending row → `/customers/:id/review`, Active/Inactive row → `/customers/:id`, Add Customer → `/customers/new` (form NOT built — Batch AI); new/review/detail stay placeholder shells; new `lib/customers.ts` (`fetchCustomers` + typed rows/KPIs); `customers.*` i18n en + bn-BD; `smoke:m6ah` PASS; smoke:m6ag still PASS; lint + build clean. Next = Authorize M6 Batch AI. |
+| 2026-08-20 | **Batch AI DONE** — live Add Customer at `/customers/new` (Add Customer not re-shared; UI_SPEC.md used — Batch AH pattern): Customer Information card (Customer Name + Phone Number required w/ inline blur/submit field errors, Email w/ format check when populated, Date of Birth, Gender dropdown MALE/FEMALE/OTHER default "Select gender", Address textarea) with debounced (450ms) live `GET /customers/phone-check` Duplicate Check panel (checking spinner / teal available / amber duplicate w/ View existing profile link → `/customers/:id` or `/customers/:id/review` for pending); right rail Direct Customer Creation info card + read-only System Information (Source Owner Created, Branch = live tenant store name, Created By = live session user, audit note); Create Customer primary CTA opens a checkbox-gated **Create Confirm** modal (500px dialog, focus trap + Esc + focus return, Customer Summary Name/Phone/Branch/Source, teal "What Happens After Creation" panel — active immediately, POS-ready, no Owner approval, source Owner Created, 0 loyalty points/0 visits/no purchase history; confirmation checkbox default unchecked; CTA `bg-[#00766c] hover:bg-[#00635c]` enabled only when checked, `bg-[#79b5ae] opacity-70 cursor-not-allowed` disabled; inline error keeps modal open + preserves confirmation + retry) → `POST /api/v1/customers` (OWNER → ACTIVE + OWNER_CREATED) → navigate to `/customers/:id` (Details still placeholder — Batch AJ); Cancel (top + bottom) → `/customers`; unsaved-changes guard + beforeunload; Create disabled while a confirmed duplicate exists; no sample data (no Ayesha Rahman / +8801677 / Dhanmondi Branch / Demo Owner); new `createCustomer` + `checkCustomerPhone` in `lib/customers.ts`; full `customers.add.*` i18n en + bn-BD; `smoke:m6ai` PASS; smoke:m6ah + smoke:m6ag still PASS; lint + build clean. Next = Authorize M6 Batch AJ. |
+| 2026-08-20 | **Batch AJ DONE** — live Customer Details at `/customers/:customerId` (shared Customer Details screen; UI_SPEC.md used — Batch AH/AI pattern): breadcrumb Customers › name; header name + status badge + contact line (phone · email) + **Edit Customer + More Actions disabled** (parked); 4 KPI cards — Loyalty Points (live `profile.loyaltyPoints`), Total Purchases (`formatTaka` of `purchaseHistory.totalSpent`), Visits (`purchaseHistory.saleCount`), Last Purchase (`purchaseHistory.lastPurchaseAt` or em dash); Customer Information 2-col grid (name / phone `tel:` / email `mailto:` / date of birth / gender / status badge / address / branch = live `storeName`); Registration Information card w/ teal audit notice + Source (Owner Created / POS Registration), Registration Branch, Submitted date+time, Submitted By (live actor), Approved date, Approved By, and **Original Registration Values** mini-cards (name + phone — no separate original fields in Prisma, current == registration value while Edit is parked); bottom two-card row — Purchase History (live sale rows: date, receipt, amount ৳, branch; row → `/sales/:id`; empty state) + Loyalty Activity (Current Balance header = live points, per-sale earn/redeem rows with running balance computed from `loyaltyPrevious`/`loyaltyEarned`/`loyaltyUsed` snapshots; empty state); right rail Timeline Activity from known facts only (Customer approved + Registration submitted events w/ actor + date, newest first, circular teal markers); loading skeletons, inline error + Retry + Back, honest zeros/— when no data; **PENDING_APPROVAL id → redirects to `/customers/:id/review`** (Review stays the AK placeholder); `GET /owner/customers/:id` additively returns `profile.storeName`, `purchaseHistory.lastPurchaseAt`, `purchaseHistory.rows` (id/receiptNo/soldAt/total/storeName), `loyaltyActivity.rows` (id/soldAt/loyaltyPrevious/loyaltyUsed/loyaltyEarned) — prior shape preserved (`smoke:m6af` still valid); new `fetchCustomerDetail` + `CustomerDetail` types in `lib/customers.ts`; full `customers.detail.*` i18n en + bn-BD; `smoke:m6aj` PASS; smoke:m6ai + smoke:m6ah + smoke:m6ag still PASS; server + web lint + web build clean. Next = Authorize M6 Batch AK. |

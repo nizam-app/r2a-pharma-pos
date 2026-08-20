@@ -19,6 +19,7 @@ export const customerCreateSchema = z.object({
   gender: customerGenderSchema.optional(),
   address: z.string().trim().min(1).max(500).optional(),
   storeId: idSchema.optional(),
+  source: customerSourceSchema.optional(),
 });
 export type CustomerCreateInput = z.infer<typeof customerCreateSchema>;
 
@@ -61,6 +62,11 @@ export const ownerCustomerListQuerySchema = z.object({
 export type OwnerCustomerListQuery = z.infer<
   typeof ownerCustomerListQuerySchema
 >;
+
+export const customerIdParamSchema = z.object({
+  customerId: z.string().trim().min(1).max(128),
+});
+export type CustomerIdParam = z.infer<typeof customerIdParamSchema>;
 
 /** Unused until Batch AF (`POST /owner/customers/:id/approve`). */
 export const ownerCustomerApproveSchema = z

@@ -13,6 +13,7 @@
     "smoke:m4b": "node scripts/m4b-smoke.mjs",
     "smoke:m6d": "tsx scripts/m6d-smoke.ts",
     "smoke:m6e": "tsx scripts/m6e-smoke.ts",
+    "smoke:m6af": "node scripts/m6af-smoke.mjs",
     "smoke:m6f": "tsx scripts/m6f-smoke.ts",
     "smoke:m6j": "tsx scripts/m6j-smoke.ts",
     "smoke:m6k": "tsx scripts/m6k-smoke.ts",

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   customerCreateSchema,
+  customerPhoneCheckQuerySchema,
   customerSearchSchema,
   customerUpdateSchema,
   idParamSchema,
@@ -17,10 +18,15 @@ customerRouter.get(
   customerController.search,
 );
 
-/** Create Customer — Owner only (not Manager; not on desktop POS). Owner web later. */
+customerRouter.get(
+  "/phone-check",
+  validate({ query: customerPhoneCheckQuerySchema }),
+  customerController.phoneCheck,
+);
+
+/** Create Customer — Owner → ACTIVE; Cashier/Manager → Pending. */
 customerRouter.post(
   "/",
-  restrictTo("OWNER"),
   validate({ body: customerCreateSchema }),
   customerController.create,
 );

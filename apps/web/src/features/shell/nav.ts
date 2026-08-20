@@ -79,7 +79,8 @@ export const PRIMARY_NAV: readonly NavItem[] = [
     id: "customers",
     labelKey: "nav.customers",
     icon: Users,
-    live: false,
+    live: true,
+    path: "/customers",
   },
   {
     id: "staff",

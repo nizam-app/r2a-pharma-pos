@@ -1,6 +1,10 @@
 import { Router } from "express";
 import {
+  customerIdParamSchema,
   idParamSchema,
+  ownerCustomerApproveSchema,
+  ownerCustomerListQuerySchema,
+  ownerCustomerRejectSchema,
   ownerDashboardQuerySchema,
   ownerExpiryQuerySchema,
   ownerInventoryQuerySchema,
@@ -9,6 +13,7 @@ import {
 import { restrictTo } from "../../middlewares/protect";
 import { validate } from "../../middlewares/validate";
 import * as ownerController from "./owner.controller";
+import * as customerController from "../customer/customer.controller";
 import purchasingRouter from "../purchasing/purchasing.router";
 
 /**
@@ -51,6 +56,31 @@ ownerRouter.get(
   "/expiry",
   validate({ query: ownerExpiryQuerySchema }),
   ownerController.expiry,
+);
+
+/** Owner customer management — all OWNER-only. */
+ownerRouter.get(
+  "/customers",
+  validate({ query: ownerCustomerListQuerySchema }),
+  customerController.ownerList,
+);
+
+ownerRouter.get(
+  "/customers/:customerId",
+  validate({ params: customerIdParamSchema }),
+  customerController.ownerDetail,
+);
+
+ownerRouter.post(
+  "/customers/:customerId/approve",
+  validate({ params: customerIdParamSchema, body: ownerCustomerApproveSchema }),
+  customerController.ownerApprove,
+);
+
+ownerRouter.post(
+  "/customers/:customerId/reject",
+  validate({ params: customerIdParamSchema, body: ownerCustomerRejectSchema }),
+  customerController.ownerReject,
 );
 
 export default ownerRouter;

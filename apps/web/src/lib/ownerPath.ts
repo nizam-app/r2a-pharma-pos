@@ -9,6 +9,8 @@
  * Batch X: `/suppliers` is the live directory; `/suppliers/new`,
  * `/suppliers/returns`, `/suppliers/returns/new`, `/suppliers/returns/:manifestId`,
  * and `/suppliers/:supplierId` are registered subpaths.
+ * Batch AG: `/customers` becomes a live chrome route; `/customers/new`,
+ * `/customers/:id`, and `/customers/:id/review` are registered subpaths.
  */
 
 export const OWNER_PATHS = [
@@ -17,6 +19,7 @@ export const OWNER_PATHS = [
   "/inventory",
   "/purchasing",
   "/suppliers",
+  "/customers",
 ] as const;
 
 export type OwnerPath = (typeof OWNER_PATHS)[number];
@@ -49,6 +52,12 @@ if (
   ) {
     return true;
   }
+  if (
+    pathname.startsWith("/customers/") &&
+    pathname.length > "/customers/".length
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -64,6 +73,9 @@ if (pathname === "/inventory" || pathname.startsWith("/inventory/")) {
   if (pathname === "/suppliers" || pathname.startsWith("/suppliers/")) {
     return "/suppliers";
   }
+  if (pathname === "/customers" || pathname.startsWith("/customers/")) {
+    return "/customers";
+  }
   return "/";
 }
 
@@ -74,11 +86,13 @@ export function ownerPathTitleKey(
   | "nav.sales"
   | "nav.inventory"
   | "nav.purchasing"
-  | "nav.suppliers" {
+  | "nav.suppliers"
+  | "nav.customers" {
   if (path === "/sales") return "nav.sales";
   if (path === "/inventory") return "nav.inventory";
   if (path === "/purchasing") return "nav.purchasing";
   if (path === "/suppliers") return "nav.suppliers";
+  if (path === "/customers") return "nav.customers";
   return "nav.dashboard";
 }
 
@@ -193,6 +207,30 @@ export function suppliersSubpath(pathname: string): SuppliersSubpath {
   }
   if (parts.length === 1 && parts[0]) {
     return { kind: "detail", supplierId: decodeSegment(parts[0]) };
+  }
+  return { kind: "list" };
+}
+
+export type CustomersSubpath =
+  | { kind: "list" }
+  | { kind: "new" }
+  | { kind: "detail"; customerId: string }
+  | { kind: "review"; customerId: string };
+
+/**
+ * Batch AG customers routes. `/customers/new` before `/:id` params;
+ * `/customers/:id/review` after detail. Batch AG renders placeholder shells only.
+ */
+export function customersSubpath(pathname: string): CustomersSubpath {
+  if (pathname === "/customers") return { kind: "list" };
+  if (!pathname.startsWith("/customers/")) return { kind: "list" };
+  const parts = pathname.slice("/customers/".length).split("/").filter(Boolean);
+  if (parts.length === 1 && parts[0] === "new") return { kind: "new" };
+  if (parts.length === 2 && parts[1] === "review" && parts[0]) {
+    return { kind: "review", customerId: decodeSegment(parts[0]) };
+  }
+  if (parts.length === 1 && parts[0]) {
+    return { kind: "detail", customerId: decodeSegment(parts[0]) };
   }
   return { kind: "list" };
 }

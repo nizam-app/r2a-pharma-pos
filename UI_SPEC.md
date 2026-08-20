@@ -1,432 +1,461 @@
-* **1. Layout Structure & Flex/Grid Hierarchy**
+## 1. Layout Structure & Flex/Grid Hierarchy
 
-  * Full-height admin dashboard shell with persistent left sidebar + main workspace.
-  * Root: `min-h-screen flex bg-slate-50`.
-  * Desktop sidebar: fixed width around `195px`.
-  * Main area: `flex-1 min-w-0 flex flex-col`.
-  * Sidebar hierarchy:
+* Root admin shell:
 
-    * Brand/logo block.
-    * Primary navigation stack.
-    * Help & Support + Owner Profile pinned at bottom with `mt-auto`.
-  * Main top bar:
+  * `min-h-screen flex bg-[#f6f8fa]`.
+  * Left navigation sidebar + flexible main content.
+* Sidebar:
 
-    * Left: current branch selector.
-    * Right: search, notification, profile/avatar controls.
-    * `flex items-center justify-between`.
-  * Page content wrapper:
+  * Fixed desktop width around `w-[180px] lg:w-[200px]`.
+  * `flex flex-col justify-between`.
+  * `min-h-screen`.
+  * Top:
 
-    * `flex-1 px-4 py-5`.
-    * `space-y-4`.
-  * Breadcrumb above page title.
-  * Page header:
+    * Brand/logo.
+    * Main navigation.
+  * Bottom:
 
-    * Left: title + description.
-    * Right: Export, Print, Create Return Manifest actions.
-    * Desktop: `flex items-start justify-between`.
-    * Mobile: stacked.
-  * KPI section:
-
-    * 4 equal cards.
-    * Desktop: `grid grid-cols-4 gap-3`.
-    * Tablet: `sm:grid-cols-2`.
-    * Mobile: `grid-cols-1`.
-  * Main queue card:
-
-    * Full-width bordered card below KPI row.
-    * Hierarchy:
-
-      * Selection summary/action bar.
-      * Queue title/description.
-      * Search/filter toolbar.
-      * Data table.
-      * Informational footer note.
-  * Selection bar:
-
-    * Full-width teal background.
-    * Left: selected batch count + supplier + total quantity + cost value.
-    * Right: `Create Return Manifest`.
-    * `flex items-center justify-between`.
-  * Queue toolbar:
-
-    * Search input left.
-    * Supplier filter + Return Status filter right.
-    * `flex justify-between items-center gap-3`.
-  * Table:
-
-    * Checkbox selection column.
-    * Medicine.
-    * Batch.
-    * Expiry.
-    * Quantity.
-    * Cost Value.
-    * Supplier.
-    * Return Status.
-  * Table requires vertical continuation for additional rows.
-  * Long content should remain inside one queue card rather than split into multiple cards.
-  * Footer note centered beneath table.
-  * Mobile:
-
-    * Sidebar becomes drawer.
-    * Header actions wrap.
-    * KPI cards stack.
-    * Selection bar stacks if necessary.
-    * Table uses horizontal scrolling.
-
-* **2. Key Tailwind Classes — Colors, Spacing & Responsive Breakpoints**
-
-  * App background: `bg-[#F7F9FA]` / `bg-slate-50`.
-  * Sidebar: `bg-white`.
-  * Cards: `bg-white border border-slate-200 rounded-md`.
-  * Primary text: `text-slate-950`.
-  * Secondary text: `text-slate-500`.
-  * Muted/disabled text: `text-slate-400`.
-  * Brand teal: `#007F73` / `#078C80`.
-  * Primary action: `bg-[#078C80] text-white`.
-  * Primary hover: `hover:bg-[#067A70]`.
-  * Selection bar: `bg-[#078C80] text-white`.
-  * Neutral border: `border-slate-200`.
-  * Stronger input/button border: `border-slate-300`.
-  * Table header: `bg-slate-50`.
-  * Selected table row: subtle `bg-teal-50/40`.
-  * Disabled/prepared rows: `bg-slate-50 text-slate-500`.
-  * Eligible badge:
-
-    * `bg-teal-100 text-teal-800`.
-  * Manifest Prepared badge:
-
-    * `bg-indigo-50 text-indigo-400`.
-  * Not Eligible badge:
-
-    * `bg-slate-200 text-slate-500`.
-  * Expired badge:
-
-    * `bg-red-100 text-red-500`.
-  * Alert/error accent: `text-red-500`.
-  * KPI card icon accents:
-
-    * Eligible Batches: teal.
-    * Eligible Cost Value: teal.
-    * Manifests Prepared: blue.
-    * Needs Review: red.
-  * Standard page spacing: `gap-3` / `gap-4`.
-  * Card padding: `p-3` to `p-4`.
-  * Queue header padding: `px-4 py-3`.
-  * Table cells: `px-3 py-3`.
-  * Toolbar: `px-3 py-3`.
-  * Selection bar: `px-4 py-3`.
-  * Button height: `h-8`.
-  * Search/filter height: `h-8`.
-  * Typography:
-
-    * Page title: `text-xl font-semibold tracking-tight`.
-    * Card title: `text-base font-semibold`.
-    * KPI label: `text-[10px] font-semibold uppercase tracking-wide`.
-    * KPI value: `text-xl font-semibold`.
-    * Table header: `text-[10px] font-semibold uppercase tracking-wide`.
-    * Table body: `text-[11px]`.
-    * Supporting text: `text-[10px] text-slate-500`.
-  * Sidebar nav item:
-
-    * `h-8 px-3 flex items-center gap-3 text-xs`.
-  * Active nav:
-
-    * `bg-[#078C80] text-white rounded-sm`.
-  * Inactive nav:
-
-    * `text-slate-800 hover:bg-slate-100`.
-  * Responsive:
-
-    * Sidebar: `hidden md:flex md:w-[195px]`.
-    * Mobile menu trigger: `md:hidden`.
-    * Page header: `flex-col gap-3 sm:flex-row sm:items-start sm:justify-between`.
-    * KPI cards: `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`.
-    * Toolbar: `flex-col sm:flex-row`.
-    * Selection summary: `flex-col md:flex-row`.
-    * Table wrapper: `overflow-x-auto`.
-    * Table: `min-w-[900px]`.
-  * Buttons:
-
-    * `transition-colors duration-150`.
-    * `focus-visible:ring-2 focus-visible:ring-teal-600`.
-    * Disabled: `opacity-50 cursor-not-allowed`.
-
-* **3. Required UI Elements & Interactive States**
-
-  * Sidebar brand:
-
-    * Teal circular/square `P` mark.
-    * `PharmaSync`.
-    * Small `OWNER PORTAL`.
-  * Navigation:
-
-    * Dashboard.
-    * Sales.
-    * Inventory.
-    * Purchasing.
-    * Suppliers.
-    * Customers.
-    * Staff.
-    * Reports.
-    * Audit & FEFO.
-    * Settings.
-  * Suppliers remains active.
-  * Bottom sidebar:
-
-    * Help & Support.
+    * Help.
     * Owner Profile.
-  * Top branch selector:
+* Main application area:
 
-    * `Dhanmondi Branch`.
-    * Dropdown chevron.
-    * Hover/focus state.
-  * Top utility controls:
+  * `flex-1 min-w-0 flex flex-col`.
+* Top header:
 
-    * Search icon.
-    * Notification bell.
-    * Unread notification dot.
-    * User avatar.
-  * Breadcrumb:
+  * `h-14 flex items-center justify-between`.
+  * Left: branch selector.
+  * Right: search, notification, app/grid icon, profile.
+* Main customer-details content:
 
-    * `Suppliers`.
-    * `Expiry Returns`.
-  * Page title:
+  * `flex-1 p-4 md:p-5`.
+  * Desktop content constrained to readable width.
+* Breadcrumb row:
 
-    * `Expiry Returns`.
-  * Subtitle:
+  * Horizontal inline navigation.
+  * `Customers > Sadia Akter`.
+* Customer header:
 
-    * Manage supplier-return eligible batches and prepared return manifests.
-  * Header action — Export:
+  * `flex flex-col md:flex-row md:items-start md:justify-between gap-3`.
+  * Left:
 
-    * Download/export icon.
-    * Neutral bordered button.
-    * Exports current return queue/report.
-  * Header action — Print:
+    * Customer name.
+    * Active status badge.
+    * Supporting description.
+  * Right:
 
-    * Printer icon.
-    * Neutral bordered button.
-    * Opens print-friendly view/browser print flow.
-  * Header action — Create Return Manifest:
+    * Edit Customer.
+    * More Actions dropdown.
+* KPI summary row:
 
-    * Document/list icon.
-    * Teal filled button.
-    * Disabled when no eligible batches are selected.
-    * Enabled when valid batches are selected.
-  * KPI Card — Eligible Batches:
+  * `grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3`.
+  * Cards:
 
-    * Value: `4`.
-    * Supporting text: currently available for supplier return.
-  * KPI Card — Eligible Cost Value:
+    * Loyalty Points.
+    * Total Purchases.
+    * Visits.
+    * Last Purchase.
+* Main details region:
 
-    * Value: `৳1,607`.
-    * Supporting text: potential recoverable stock cost.
-  * KPI Card — Manifests Prepared:
+  * `grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)] gap-3`.
+  * Left column:
 
-    * Value: `2`.
-    * Supporting text: batches already assigned to manifests.
-  * KPI Card — Needs Review:
+    * Customer Information.
+    * Registration Information.
+    * Bottom two-card row.
+  * Right column:
 
-    * Value: `2`.
-    * Supporting text: currently not eligible.
-  * Selection summary bar:
+    * Timeline Activity.
+* Left column:
 
-    * Visible only when one or more eligible rows are selected.
-    * Check-circle icon.
-    * `2 batches selected`.
-    * Divider.
-    * Supplier name: `Square Distribution Ltd.`.
-    * Divider.
-    * Total quantity: `110 pcs`.
-    * Divider.
-    * Total value: `৳335 cost value`.
-    * Right-side `Create Return Manifest` button.
-  * Selection summary should update dynamically based on current selected rows.
-  * If selected rows span multiple suppliers:
+  * `flex flex-col gap-3`.
+* Customer Information card:
 
-    * Either disable manifest creation.
-    * Or clearly indicate supplier grouping requirement.
-  * Expiry Return Queue heading.
-  * Queue description:
+  * Card header.
+  * Information body using `grid grid-cols-1 md:grid-cols-2`.
+  * Address and Branch may span full/partial row depending width.
+* Registration Information card:
 
-    * Review eligible batches and prepare supplier return manifests.
-  * Search field:
+  * Information notice.
+  * Two-column metadata grid.
+  * Divider.
+  * Original Registration Values subsection.
+  * Two small nested value cards.
+* Bottom activity region:
 
-    * Search icon.
-    * Placeholder: `Search medicine, batch or supplier...`.
-    * Filters rows by medicine name, batch number, or supplier.
-    * Focus: teal ring/border.
-  * Supplier filter:
+  * `grid grid-cols-1 md:grid-cols-2 gap-3`.
+  * Purchase History.
+  * Loyalty Activity.
+* Timeline card:
 
-    * Default: `Supplier: All`.
-    * Dropdown.
-    * Options derived from suppliers in queue.
-  * Return Status filter:
+  * Vertical activity list.
+  * Timeline marker/icon column + content column.
+* Responsive behavior:
 
-    * Default: `Return Status: All`.
-    * Dropdown.
-    * Options:
+  * `< xl`: timeline moves below primary content.
+  * `< md`: customer header actions stack.
+  * `< sm`: KPI cards become single-column.
+  * Keep all content cards full-width on mobile.
+  * Sidebar becomes drawer/collapsible navigation on smaller screens.
 
-      * Eligible.
-      * Manifest Prepared.
-      * Not Eligible.
-  * Table select-all checkbox:
+## 2. Key Tailwind Classes — Colors, Spacing & Breakpoints
 
-    * Selects only currently eligible/selectable rows.
-    * Checked when all selectable visible rows are selected.
-    * Indeterminate when partially selected.
-  * Row checkbox states:
+* Global:
 
-    * Eligible row: interactive checkbox.
-    * Manifest Prepared: disabled checkbox.
-    * Not Eligible: disabled checkbox.
-  * Table row — eligible selected:
+  * `bg-[#f6f8fa]`
+  * `text-slate-900`
+  * `font-sans`
+  * `text-xs md:text-sm`
+* Sidebar:
 
-    * Checkbox checked.
-    * Subtle teal-tinted row background.
-  * Table row — eligible unselected:
+  * `bg-[#eef1f3]`
+  * `border-r border-slate-200`
+  * `px-3 py-4`
+* Brand:
 
-    * White background.
-    * Checkbox enabled.
-  * Table row — unavailable:
+  * `text-[#006b63]`
+  * Logo tile: `bg-[#4fa99e] text-white`
+  * `font-semibold`
+* Sidebar navigation:
 
-    * Muted gray text/background.
-    * Disabled checkbox.
-  * Table data examples:
+  * `flex items-center gap-3`
+  * `px-3 py-2.5`
+  * `text-slate-600`
+  * `hover:bg-slate-100`
+* Active Customers nav:
 
-    * Seclo 20mg:
+  * `bg-[#d7e7e7]`
+  * `text-[#006b63]`
+  * `font-semibold`
+  * Optional active left indicator:
 
-      * Batch `SC-2410-B`.
-      * Expiry `04 Sep 2026`.
-      * Quantity `36 pcs`.
-      * Cost `৳180`.
-      * Supplier `Square Distribution Ltd.`.
-      * Status `Eligible`.
-    * Amodis 400mg:
+    * `border-l-2 border-[#00766c]`
+* Top header:
 
-      * Batch `AM-2409-C`.
-      * Expiry `09 Sep 2026`.
-      * Quantity `74 pcs`.
-      * Cost `৳155`.
-      * Supplier `Square Distribution Ltd.`.
-      * Status `Eligible`.
-    * Histacin 4mg:
+  * `bg-white/70`
+  * `border-b border-slate-200`
+  * `px-4 md:px-5`
+* Main content:
 
-      * Batch `HS-2408-A`.
-      * Expiry `01 Sep 2026`.
-      * Quantity `240 pcs`.
-      * Cost `৳312`.
-      * Supplier `Popular Medicine House`.
-      * Status `Manifest Prepared`.
-    * Fexo 120mg:
+  * `p-4 lg:p-5`
+  * `space-y-4`
+* Breadcrumb:
 
-      * Batch `FX-2411-D`.
-      * Expiry `18 Oct 2026`.
-      * Quantity `120 pcs`.
-      * Cost `৳984`.
-      * Supplier `Square Distribution Ltd.`.
-      * Status `Eligible`.
-    * Napa 500mg:
+  * `text-[10px] md:text-xs`
+  * `text-slate-500`
+  * Current item: `text-slate-800`
+* Customer name:
 
-      * Batch `NP24031`.
-      * Expiry `12 Nov 2026`.
-      * Quantity `320 pcs`.
-      * Cost `৳288`.
-      * Supplier `Beximco Distribution`.
-      * Status `Eligible`.
-    * Xelva 50mg:
+  * `text-2xl font-semibold tracking-tight`
+* Description:
 
-      * Batch `XV-2405-B`.
-      * Expiry `26 Oct 2026`.
-      * Quantity `45 pcs`.
-      * Cost `৳1,350`.
-      * Supplier `ACME Distribution`.
-      * Status `Not Eligible`.
-    * Napa 500mg:
+  * `text-xs text-slate-500 mt-1`
+* Standard card:
 
-      * Batch `NP23110`.
-      * Expiry `20 Jun 2026`.
-      * Small inline `Expired` badge.
-      * Quantity `160 pcs`.
-      * Cost `৳141`.
-      * Supplier `Beximco Distribution`.
-      * Status `Manifest Prepared`.
-    * Neoceptrin R150:
+  * `bg-white`
+  * `border border-slate-200`
+  * `rounded-md`
+  * `shadow-none`
+  * `overflow-hidden`
+* Card header:
 
-      * Batch `NR-2312-A`.
-      * Expiry `02 Jul 2026`.
-      * Inline `Expired` badge.
-      * Quantity `88 pcs`.
-      * Cost `৳396`.
-      * Supplier `Beximco Distribution`.
-      * Status `Not Eligible`.
-  * Expired date state:
+  * `px-4 py-3`
+  * `border-b border-slate-100`
+  * `text-[10px] uppercase tracking-wide`
+  * `font-semibold`
+* Card body:
 
-    * Keep date visible.
-    * Add compact red `Expired` badge beside date.
-  * Eligible badge:
+  * `p-4`
+* KPI cards:
 
-    * Small rounded teal badge.
-  * Manifest Prepared badge:
+  * `px-4 py-3`
+  * `min-h-[64px]`
+  * `flex flex-col justify-between`
+* KPI label:
 
-    * Muted lavender/blue badge.
-  * Not Eligible badge:
+  * `flex items-center gap-2`
+  * `text-[10px] uppercase tracking-wide`
+  * `font-semibold`
+  * `text-slate-700`
+* KPI value:
 
-    * Gray badge.
-  * Table row hover:
+  * `text-lg md:text-xl font-medium`
+  * `text-slate-950`
+* Field labels:
 
-    * Eligible: `hover:bg-slate-50`.
-    * Disabled/prepared rows should remain visually muted.
-  * Create Return Manifest interaction:
+  * `text-[9px] md:text-[10px]`
+  * `text-slate-500`
+  * `mb-1`
+* Field values:
 
-    * Requires valid selected batches.
-    * Opens confirmation/modal or manifest creation workflow.
-    * Displays selected supplier, batch count, total quantity, and total cost.
-    * Loading state during creation.
-    * Prevent duplicate submission.
-  * After manifest creation:
+  * `text-xs`
+  * `font-medium`
+  * `text-slate-900`
+* Empty field:
 
-    * Selected rows transition to `Manifest Prepared`.
-    * Checkboxes become disabled.
-    * KPI values update.
-    * Selection bar clears.
-  * Export interaction:
+  * `text-slate-500`
+* Active badge:
 
-    * Respect active filters.
-    * Export current queue or filtered dataset.
-  * Print interaction:
+  * `inline-flex items-center`
+  * `bg-teal-100`
+  * `text-teal-700`
+  * `px-1.5 py-0.5`
+  * `rounded-sm`
+  * `text-[9px] font-medium`
+* Secondary button:
 
-    * Use clean printable table view.
-    * Hide sidebar/navigation in print layout.
-  * Footer informational note:
+  * `h-8`
+  * `px-3`
+  * `border border-slate-200`
+  * `bg-white`
+  * `text-xs font-medium`
+  * `hover:bg-slate-50`
+  * `rounded-sm`
+* More Actions button:
 
-    * Info icon.
-    * Centered small muted text:
+  * Same secondary style.
+  * Chevron icon aligned right.
+* Information notice:
 
-      * Return manifests are prepared in PharmaSync and can currently be exported or printed for supplier processing.
-  * Loading states:
+  * `flex items-start gap-3`
+  * `bg-slate-50`
+  * `border border-slate-100`
+  * `px-3 py-3`
+  * `rounded-sm`
+  * Info icon: `text-[#00766c]`
+* Registration metadata:
 
-    * KPI skeletons.
-    * Queue toolbar skeleton.
-    * Table row skeletons.
-  * Empty queue state:
+  * `grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4`
+* Divider:
 
-    * `No expiry return batches found.`
-    * Preserve filter/search controls.
-  * Empty filtered state:
+  * `border-t border-slate-100 my-4`
+* Original value boxes:
 
-    * `No batches match the selected filters.`
-    * Clear filters action.
-  * Error state:
+  * `bg-white`
+  * `border border-slate-100`
+  * `px-3 py-2.5`
+  * `rounded-sm`
+* Timeline:
 
-    * Inline queue alert.
-    * Retry action.
-  * Accessibility:
+  * `space-y-4`
+* Timeline item:
 
-    * Proper semantic table headers.
-    * Checkbox labels tied to medicine/batch.
-    * Select-all exposes indeterminate state.
-    * Disabled rows communicate reason beyond color.
-    * Icon-only controls use `aria-label`.
-    * Status badges contain readable text.
-    * Maintain visible keyboard focus.
-    * Use sufficient contrast for muted and disabled states.
+  * `relative flex gap-3`
+* Timeline marker:
+
+  * `w-6 h-6 rounded-full`
+  * `flex items-center justify-center`
+  * First/approved: `bg-teal-50 text-[#00766c]`
+  * Secondary: `bg-slate-100 text-slate-500`
+* Timeline title:
+
+  * `text-xs font-medium text-slate-900`
+* Timeline metadata:
+
+  * `text-[9px] text-slate-500`
+* Empty state card:
+
+  * `min-h-[130px]`
+  * `flex flex-col items-center justify-center`
+  * `text-center`
+  * `px-5 py-6`
+* Empty state icon:
+
+  * `w-8 h-8`
+  * `text-slate-300`
+* Empty message:
+
+  * `text-[10px] text-slate-600`
+  * `max-w-[180px]`
+* Loyalty card header balance:
+
+  * `flex items-center justify-between`
+  * Balance text: `text-[10px] text-[#00766c] font-semibold`
+* Breakpoints:
+
+  * `sm:` two KPI columns.
+  * `md:` two-column information grids.
+  * `lg:` increased horizontal spacing.
+  * `xl:` four KPI columns + details/timeline split.
+  * `2xl:` optional `max-w-[1450px]`.
+
+## 3. Required UI Elements & Interactive States
+
+* Persistent sidebar:
+
+  * PharmaSync Admin Portal branding.
+  * Dashboard.
+  * Sales.
+  * Inventory.
+  * Purchasing.
+  * Suppliers.
+  * Customers — active.
+  * Staff.
+  * Reports.
+  * Audit & FEFO.
+  * Settings.
+  * Help.
+  * Owner Profile.
+* Sidebar states:
+
+  * Default.
+  * Hover.
+  * Active Customers state.
+  * Keyboard focus.
+  * Collapsed/mobile drawer state.
+* Top header:
+
+  * Dhanmondi Branch dropdown.
+  * Search icon/action.
+  * Notification bell.
+  * App/grid menu.
+  * User/profile button.
+* Breadcrumb:
+
+  * Customers link.
+  * Chevron/separator.
+  * Current customer name.
+  * Customers link returns to directory.
+* Customer header:
+
+  * Name: "Sadia Akter".
+  * Active badge inline beside name.
+  * Description:
+
+    * Customer profile, purchase activity and loyalty information.
+* Header actions:
+
+  * Edit Customer.
+  * More Actions dropdown.
+* Edit Customer states:
+
+  * Default.
+  * Hover.
+  * Focus-visible.
+  * Opens edit form/modal/page.
+* More Actions:
+
+  * Default.
+  * Hover.
+  * Open menu.
+  * Menu item hover.
+  * Keyboard navigation.
+  * Potential actions:
+
+    * Adjust loyalty points.
+    * Deactivate customer.
+    * View registration details.
+    * Delete/archive if permissions allow.
+* KPI cards:
+
+  * Loyalty Points: `0`.
+  * Total Purchases: `৳0`.
+  * Visits: `0`.
+  * Last Purchase: `—`.
+  * Small contextual icon in each card.
+* Customer Information:
+
+  * Name.
+  * Phone.
+  * Email.
+  * Date of Birth.
+  * Gender.
+  * Status.
+  * Address.
+  * Branch.
+* Missing customer data:
+
+  * Use em dash rather than blank fields.
+* Phone:
+
+  * Display Bangladesh formatted number.
+  * Optionally clickable via `tel:`.
+* Status:
+
+  * Active badge.
+  * Ensure text label exists; do not rely on color only.
+* Registration Information:
+
+  * Information notice:
+
+    * Customer created from POS registration and approved by Owner.
+  * Source:
+
+    * POS Registration.
+  * Registration Branch:
+
+    * Dhanmondi Branch.
+  * Submitted date/time.
+  * Submitted By.
+  * Approved date.
+  * Approved By.
+* Original Registration Values:
+
+  * Original registration name.
+  * Original registration phone.
+  * Display inside separate bordered mini-cards.
+* Purchase History card:
+
+  * Section header.
+  * Empty-state icon.
+  * Empty message explaining purchase history appears after first transaction.
+* Purchase History populated state:
+
+  * Replace empty state with compact transaction list/table.
+  * Support date, receipt/order, amount and branch.
+  * Row hover for clickable purchases.
+* Loyalty Activity card:
+
+  * Header with Current Balance.
+  * Empty-state icon.
+  * Empty message.
+* Loyalty populated state:
+
+  * Activity list with:
+
+    * Earned.
+    * Redeemed.
+    * Manual adjustment.
+    * Date/time.
+    * Point delta.
+    * Running balance.
+* Timeline Activity:
+
+  * Vertically stacked chronological events.
+  * Customer approved.
+  * POS registration submitted.
+  * Date beneath each event.
+  * Actor/submitter displayed where applicable.
+* Timeline visual:
+
+  * Circular event markers.
+  * Optional vertical connector line.
+  * Current/positive event teal.
+  * Historical/default event neutral gray.
+* Loading states:
+
+  * Skeleton customer heading.
+  * Skeleton KPI values.
+  * Skeleton information rows.
+  * Skeleton timeline entries.
+* Error state:
+
+  * Inline alert at top of details content.
+  * Retry control.
+* Permission states:
+
+  * Hide or disable Edit Customer if user lacks permission.
+  * Hide restricted More Actions items based on role.
+* Responsive states:
+
+  * Mobile action buttons full-width or grouped beneath title.
+  * Timeline moves below main cards.
+  * Information grids collapse to single column.
+  * Bottom activity cards stack vertically.
+* Accessibility:
+
+  * `focus-visible:ring-2 focus-visible:ring-[#00766c]`.
+  * Icon-only controls require `aria-label`.
+  * Dropdowns expose expanded state.
+  * Breadcrumb uses semantic navigation.
+  * Buttons maintain minimum usable hit area.
+  * Status and activity states include text labels.

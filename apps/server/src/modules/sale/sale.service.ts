@@ -201,10 +201,13 @@ export async function ingestSale(
   if (input.customerId) {
     const customer = await prisma.customer.findFirst({
       where: { id: input.customerId, tenantId: ctx.tenantId },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     if (!customer) {
       throw new AppError("Customer not found", 404);
+    }
+    if (customer.status !== "ACTIVE") {
+      throw new AppError("Customer is not active", 400);
     }
   }
 
@@ -713,6 +716,7 @@ function listWhere(
     tenantId: ctx.tenantId,
     ...saleStoreScope(ctx),
     ...(query.userId ? { userId: query.userId } : {}),
+    ...(query.customerId ? { customerId: query.customerId } : {}),
     ...(from || to
       ? {
           soldAt: {

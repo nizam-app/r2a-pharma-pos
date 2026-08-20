@@ -3,7 +3,7 @@
 **Document type:** Canonical RBAC spec for the whole system (POS + future Owner/Manager surfaces)  
 **Product:** PharmaSync POS — Multi-Tenant Pharmacy POS & Inventory SaaS  
 **Version:** 2.0.0  
-**Last updated:** 2026-08-19
+**Last updated:** 2026-08-20
 **Audience:** Engineering, product, Cursor agents
 
 ---
@@ -54,7 +54,7 @@ Prisma / JWT roles (locked): `SUPER_ADMIN` \| `OWNER` \| `MANAGER` \| `CASHIER`.
 ### Pharmacy Owner
 
 * **Access:** Root authority for one tenant.
-* **Live UI:** Owner web (`apps/web`) — **M6 Slice 1 A–O DONE** + **Slice 2 P–AB DONE**. Slice 3 **AE DONE**; AF–AM planned. Manager/Cashier rejected on web.
+* **Live UI:** Owner web (`apps/web`) — **M6 Slice 1 A–O DONE** + **Slice 2 P–AB DONE**. Slice 3 **AE–AJ DONE**; AK–AM planned. Manager/Cashier rejected on web.
 * **Until web exists:** Owner may log into desktop POS (`apps/desktop`) with the same JWT role. Desktop remains a **cashier workstation**, not the executive suite.
 * **Scope:** Financials and margins, staff, catalog/pricing, settings, audit, n8n (M6), multi-branch (M7).
 
@@ -84,7 +84,7 @@ Prisma / JWT roles (locked): `SUPER_ADMIN` \| `OWNER` \| `MANAGER` \| `CASHIER`.
 | Cashier POS checkout (Cash / Card stub / MFS invent) | **Live** | — |
 | Margin redaction (`costPerBase` omitted for cashier) | **Live** | — |
 | `POST /users` — Owner or Manager creates Cashier/Manager | **Live** | — |
-| `POST /customers` — **Owner Active; Cashier/Manager POS = Pending** | **Live Owner-only today.** Slice 3 AF/AL will re-lock | Owner web UI + POS Create + Owner approve = **M6 Slice 3 AE–AM** |
+| `POST /customers` — **Owner Active; Cashier/Manager POS = Pending** | **Live (M6 AF).** Owner Active; Cashier/Manager POS Pending, extras stripped | Owner web UI + POS Create + Owner approve = **M6 Slice 3 AF–AM** |
 | FEFO override on POS | **Stub PIN** (any 4-digit + local “Authorized By”). **M6 D:** ingest persists `fefoOverride` + authorizer name. | Real `pinHash` when **authorized** |
 | Shift open/close | **Local** `shiftStore` (no cash count, no cloud) | Cloud shift + blind count when **authorized** |
 | Purchase / GRN / stock entry UI | Add lot + signed adjustment live; **M6 R Supplier/PO/GRN/return APIs live (OWNER-only); M6 T–U Purchasing list + Create PO web UI live** | PO Details, Receive against PO, Suppliers screens, return workflow in later Slice 2 batches |
@@ -94,7 +94,7 @@ Prisma / JWT roles (locked): `SUPER_ADMIN` \| `OWNER` \| `MANAGER` \| `CASHIER`.
 | Loyalty earn/redeem persistence | **Live** on ingest snapshots (`loyaltyUsed` / `loyaltyEarned` + customer balance). POS session calc unchanged. OTP stub stays. | Owner web Transaction Details = **live** (M6 I) |
 | n8n, RLS, bi-di sync | Not started | **M6** |
 | Supplier return bucket, supplier ledger | Supplier profiles, PO, GRN, return queue, and manifest create APIs/UI live; Purchasing/Suppliers/Expiry Returns/Create Manifest web UI live | Manifest Details + dispatch lifecycle **deferred** (Slice 2 AC) |
-| Owner web Customers | Nav disabled today | **M6 Slice 3 AE–AM** — list, Add (Active), Details, POS Review/Approve |
+| Owner web Customers | Nav + live directory (`/customers`) + live Add Customer + live Customer Details enabled | **M6 Slice 3 AK–AM** — POS Review/Approve, POS Create |
 | Super Admin console, multi-branch, transfers | Not started | **M7** |
 | Sale void / delete | **Forbidden** (append-only) | Only if the user **re-authorizes** |
 | On-account / customer due tender | **Forbidden** | Never |
@@ -145,15 +145,17 @@ Matches `Completed_API_lists.md`. JWT claims: `{ sub, role, tenantId, storeId }`
 | `POST /api/v1/batches/:id/corrections` | `OWNER`, `MANAGER` — reason + expected version + idempotency key |
 | `POST /api/v1/batches/:id/adjustments` | `OWNER`, `MANAGER` — signed delta + reason + expected version; cashier `403` |
 | `POST /api/v1/batches/:id/void`, `/retire` | **`OWNER` only** |
-| `POST /api/v1/customers` | **Today `OWNER` only.** Slice 3 AF: `OWNER` (Active) + `MANAGER`/`CASHIER` (Pending POS). Not live until AF |
+| `POST /api/v1/customers` | `OWNER` (Active, `OWNER_CREATED`/`POS_REGISTRATION`) + `MANAGER`/`CASHIER` (Pending `POS_REGISTRATION`, names+phone only) — **M6 AF** live |
 | `GET /api/v1/customers` | Any authenticated |
 | `PATCH /api/v1/customers/:id` | `OWNER`, `MANAGER` — cashier `403` (search-only at POS) |
 | `POST /api/v1/sales/ingest`, `POST /api/v1/sync/ingest` | Any authenticated; sales **append-only** (no update/delete routes) |
-| `GET /api/v1/sales`, `GET /api/v1/sales/:id` | Any authenticated. **Redact** `costPerBaseAtSale` / COGS / netProfit / margins unless `OWNER` (`:id` = `Sale.id`) |
+| `GET /api/v1/sales`, `GET /api/v1/sales/:id` | Any authenticated. **Redact** `costPerBaseAtSale` / COGS / netProfit / margins unless `OWNER` (`:id` = `Sale.id`). `customerId` additive filter (M6 AF) |
 | `GET /api/v1/owner/dashboard`, `/owner/inventory-summary`, `/owner/expiry` | **`OWNER` only** (`403` for Manager and Cashier) |
 | `GET /api/v1/owner/inventory` | **`OWNER` only** (`403` for Manager and Cashier) |
 | `GET /api/v1/owner/products/:id` | **`OWNER` only** — full product detail + batches + FEFO rank + InventoryEvent (M6K) |
 | `GET /api/v1/owner/batches/:id` | **`OWNER` only** — management context + revisions/adjustments |
+| `GET /api/v1/owner/customers`, `GET /owner/customers/:id` | **`OWNER` only** (M6 AF) — Manager/Cashier 403 |
+| `POST /api/v1/owner/customers/:id/approve`, `/reject` | **`OWNER` only** (M6 AF) — pending customers only |
 | `GET/POST /api/v1/owner/suppliers`, `GET/PATCH /owner/suppliers/:id` | **`OWNER` only** — no delete |
 | `GET/POST /api/v1/owner/purchase-orders`, `GET/PATCH /owner/purchase-orders/:id` | **`OWNER` only** — PO PATCH only while `DRAFT`; no inventory effect |
 | `POST /api/v1/owner/purchase-orders/:id/receipts` | **`OWNER` only** — confirmed GRN creates batches + RECEIVE events and advances PO quantities/status |
@@ -168,7 +170,7 @@ Matches `Completed_API_lists.md`. JWT claims: `{ sub, role, tenantId, storeId }`
 
 ## 5. Customer authority (locked)
 
-**Live today (until Slice 3 AF):** `POST /customers` is Owner-only. Create Customer is **not** on POS.
+**Live today (Slice 3 AF DONE):** `POST /customers` is role-aware — Owner creates Active immediately; Cashier/Manager POS creates Pending (names + phone only). `GET /customers` returns Active-only. `GET /customers/phone-check` and `/owner/customers*` (list/detail/approve/reject) are live OWNER-only routes.
 
 **Slice 3 lock (implement in AE–AL; do not invent ahead of the authorized batch):**
 
@@ -344,3 +346,6 @@ Do **not** implement:
 | 2026-08-19 | **M6 Batch AB** — Owner web Create Return Manifest live (`POST /owner/return-manifests`); Save as Draft disabled; stock unchanged until dispatch (Batch AC). |
 | 2026-08-19 | **M6 Slice 3 planned** — Customer create re-lock: Owner Active immediately; Cashier/Manager POS create pending Owner approval. DOB/gender/address authorized as optional. Edit Customer parked. Not live until Batches AE–AL. |
 | 2026-08-19 | **M6 Batch AE** — Customer schema + Zod landed. `POST /customers` remains OWNER-only until AF. |
+| 2026-08-20 | **M6 Batch AF** — Customer APIs live (role-aware POST, Active-only GET, phone-check, Owner list/detail/approve/reject, ingest Active guard). **M6 Batch AG** — Owner web Customers nav enabled as a live chrome route with placeholder shells (`/customers`, `/customers/new`, `/customers/:id`, `/customers/:id/review`); Staff/Help/Owner Profile remain disabled. **M6 Batch AH** — live Customers directory at `/customers` (`GET /owner/customers`): KPIs, tabs, search, Status/Source/Sort, pagination; Pending → `/customers/:id/review`, Active/Inactive → `/customers/:id`, Add → `/customers/new` (AI). Next = Authorize M6 Batch AI. |
+| 2026-08-20 | **M6 Batch AI** — live Add Customer at `/customers/new` (`POST /api/v1/customers`; OWNER → ACTIVE + OWNER_CREATED): Customer Information form (name + phone required, optional email/DOB/gender/address) + debounced live phone-check Duplicate panel; Direct Customer Creation card + read-only System Information (live branch + created-by); checkbox-gated Create Confirm modal (focus trap, customer summary, "What Happens After Creation"); unsaved-changes guard; redirects to `/customers/:id` (Details = AJ). Full `customers.add.*` i18n en + bn-BD; `smoke:m6ai` PASS, `smoke:m6ah` + `smoke:m6ag` still PASS, lint + build clean. Next = Authorize M6 Batch AJ. |
+| 2026-08-20 | **M6 Batch AJ** — live Customer Details at `/customers/:customerId` (`GET /api/v1/owner/customers/:id`): header + status badge + Edit Customer / More Actions disabled; KPIs (loyalty / total purchases / visits / last purchase); Customer Information + Registration Information (Source/Branch/Submitted/Approved + Original Registration Values); Purchase History rows → `/sales/:id`; Loyalty Activity with running balance; known-facts Timeline; pending id → Review redirect; honest zeros/—. `GET /owner/customers/:id` additively returns `storeName`, `lastPurchaseAt`, `purchaseHistory.rows`, `loyaltyActivity.rows`. Full `customers.detail.*` i18n en + bn-BD; `smoke:m6aj` PASS, `smoke:m6ai` + `smoke:m6ah` + `smoke:m6ag` still PASS, server + web lint + web build clean. Next = Authorize M6 Batch AK. |

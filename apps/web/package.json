@@ -32,6 +32,10 @@
     "smoke:m6z": "tsx scripts/smoke-m6z.ts",
     "smoke:m6aa": "tsx scripts/smoke-m6aa.ts",
     "smoke:m6ab": "tsx scripts/smoke-m6ab.ts",
+    "smoke:m6ag": "tsx scripts/smoke-m6ag.ts",
+    "smoke:m6ah": "tsx scripts/smoke-m6ah.ts",
+    "smoke:m6ai": "tsx scripts/smoke-m6ai.ts",
+    "smoke:m6aj": "tsx scripts/smoke-m6aj.ts",
     "smoke:web-w2": "tsx scripts/web-w2-smoke.ts",
     "smoke:web-w5": "tsx scripts/web-w5-smoke.ts"
   },
