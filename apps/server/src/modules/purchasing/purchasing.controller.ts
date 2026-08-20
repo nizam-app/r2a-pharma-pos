@@ -165,6 +165,8 @@ export const listReturnQueue = catchAsync(
         total: result.total,
         limit: result.limit,
         offset: result.offset,
+        kpis: result.kpis,
+        suppliers: result.suppliers,
       },
     });
   },

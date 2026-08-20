@@ -13,7 +13,14 @@
  *   (manager/cashier share SEED_OWNER_PASSWORD unless SEED_STAFF_PASSWORD is set)
  */
 
-import { BatchReturnStatus, PrismaClient, Role, UnitType } from "@prisma/client";
+import {
+  BatchReturnStatus,
+  CustomerSource,
+  CustomerStatus,
+  PrismaClient,
+  Role,
+  UnitType,
+} from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -472,41 +479,38 @@ async function main() {
     });
   }
 
-  await prisma.customer.upsert({
-    where: {
-      tenantId_phone: { tenantId: tenant.id, phone: "01700000000" },
-    },
-    update: {
-      name: "Karim Ahmed",
-      email: "karim@example.com",
-      loyaltyPoints: 120,
-    },
-    create: {
-      tenantId: tenant.id,
-      name: "Karim Ahmed",
-      phone: "01700000000",
-      email: "karim@example.com",
-      loyaltyPoints: 120,
-    },
+  await upsertSeedCustomer({
+    tenantId: tenant.id,
+    phone: "01700000000",
+    name: "Karim Ahmed",
+    email: "karim@example.com",
+    loyaltyPoints: 120,
+    status: CustomerStatus.ACTIVE,
+    source: CustomerSource.OWNER_CREATED,
   });
 
   // Below eligibility threshold (50) — Redeem Loyalty shows Not Eligible UI.
-  await prisma.customer.upsert({
-    where: {
-      tenantId_phone: { tenantId: tenant.id, phone: "01811000000" },
-    },
-    update: {
-      name: "Nusrat Jahan",
-      email: "nusrat@example.com",
-      loyaltyPoints: 25,
-    },
-    create: {
-      tenantId: tenant.id,
-      name: "Nusrat Jahan",
-      phone: "01811000000",
-      email: "nusrat@example.com",
-      loyaltyPoints: 25,
-    },
+  await upsertSeedCustomer({
+    tenantId: tenant.id,
+    phone: "01811000000",
+    name: "Nusrat Jahan",
+    email: "nusrat@example.com",
+    loyaltyPoints: 25,
+    status: CustomerStatus.ACTIVE,
+    source: CustomerSource.OWNER_CREATED,
+  });
+
+  // Slice 3 walkthrough: POS registration waiting for Owner review.
+  await upsertSeedCustomer({
+    tenantId: tenant.id,
+    phone: "01911000000",
+    name: "Farhan Kabir",
+    email: null,
+    loyaltyPoints: 0,
+    status: CustomerStatus.PENDING_APPROVAL,
+    source: CustomerSource.POS_REGISTRATION,
+    storeId: store.id,
+    createdByUserId: cashier.id,
   });
 
   const batchCount = PRODUCTS.reduce((n, p) => n + p.batches.length, 0);
@@ -520,7 +524,56 @@ async function main() {
   console.log(`  products: ${PRODUCTS.length}`);
   console.log(`  batches:  ${batchCount} (Napa: 4 lots for Select Batch demo)`);
   console.log(`  suppliers: ${SUPPLIERS.length} (Beximco · Square · SMC)`);
-  console.log(`  customers: Karim 120 pts · Nusrat 25 pts (below redeem threshold)`);
+  console.log(
+    "  customers: Karim 120 pts · Nusrat 25 pts · Farhan pending POS (01911000000)",
+  );
+}
+
+type SeedCustomer = {
+  tenantId: string;
+  phone: string;
+  name: string;
+  email: string | null;
+  loyaltyPoints: number;
+  status: CustomerStatus;
+  source: CustomerSource;
+  storeId?: string;
+  createdByUserId?: string;
+};
+
+async function upsertSeedCustomer(data: SeedCustomer) {
+  const existing = await prisma.customer.findFirst({
+    where: {
+      tenantId: data.tenantId,
+      phone: data.phone,
+      status: { not: CustomerStatus.REJECTED },
+    },
+  });
+
+  const shared = {
+    name: data.name,
+    email: data.email,
+    loyaltyPoints: data.loyaltyPoints,
+    status: data.status,
+    source: data.source,
+    storeId: data.storeId ?? null,
+    createdByUserId: data.createdByUserId ?? null,
+  };
+
+  if (existing) {
+    return prisma.customer.update({
+      where: { id: existing.id },
+      data: shared,
+    });
+  }
+
+  return prisma.customer.create({
+    data: {
+      tenantId: data.tenantId,
+      phone: data.phone,
+      ...shared,
+    },
+  });
 }
 
 main()

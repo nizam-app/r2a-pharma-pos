@@ -11,7 +11,7 @@ function serializeCustomer(c: {
   id: string;
   tenantId: string;
   name: string;
-  phone: string | null;
+  phone: string;
   email: string | null;
   loyaltyPoints: number;
   creditBalance: { toString(): string } | number;

@@ -12,14 +12,14 @@
 |------|--------|
 | **Product** | Offline-first, multi-tenant Pharmacy POS + Inventory SaaS (Bangladesh / emerging markets) |
 | **Phase** | Phase 1 MVP — DB + cloud API + desktop **M3 POS shell DONE**; **M4 DONE** (one-way sync). **M5 DONE** (RBAC + Receive stock + 409 copy + paged catalog + runbook) |
-| **Latest completed milestone** | **M5 — MVP hardening**; **M6 Owner Web Slice 1 A–O + W1–W6 DONE** and **Slice 2 P–Z DONE** while M6 remains in progress |
-| **Next gated work** | Authorize **M6 Batch AA** (Expiry Returns queue). Do not start Batch AA+ without explicit authorization. |
+| **Latest completed milestone** | **M5 — MVP hardening**; **M6 Owner Web Slice 1 A–O + W1–W6 DONE** and **Slice 2 P–AB DONE** (AC–AD **deferred**) while M6 remains in progress |
+| **Next gated work** | Authorize **M6 Batch AF** (Customer APIs + ingest Active guard). Do not start Batch AF+ without explicit authorization. Do not start deferred Slice 2 AC/AD. |
 | **Cloud database** | Neon PostgreSQL (Prisma migrate + seed applied; `RefreshToken` migration applied in M2) |
 | **Cloud API** | Express + TypeScript in `apps/server` — **real** (auth, tenant guard, inventory, FEFO, sales/sync ingest, sales/owner reads, product/batch management, OWNER-only suppliers, purchase orders, confirmed GRNs, and return manifests). General batch PATCH no longer mutates quantity. |
 | **Local desktop / SQLite / Tauri** | POS shell + one-way sync + Owner/Manager Receive Stock. Manual stock corrections are online-only signed deltas with required reason, expected version, idempotent event ID, 409 reload, and authoritative catalog refresh. |
 | **MongoDB / Mongoose** | Removed; do not reintroduce |
 
-**Bottom line:** M0–M5 remain DONE. **M6 IN PROGRESS** — Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–Z DONE**, AA–AD planned. Next = **Authorize M6 Batch AA** (Expiry Returns queue).
+**Bottom line:** M0–M5 remain DONE. **M6 IN PROGRESS** — Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–AB DONE**, **AC–AD deferred**. Slice 3 **AE DONE**, **AF–AM planned**. Next = **Authorize M6 Batch AF** (Customer APIs + ingest Active guard).
 ---
 
 ## 2. Milestone board (authoritative progress)
@@ -34,7 +34,7 @@ Source of truth for milestone status: [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_
 | **M3** | Desktop POS shell | **DONE** | Slice 1–6 (A–AP). Later screens → Slice 7+ when authorized. See `MILESTONE_3_EXECUTION.md` |
 | **M4** | One-way sync | **DONE** | Batches A–F. Queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue panel + catalog §19. See `MILESTONE_4_EXECUTION.md` |
 | **M5** | MVP hardening | **DONE** | Batches A–F. RBAC API + desktop Settings Receive stock + Sync Queue 409 copy + paged catalog pull + runbook + catalog §20. Print/PIN stay stubs. See `MILESTONE_5_EXECUTION.md`. |
-| **M6** | Growth (Phase 2) | **IN PROGRESS** | Owner Web Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–Y DONE**; Z–AD planned. |
+| **M6** | Growth (Phase 2) | **IN PROGRESS** | Owner Web Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–AB DONE**; **AC–AD deferred**. Slice 3 **AE DONE**; **AF–AM planned**. |
 | **M7** | Scale (Phase 3) | **PENDING** | Multi-branch, transfers, enterprise RBAC |
 
 ### Milestone 1 execution batches (all green)
@@ -195,7 +195,7 @@ Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md).
 
 ### Milestone 6 execution batches (Slice 2)
 
-Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Slice 2 section). **In progress.**
+Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Slice 2 section). **Paused at P–AB. AC–AD deferred.**
 
 | Batch | Title | Status | Date |
 |-------|-------|--------|------|
@@ -210,10 +210,26 @@ Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Sli
 | X | Suppliers list | **DONE** | 2026-08-19 |
 | Y | Add Supplier | **DONE** | 2026-08-19 |
 | Z | Supplier Details | **DONE** | 2026-08-19 |
-| AA | Expiry Returns queue | **NOT STARTED** | — |
-| AB | Create Return Manifest page | **NOT STARTED** | — |
-| AC | Manifest Details + 3 modals | **NOT STARTED** | — |
-| AD | Slice 2 exit | **NOT STARTED** | — |
+| AA | Expiry Returns queue | **DONE** | 2026-08-19 |
+| AB | Create Return Manifest page | **DONE** | 2026-08-19 |
+| AC | Manifest Details + 3 modals | **DEFERRED** | — |
+| AD | Slice 2 exit | **DEFERRED** | — |
+
+### Milestone 6 execution batches (Slice 3)
+
+Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Slice 3 section). **AE DONE.**
+
+| Batch | Title | Status | Date |
+|-------|-------|--------|------|
+| AE | Prisma + Zod (Customer status/source/profile) | **DONE** | 2026-08-19 |
+| AF | Customer APIs + ingest Active guard | **NOT STARTED** | — |
+| AG | Enable Customers nav | **NOT STARTED** | — |
+| AH | Customers list | **NOT STARTED** | — |
+| AI | Add Customer + create confirm | **NOT STARTED** | — |
+| AJ | Customer Details | **NOT STARTED** | — |
+| AK | Registration Review + Approve/Reject modals | **NOT STARTED** | — |
+| AL | POS Create Customer | **NOT STARTED** | — |
+| AM | Slice 3 exit | **NOT STARTED** | — |
 
 ## 3. Locked product & stack decisions
 
@@ -274,7 +290,7 @@ R2A-Pharmacy-POS/
 | UI | `@r2a/ui` | Bootstrap (M3A) |
 | Server | `@r2a/server` | **Implemented (M2)** |
 | Desktop | `@r2a/desktop` | **M3 DONE** — Slice 1–6 (Hold [F6] / Held list [F7]); later screens → Slice 7+ |
-| Web | `@r2a/web` | **M6 Slice 1 DONE + Slice 2 Batch T–X** — OWNER login/chrome, Dashboard, Sales, Inventory, product and batch management, Receive Stock, Expiry Management, Purchasing list, Create Purchase Order, Purchase Order Details, Receive Stock against PO, Suppliers directory |
+| Web | `@r2a/web` | **M6 Slice 1 DONE + Slice 2 Batch T–AB** — OWNER login/chrome, Dashboard, Sales, Inventory, product and batch management, Receive Stock, Expiry Management, Purchasing list, Create Purchase Order, Purchase Order Details, Receive Stock against PO, Suppliers directory, Expiry Returns queue, Create Return Manifest. **Slice 3 AE DONE** (Customer schema + Zod); AF–AM planned. Manifest Details deferred. |
 
 ---
 
@@ -292,6 +308,9 @@ R2A-Pharmacy-POS/
 - `PurchaseOrderStatus`: `DRAFT`, `SENT`, `PARTIALLY_RECEIVED`, `RECEIVED` (**M6 Batch P**)
 - `GoodsReceiptStatus`: `CONFIRMED` (**M6 Batch P**)
 - `ReturnManifestStatus`: `PREPARED`, `DISPATCHED`, `ACCEPTED`, `REJECTED`, `COMPLETED` (**M6 Batch P**)
+- `CustomerStatus`: `ACTIVE`, `PENDING_APPROVAL`, `INACTIVE`, `REJECTED` (**M6 Batch AE**)
+- `CustomerSource`: `OWNER_CREATED`, `POS_REGISTRATION` (**M6 Batch AE**)
+- `CustomerGender`: `MALE`, `FEMALE`, `OTHER` (**M6 Batch AE**)
 
 **Models**
 
@@ -304,7 +323,7 @@ R2A-Pharmacy-POS/
 | `Product` | Catalog; searchable `name`, `genericName`, `manufacturer`, `strength`, `form`, `sku`, `barcode`; **M6 C:** optional `category`, `requiresPrescription`, `coldChain`, `storageNotes`, `reorderLevel` |
 | `ProductUnit` | Conversion factors to base unit (`factorToBase`) |
 | `Batch` | FEFO-ready lot: expiry, qty in base units, cost/sell per base |
-| `Customer` | Optional phone/email; loyalty/credit fields reserved for later |
+| `Customer` | Required phone; `status` / `source`; optional DOB/gender/address/store/createdBy; approval audit. Partial unique on non-rejected `(tenantId, phone)` (**M6 AE**). Keep unused `creditBalance`. |
 | `Sale` | Immutable header; unique `eventId` for sync idempotency; **M6 D:** `receiptNo` (`@@unique([tenantId, receiptNo])`), loyalty snapshot ints |
 | `SaleItem` | Line items tied to product + batch + unit; **M6 D:** `fefoOverride`, `fefoAuthorizedByName`, `costPerBaseAtSale` (server-filled) |
 | `Payment` | Cash / Card / MFS lines on a sale |
@@ -327,6 +346,7 @@ R2A-Pharmacy-POS/
 - Catalog fields: `packages/database/prisma/migrations/20260811013000_product_catalog_fields/` (`manufacturer`, `strength`, `form`)
 - **M6 Batch C:** `packages/database/prisma/migrations/20260815160000_m6_batch_c_schema/` (`receiptNo`, loyalty snapshots, FEFO/cost-at-sale, product extras, `InventoryEvent`)
 - **M6 Batch P:** `packages/database/prisma/migrations/20260818190000_m6_batch_p_purchasing_returns/` (Supplier/PO/GRN/manifest models + optional `Batch.supplierId`)
+- **M6 Batch AE:** `packages/database/prisma/migrations/20260819061500_m6_batch_ae_customer_registration/` (Customer status/source/profile + partial unique phone)
 - Applied successfully to Neon (`prisma migrate deploy`).
 
 ### 5.3 Seed (`packages/database/prisma/seed.ts`)
@@ -346,8 +366,9 @@ Idempotent **upserts** by stable keys (tenant slug, store code, email, product s
 | Products | 5 BD-familiar OTCs with manufacturer / strength / form (e.g. Napa 500mg ? Beximco ? Tablet). **M6 C:** Napa `reorderLevel=50` only |
 | Per product | Unit rows (Box/Strip/Piece as applicable) + batches |
 | Napa lots | **4 demo lots** for Select Batch / FEFO UX (see table below). Re-seed zeros retired `NP-2408-A` |
-| Customer | Karim Ahmed, phone `01700000000`, **120** loyalty pts (eligible redeem) |
-| Customer | Nusrat Jahan, phone `01811000000`, **25** loyalty pts (below 50 ? Not Eligible UI) |
+| Customer | Karim Ahmed, phone `01700000000`, **120** loyalty pts (eligible redeem) — `ACTIVE` / `OWNER_CREATED` |
+| Customer | Nusrat Jahan, phone `01811000000`, **25** loyalty pts (below 50 ? Not Eligible UI) — `ACTIVE` / `OWNER_CREATED` |
+| Customer | Farhan Kabir, phone `01911000000`, **0** pts — `PENDING_APPROVAL` / `POS_REGISTRATION` (cashier actor; Slice 3 Review walkthrough) |
 | Supplier | **3 ACTIVE** suppliers (names match `Batch.supplierName` demo values for future GRN consistency): Beximco Distribution Ltd. (01712000001), Square Distribution Ltd. (01712000002), SMC Distribution (01712000003). Upsert by `tenantId_name`. **M6 Batch U:** powers the Create PO supplier dropdown (GET suppliers `?isActive=true`) |
 
 **Napa 500mg demo lots (`sku: NAPA-500`)**
@@ -365,12 +386,12 @@ Idempotent **upserts** by stable keys (tenant slug, store code, email, product s
 
 | Module | Contents |
 |--------|----------|
-| `enums.ts` | Role, UnitType, PaymentMethod, **InventoryEventType** |
+| `enums.ts` | Role, UnitType, PaymentMethod, **InventoryEventType**, purchasing enums, **CustomerStatus / CustomerSource / CustomerGender (M6 AE)** |
 | `auth.ts` | login / register / staff create / refresh / JWT claims / safe user |
 | `product.ts` | create / update / search + unit inputs + id params; **M6 C:** `category`, Rx, cold chain, storage, `reorderLevel` |
 | `batch.ts` | create / update / list (M2) |
-| `customer.ts` | create / update / search (M2) |
-| `sale.ts` | sale ingest; **`batchId` optional** for server FEFO fill; **M6 D:** optional `loyaltyUsed` / `loyaltyEarned` + line `fefoOverride` (persisted); `saleListQuerySchema` stub |
+| `customer.ts` | create (required phone + optional profile extras) / update / search; **M6 AE:** owner list/approve/reject + phone-check stubs (unused until AF) |
+| `sale.ts` | sale ingest; **`batchId` optional** for server FEFO fill; **M6 D:** optional `loyaltyUsed` / `loyaltyEarned` + line `fefoOverride` (persisted); `saleListQuerySchema` + **AE `customerId` stub** (filter in AF) |
 | `owner.ts` | **M6 F:** owner dashboard / expiry query DTOs (wired on `GET /owner/*`) |
 | `purchasing.ts` | **M6 P:** Supplier, PO, GRN, return queue/manifest create and lifecycle DTOs (routes begin in Q/R) |
 | `sync.ts` | queue envelope: `event_id`, `entity_type`, `action`, `payload` (snake_case) |
@@ -588,7 +609,12 @@ Do **not** start these unless the user authorizes the matching milestone:
 - ~~M6 Batch X: Suppliers list~~ — **DONE** (live `/suppliers` directory; 4 KPI cards + search/status filter + pagination + 194px attention rail; Expiry Returns → `/suppliers/returns`, Add Supplier → `/suppliers/new`; Review All Issues disabled; `GET /owner/suppliers` now returns per-item `stats` + `kpis` + `attention`; `smoke:m6x`)
 - ~~M6 Batch Y: Add Supplier~~ — **DONE** (live Add Supplier form at `/suppliers/new` posting to `POST /owner/suppliers`; all `supplierCreateSchema` fields + setup summary rail; suppliers always created ACTIVE — Save as Draft disabled, no Edit route; unsaved-changes guard; create → `/suppliers/:supplierId` (Details — Batch Z); `suppliers.add.*` i18n en + bn-BD; `smoke:m6y`, `smoke:m6x` updated)
 - ~~M6 Batch Z: Supplier Details~~ — **DONE** (live Supplier Details at `/suppliers/:supplierId`; header name + status badge + contact + Expiry Returns + Create Purchase Order; honest KPI row — Purchases 12 Months, Avg. Delivery Time, Expiry Return Rate, Active Products — computed from live data, zeros/— when none (no invented ৳2,480,000/94%/1.8%/2.4 days); Supplier Information 2-col grid + Performance card (on-time, short supply, expiry accepted, avg credit note time); Purchase Orders table → `/purchasing/:poId`; Products Supplied table from batches + PO lines with live stock; View All POs / View All Products disabled (Purchasing/Inventory cannot filter by supplier yet); `GET /owner/suppliers/:supplierId` additively returns `detail` (kpis/performance/purchaseOrders/products); superseded `suppliers.placeholder.detail*` removed; `suppliers.detail.*` i18n en + bn-BD; `smoke:m6z`, `smoke:m6x` updated)
-- Expiry Returns + Create Return Manifest, Manager web, bi-directional sync, n8n workflows, and Postgres RLS (later authorized M6 batches — next is Batch AA)
+- ~~M6 Batch AA: Expiry Returns queue~~ — **DONE** (live `/suppliers/returns`; 4 KPI cards + search/supplier/status filters + Eligible-only selection + mixed-supplier lock; Create Return Manifest → `/suppliers/returns/new` without building that layout; Inventory Prepare Supplier Return enabled; Export/Print disabled; `GET /owner/returns/queue` additive kpis + suppliers; `smoke:m6aa`)
+- ~~M6 Batch AB: Create Return Manifest page~~ — **DONE** (live `/suppliers/returns/new`; reviews queue draft + supplier policy + editable return qty; `POST /owner/return-manifests`; Save as Draft disabled; no stock movement; `smoke:m6ab`)
+- ~~M6 Batch AE: Prisma + Zod Customer status/source/profile~~ — **DONE** (partial unique phone; seed pending POS demo; `POST /customers` still OWNER-only)
+- Manifest Details (Slice 2 AC) and Slice 2 exit (AD) — **deferred**
+- Owner web Customers + POS cashier registration approval — **Slice 3 AF–AM planned** (next = Authorize Batch AF)
+- Manager web, bi-directional sync, n8n workflows, and Postgres RLS (later authorized M6 batches)
 - Real Card terminal SDK / real MFS provider APIs (backend-confirmed status; no cashier manual Trx) — later authorized work
 - Super Admin platform console (role exists; no admin product surface yet)
 
@@ -598,7 +624,7 @@ Do **not** start these unless the user authorizes the matching milestone:
 
 1. Read this file (`Current_Status.md`).
 2. Confirm M0–**M5** are **DONE**.
-3. **M6 Owner Web Slice 1 A–O + W1–W6 DONE. Slice 2 P–Z DONE.** Next = **Authorize M6 Batch AA** (Expiry Returns queue). Do not start Batch AA+, later M6, hardware, or Slice 7+ from status alone.
+3. **M6 Owner Web Slice 1 A–O + W1–W6 DONE. Slice 2 P–AB DONE (AC–AD deferred).** Slice 3 **AE DONE.** Next = **Authorize M6 Batch AF** (Customer APIs + ingest Active guard). Do not start AF+, deferred AC/AD, later M6, hardware, or Slice 7+ from status alone.
 4. Attach/reference:
    - `PROJECT_MASTER_PLAN.md`
    - `Current_Status.md`
@@ -830,4 +856,8 @@ user-facing strings. Runtime/domain data and receipt content remain untranslated
 | 2026-08-19 | **M6 Batch X DONE** — live Suppliers directory at `/suppliers` (shared Suppliers screen; UI_SPEC.md used — attached screenshot unreadable): 4 KPI cards (Active Suppliers, Open Purchase Orders, Purchases MTD with % vs last month, Avg. Delivery Time), Supplier Directory card (search + Status filter + SUPPLIER teal links / CONTACT / ACTIVE PRODUCTS / LAST PURCHASE / OPEN POs / PURCHASES MTD + pagination), 194px Supplier Attention rail (Overdue red / Open PO teal / Expiry Return orange / On Hold slate; Review links → existing pages only; Review All Issues disabled — Batch AA), Expiry Returns → `/suppliers/returns`, Add Supplier → `/suppliers/new` (form NOT built — Batch Y); `GET /owner/suppliers` extended additively with per-item `stats` + `kpis` + `attention` (`smoke:m6q` shape preserved); full `suppliers.*` i18n en + bn-BD; `smoke:m6x` PASS; smoke:m6s updated (Suppliers placeholder superseded); next = Authorize M6 Batch Y |
 | 2026-08-19 | **M6 Batch Y DONE** — live Add Supplier form at `/suppliers/new` (Add Supplier is Batch Y; UI_SPEC.md shared Supplier Details screen is Batch Z, so the form is invented to match the Admin Portal family): all `supplierCreateSchema` fields (name, contact person, primary/secondary phone, email w/ client validation, address, city, registration number, payment terms, lead time days, ৳ min order value, preferred contact PHONE/EMAIL/WHATSAPP, expiry-returns accepted + min days window + return instructions, internal notes) + live Setup Summary rail; suppliers always created **ACTIVE** (Save as Draft disabled — no Edit Supplier page; no Edit route added); unsaved-changes guard; create → `POST /api/v1/owner/suppliers` → navigate to `/suppliers/:supplierId` (Supplier Details placeholder until Batch Z); new `createOwnerSupplier` in `lib/suppliers.ts`; full `suppliers.add.*` i18n en + bn-BD (default bn-BD; superseded `suppliers.placeholder.new*` removed); `smoke:m6y` PASS; smoke:m6x updated (`/suppliers/new` now AddSupplierPage); lint + build clean; next = Authorize M6 Batch Z |
 | 2026-08-19 | **M6 Batch Z DONE** — live Supplier Details at `/suppliers/:supplierId` (shared Supplier Details screen; UI_SPEC.md used): header (name + status badge + contact line + Expiry Returns → `/suppliers/returns` + Create Purchase Order → `/purchasing/new`); honest KPI row — Purchases 12 Months (৳), Avg. Delivery Time, Expiry Return Rate, Active Products — all computed from live data, zeros / em dash when no data (NO invented ৳2,480,000 / 2.4 days / 1.8% / 148 / 94% / 3.2% / 86% / 9 days); Supplier Information 2-col grid (supplier/contact/phone/email | last purchase/open POs/payment terms/status; tel:+ mailto: links) + Performance card (On-time Delivery / Short Supply Rate / Expiry Returns Accepted progress bars + divider + Avg. Credit Note Time); Purchase Orders table (PO Number teal link → `/purchasing/:poId`, Created, Expected, Total, Status badge) + Products Supplied table (Medicine, Stock with low/out emphasis, Cost ৳, status badge) from **batches + PO lines** with live stock; View All POs + View All Products disabled (Purchasing list / Inventory search cannot filter by supplier yet); empty states w/ Create PO CTA; `GET /owner/suppliers/:supplierId` additively returns `detail` (kpis incl. openOrders + lastPurchaseAt, performance, purchaseOrders, products) — `smoke:m6q` shape preserved; superseded `suppliers.placeholder.detail*` removed; full `suppliers.detail.*` i18n en + bn-BD; `smoke:m6z` PASS; smoke:m6x updated (detail placeholder superseded); server + web lint/build clean; next = Authorize M6 Batch AA |
+| 2026-08-19 | **M6 Batch AA DONE** — live Expiry Returns queue at `/suppliers/returns` (UI_SPEC.md used): 4 KPI cards from additive `GET /owner/returns/queue` meta (eligible batches / cost value / manifests prepared / needs review); search + Supplier + Return Status filters; Eligible-only checkboxes; teal selection bar; mixed-supplier selection cannot create; Create Return Manifest enabled only for one-supplier Eligible selection and navigates to `/suppliers/returns/new` (layout is Batch AB) with session draft of selected lots; Export / Print disabled; Inventory Expiry Prepare Supplier Return enabled → this page; full `suppliers.returns.*` i18n en + bn-BD; `smoke:m6aa` PASS; smoke:m6n + smoke:m6x updated; next = Authorize M6 Batch AB |
+| 2026-08-19 | **M6 Batch AB DONE** — live Create Return Manifest at `/suppliers/returns/new` (shared screen): reviews Batch AA session draft + live Eligible lots + supplier policy; editable return qty; Prepare → `POST /owner/return-manifests` (optional `supplierReference`); SRM auto-generated; Save as Draft disabled; no stock movement; navigate to `/suppliers/returns/:manifestId` (Details still Batch AC); full `suppliers.manifest.*` i18n en + bn-BD; `smoke:m6ab` PASS; next was Batch AC |
+| 2026-08-19 | **M6 Slice 2 AC–AD deferred. Slice 3 planned (AE–AM).** Owner web Customers + POS cashier/manager create pending Owner approval; Owner create Active immediately. Edit Customer parked. Reject + POS Create invented. Next = Authorize M6 Batch AE |
+| 2026-08-19 | **M6 Batch AE DONE** — Customer Prisma status/source/profile + partial unique phone + Zod DTOs + pending POS seed; `POST /customers` still OWNER-only; no Owner web Customers routes. Next = Authorize M6 Batch AF |
 

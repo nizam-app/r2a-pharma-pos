@@ -46,11 +46,12 @@ export const saleIngestSchema = z.object({
 });
 export type SaleIngestInput = z.infer<typeof saleIngestSchema>;
 
-/** Query for `GET /sales`. */
+/** Query for `GET /sales`. `customerId` is accepted from AE; filtering is Batch AF. */
 export const saleListQuerySchema = z.object({
   q: z.string().min(1).optional(),
   paymentMethod: paymentMethodSchema.optional(),
   userId: z.string().min(1).optional(),
+  customerId: z.string().min(1).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   limit: z.coerce.number().int().positive().max(100).default(25),

@@ -176,6 +176,7 @@ export const returnManifestCreateSchema = z
   .object({
     supplierId: idSchema,
     notes: optionalTextSchema(1000),
+    supplierReference: optionalTextSchema(160),
     lines: z.array(returnManifestLineInputSchema).min(1).max(500),
   })
   .strict();

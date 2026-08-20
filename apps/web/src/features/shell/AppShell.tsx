@@ -15,7 +15,13 @@ import {
   PurchasingPage,
   ReceiveAgainstPurchaseOrderPage,
 } from "@/features/purchasing";
-import { AddSupplierPage, SupplierDetailsPage, SuppliersPage } from "@/features/suppliers";
+import {
+  AddSupplierPage,
+  CreateReturnManifestPage,
+  ExpiryReturnsPage,
+  SupplierDetailsPage,
+  SuppliersPage,
+} from "@/features/suppliers";
 import { useLocale } from "@/i18n";
 import {
   inventorySubpath,
@@ -86,20 +92,17 @@ function ShellMain() {
     if (sub.kind === "detail") {
       return <SupplierDetailsPage supplierId={sub.supplierId} />;
     }
-    if (sub.kind === "returns") {
+    if (sub.kind === "returns") return <ExpiryReturnsPage />;
+    if (sub.kind === "returnsNew") return <CreateReturnManifestPage />;
+    if (sub.kind === "returnsManifest") {
       return (
         <SupplierPlaceholder
-          titleKey="suppliers.placeholder.returnsTitle"
-          hintKey="suppliers.placeholder.returns"
+          titleKey="suppliers.placeholder.manifestTitle"
+          hintKey="suppliers.placeholder.manifest"
         />
       );
     }
-    return (
-      <SupplierPlaceholder
-        titleKey="suppliers.placeholder.returnsTitle"
-        hintKey="suppliers.placeholder.returns"
-      />
-    );
+    return <SuppliersPage />;
   }
   return <DashboardPage />;
 }
@@ -108,8 +111,8 @@ function SupplierPlaceholder({
   titleKey,
   hintKey,
 }: {
-  titleKey: "suppliers.placeholder.returnsTitle";
-  hintKey: "suppliers.placeholder.returns";
+  titleKey: "suppliers.placeholder.manifestTitle";
+  hintKey: "suppliers.placeholder.manifest";
 }) {
   const { t } = useLocale();
   return (
@@ -148,8 +151,9 @@ function PurchasingPlaceholder() {
  * (/purchasing/:poId/receive). edit still renders a localized placeholder.
  * Batch X fills the Suppliers directory. Batch Y fills the Add Supplier form
  * (/suppliers/new). Batch Z fills the live Supplier Details page
- * (/suppliers/:supplierId). /suppliers/returns and /suppliers/returns/new still
- * render localized placeholders.
+ * (/suppliers/:supplierId). Batch AA fills the Expiry Returns queue at
+ * /suppliers/returns. Batch AB fills Create Return Manifest at
+ * /suppliers/returns/new. /suppliers/returns/:manifestId stays a placeholder.
  */
 export function AppShell() {
   const { t } = useLocale();

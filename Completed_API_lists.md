@@ -4,8 +4,8 @@
 **Package:** `@r2a/server` (`apps/server`)  
 **Base URL (dev):** `http://localhost:8787` (override with `PORT` / `BASE_URL`)  
 **API prefix:** `/api/v1`  
-**Last updated:** 2026-08-18
-**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (**§19**) + **M5 MVP hardening DONE** (**§20**) + **M6 Owner Web Slice 1 A–O DONE** (**§21**) + Owner Web Missing Features **W1–W6 DONE** + **M6 Slice 2 P–U** (**§22; T–U web UI live**)
+**Last updated:** 2026-08-19
+**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (**§19**) + **M5 MVP hardening DONE** (**§20**) + **M6 Owner Web Slice 1 A–O DONE** (**§21**) + Owner Web Missing Features **W1–W6 DONE** + **M6 Slice 2 P–AB** (**§22; T–AB web UI live; AC–AD deferred**) + **M6 Slice 3 AE DONE** (Customer schema + Zod; AF–AM planned; catalog **§23** at Batch AM)
 
 > **Source of truth for contracts:** Zod schemas in `@r2a/shared-types`.  
 > **Live status:** [`Current_Status.md`](Current_Status.md).  
@@ -28,7 +28,7 @@
 > **M6 Batch J (2026-08-16):** `GET /api/v1/owner/inventory` OWNER-only paged list (tabs, search, cost/sell/margin). Owner web Inventory list live. Product Details = Batch K. Full §21 at Slice 1 exit.  
 > **M6 Batch K (2026-08-16):** `GET /api/v1/owner/products/:id` OWNER-only product detail (lots, FEFO rank on sellable lots, units, recent InventoryEvents). Owner web Product Details live; W2 subsequently added Edit Product. Full §21 below.
 > **M6 Batch M (2026-08-16):** Owner web Receive Stock uses existing `GET /owner/products/:id` context + `POST /batches`; new lots create `InventoryEvent` RECEIVE. PO/invoice and offline GRN are omitted. Batch N repair added optional supplier/return metadata. Full §21 below.
-> **M6 Batch N (2026-08-18):** Owner web Expiry Management consumes `GET /owner/expiry`; live bucket/search/filter/select/CSV UI. Batch-level `supplierName` and `returnStatus` are persisted metadata. Prepare Supplier Return remains disabled; no manifest workflow.
+> **M6 Batch N (2026-08-18):** Owner web Expiry Management consumes `GET /owner/expiry`; live bucket/search/filter/select/CSV UI. Batch-level `supplierName` and `returnStatus` are persisted metadata. **M6 Batch AA** enables Prepare Supplier Return → `/suppliers/returns`.
 > **M6 Batch Q (2026-08-18):** OWNER-only Supplier CRUD (no delete) and Purchase Order list/create/get/draft-update APIs are live. POs use `PO-YYMMDD-####`, server-calculated totals, and do not change inventory.
 > **M6 Batch R (2026-08-18):** OWNER-only confirmed GRN and supplier-return APIs are live. GRNs create lots + RECEIVE events and advance PO quantities/status. Return dispatch writes idempotent signed ADJUST events; rejection does not restore stock. No Slice 2 web UI yet (GRN/return UI still later).
 > **M6 Batch T (2026-08-18):** Owner web Purchasing list live on `GET /owner/purchase-orders` — KPI cards, PO table, search/status filter, pagination, Create PO → `/purchasing/new`. `smoke:m6t` PASS.
@@ -36,6 +36,8 @@
 > **M6 Batch V (2026-08-19):** Owner web Purchase Order Details live on `GET /owner/purchase-orders/:poId` — header + status badge, KPI cards, receiving progress bar, line received/remaining, and GRN history for **this** PO. Export / Print / More Actions disabled. Receive Stock (enabled while remaining qty > 0 on a SENT / PARTIALLY_RECEIVED order) navigates to `/purchasing/:poId/receive`; the GRN form itself is Batch W. `smoke:m6v` PASS.
 > **M6 Batch W (2026-08-19):** Owner web Receive Stock against PO live at `/purchasing/:poId/receive` — Receipt Details, Received Items table (`+ Add Batch` / `Lot #N` rows with Valid / Incomplete / Exceeds status), Receipt Summary, and Inventory Impact projection. Submits to the Batch R route `POST /owner/purchase-orders/:poId/receipts` (**no new cloud route**) and returns to PO Details. Inventory ad-hoc `POST /batches` Receive Stock untouched. `smoke:m6w` PASS.
 > **M6 Batch X (2026-08-19):** Owner web Suppliers directory live at `/suppliers` — 4 KPI cards, Supplier Directory card (search, status filter, table, pagination), and a Supplier Attention rail. `GET /owner/suppliers` now additively returns `meta.kpis`, `meta.attention`, and per-item `stats` (response shape otherwise unchanged). No new cloud routes. `smoke:m6x` PASS.
+> **M6 Batch AB (2026-08-19):** Owner web Create Return Manifest live at `/suppliers/returns/new` — reviews the Expiry Returns session draft, supplier policy, editable return qty; posts existing `POST /owner/return-manifests` (optional `supplierReference`); Save as Draft disabled; no stock movement; Manifest Details still Batch AC (**deferred**). `smoke:m6ab` PASS.
+> **M6 Slice 3 AE (2026-08-19):** Customer Prisma + Zod landed. `POST /customers` stays Owner-only until Batch AF. Catalog **§23** at Batch AM.
 > **M5 Batch A (2026-08-14):** `PATCH /customers/:id` and `PATCH /batches/:id` are **`OWNER`, `MANAGER`** (cashier `403`, including batch qty). No new routes.  
 > **M5 Batch C (2026-08-14, historical; superseded by W6):** Desktop Settings → Receive stock originally used `POST /api/v1/batches` and absolute quantity PATCH. Current stock correction uses signed `/adjustments`.
 > **M5 Batch E (2026-08-14):** Desktop `catalogPull` pages `GET /products` and `GET /batches` (`limit=100` + `offset` until `meta.total`, cap 50 pages / 5000 rows). Still **no** `costPerBase` in the local cache. No new cloud routes. No CSV.  
@@ -574,9 +576,9 @@ Reason codes: `COUNT_CORRECTION`, `DAMAGE`, `BREAKAGE`, `RETURN`, `RECEIVE_CORRE
 
 ### 10.2 `POST /api/v1/customers`
 
-**Auth:** Bearer · **`restrictTo("OWNER")` only** (2026-08-12). Managers and Cashiers receive `403`. Desktop POS has **no** Create Customer UI — Owner web deferred.
+**Auth:** Bearer · **`restrictTo("OWNER")` only** (2026-08-12). Managers and Cashiers receive `403` until **M6 Slice 3 Batch AF** (then Cashier/Manager POS create is **Pending**). Desktop POS has **no** Create Customer UI until **Batch AL**.
 
-**Body:** `{ "name": string, "phone"?: string, "email"?: string }`  
+**Body:** `{ "name": string, "phone": string, "email"?: string }` — **M6 AE:** `phone` is required (DB + Zod). Optional profile extras (`dateOfBirth`, `gender`, `address`, `storeId`) are accepted by Zod but **not persisted** until Batch AF. New rows default `ACTIVE` / `OWNER_CREATED`. Response envelope is unchanged (no status/source fields yet). 
 
 **Success `201`**. **Errors:** `403` non-owner; `409` duplicate phone in tenant.
 
@@ -1401,7 +1403,7 @@ Not part of Slice 1: Purchasing/Supplier/PO UI, Manager web, customer/staff/repo
 
 ## 22. M6 — Slice 2 APIs (in progress)
 
-Batch S is complete. Slice 2 and overall M6 remain in progress. Supplier, PO, GRN, and return-manifest cloud APIs are live. Owner web has live Purchasing list (T) and Create Purchase Order (U); PO Details (V), Receive Stock against PO (W), Suppliers screens (X–Z), Expiry Returns (AA–AB) and manifest details (AC) are still later batches. Suppliers and Purchasing are no longer route shells.
+Slice 2 **P–AB** is complete. **AC–AD are deferred.** Overall M6 remains in progress. Supplier, PO, GRN, and return-manifest cloud APIs are live. Owner web has live Purchasing, Create PO, PO Details, Receive against PO, Suppliers, Expiry Returns, and Create Return Manifest. `/suppliers/returns/:manifestId` stays a parked placeholder. Slice 3 **AE DONE** (Customer schema + Zod); AF–AM planned; catalog **§23** at Batch AM.
 
 ### 22.1 Suppliers
 
@@ -1447,8 +1449,8 @@ Success `201` returns `data: { receipt, purchaseOrder }`. There is no draft GRN 
 
 | Method | Path | Contract |
 |--------|------|----------|
-| `GET` | `/api/v1/owner/returns/queue` | Supplier-linked ACTIVE lots with stock; query `q`, `supplierId`, `returnStatus`, `limit`, `offset`; returns `meta.total` |
-| `POST` | `/api/v1/owner/return-manifests` | Prepare one-supplier/one-store manifest from unique `ELIGIBLE` batches; snapshots cost and sets batches to `MANIFEST_PREPARED` without moving stock |
+| `GET` | `/api/v1/owner/returns/queue` | Supplier-linked ACTIVE lots with stock; query `q`, `supplierId`, `returnStatus`, `limit`, `offset`; `meta.total` plus additive `kpis` (eligibleBatches, eligibleCostValue, manifestsPrepared, needsReview) and `suppliers` filter options |
+| `POST` | `/api/v1/owner/return-manifests` | Prepare one-supplier/one-store manifest from unique `ELIGIBLE` batches; optional `notes` / `supplierReference`; snapshots cost and sets batches to `MANIFEST_PREPARED` without moving stock |
 | `GET` | `/api/v1/owner/return-manifests/:manifestId` | Supplier/store/actor details, lines, product and current batch state |
 | `POST` | `/api/v1/owner/return-manifests/:manifestId/dispatch` | PREPARED only; requires `operationId`; atomically decrements each batch and writes ADJUST events with `SUPPLIER_RETURN_DISPATCH` |
 | `POST` | `/api/v1/owner/return-manifests/:manifestId/decision` | DISPATCHED only; decision `ACCEPTED` or `REJECTED`; optional supplier reference/notes |
@@ -1501,3 +1503,7 @@ Results on 2026-08-18: `smoke:m6q` **18/18 PASS**; `smoke:m6r` **17/17 PASS**; `
 | 2026-08-18 | **M6 Batch R:** §22 OWNER-only confirmed GRN + return queue/manifest lifecycle APIs; over-receive protection; RECEIVE ledger; idempotent dispatch ADJUST events; `smoke:m6r` 17/17 PASS; no web UI |
 | 2026-08-18 | **M6 Batch T:** §22 live Purchasing list (KPI cards, PO table, search/status, pagination, CTAs); Create PO → `/purchasing/new`; `smoke:m6t` PASS |
 | 2026-08-18 | **M6 Batch U:** §22 live Create Purchase Order (ACTIVE-supplier dropdown, product line search, Add Suggested Items, Save as Draft / Create SENT / Cancel, order-summary rail; no inventory effect); seed ships 3 ACTIVE suppliers (Beximco · Square · SMC); `smoke:m6u` PASS |
+| 2026-08-19 | **M6 Batch AA:** live Owner Expiry Returns queue (`GET /owner/returns/queue`); additive queue `kpis` + `suppliers` in meta; Inventory Prepare Supplier Return enabled; Create Manifest page still Batch AB; `smoke:m6aa` PASS |
+| 2026-08-19 | **M6 Batch AB:** live Create Return Manifest at `/suppliers/returns/new` (session draft from queue, supplier policy, editable return qty); `POST /owner/return-manifests` with optional `supplierReference`; Save as Draft disabled; no dispatch/stock-out; `smoke:m6ab` PASS |
+| 2026-08-19 | **M6 Slice 2 AC–AD deferred. Slice 3 planned:** Customers + POS pending-approval registration; `POST /customers` stays Owner-only until AF; catalog §23 at AM |
+| 2026-08-19 | **M6 Batch AE:** Customer Prisma status/source/profile + partial unique phone + Zod stubs; POST still OWNER-only; no new routes; catalog §23 still at AM |

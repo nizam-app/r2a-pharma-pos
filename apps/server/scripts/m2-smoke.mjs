@@ -350,7 +350,7 @@ async function main() {
     const createdCust = await req("/customers", {
       method: "POST",
       token: ownerToken,
-      body: { name: "M5 Smoke Customer" },
+      body: { name: "M5 Smoke Customer", phone: `015${Date.now().toString().slice(-8)}` },
     });
     customerId = createdCust.body?.data?.id;
     customerName = createdCust.body?.data?.name;

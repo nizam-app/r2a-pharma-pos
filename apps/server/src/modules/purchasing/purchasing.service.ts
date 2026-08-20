@@ -1575,7 +1575,14 @@ export async function listReturnQueue(
         }
       : {}),
   };
-  const [items, total] = await Promise.all([
+  const kpiWhere: Prisma.BatchWhereInput = {
+    tenantId: ctx.tenantId,
+    ...purchaseOrderStoreScope(ctx),
+    supplierId: { not: null },
+    status: "ACTIVE",
+    quantityOnHand: { gt: 0 },
+  };
+  const [items, total, kpiLots] = await Promise.all([
     prisma.batch.findMany({
       where,
       include: {
@@ -1595,7 +1602,37 @@ export async function listReturnQueue(
       skip: query.offset,
     }),
     prisma.batch.count({ where }),
+    prisma.batch.findMany({
+      where: kpiWhere,
+      select: {
+        returnStatus: true,
+        quantityOnHand: true,
+        costPerBase: true,
+        supplierId: true,
+        supplier: { select: { id: true, name: true } },
+      },
+    }),
   ]);
+
+  let eligibleBatches = 0;
+  let eligibleCostValue = 0;
+  let manifestsPrepared = 0;
+  let needsReview = 0;
+  const supplierMap = new Map<string, string>();
+  for (const lot of kpiLots) {
+    if (lot.returnStatus === "ELIGIBLE") {
+      eligibleBatches += 1;
+      eligibleCostValue += lot.quantityOnHand * toNumber(lot.costPerBase);
+    } else if (lot.returnStatus === "MANIFEST_PREPARED") {
+      manifestsPrepared += 1;
+    } else {
+      needsReview += 1;
+    }
+    if (lot.supplierId && lot.supplier) {
+      supplierMap.set(lot.supplierId, lot.supplier.name);
+    }
+  }
+
   return {
     items: items.map((batch) => ({
       ...batch,
@@ -1607,6 +1644,15 @@ export async function listReturnQueue(
     total,
     limit: query.limit,
     offset: query.offset,
+    kpis: {
+      eligibleBatches,
+      eligibleCostValue: roundMoney(eligibleCostValue),
+      manifestsPrepared,
+      needsReview,
+    },
+    suppliers: [...supplierMap.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
 
@@ -1666,6 +1712,7 @@ export async function createReturnManifest(
         srmNumber,
         preparedAt: now,
         notes: input.notes,
+        supplierReference: input.supplierReference,
         lines: {
           create: input.lines.map((line) => ({
             tenantId: ctx.tenantId,

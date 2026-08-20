@@ -273,10 +273,9 @@ export function ExpiryManagementPage() {
           </button>
           <button
             type="button"
-            disabled
-            aria-disabled="true"
-            title={t("inventory.expiry.returnUnavailable")}
-            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-md border border-border bg-slate-100 px-3 py-1.5 text-sm font-medium text-muted"
+            title={t("inventory.expiry.prepareReturnHint")}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground hover:bg-canvas"
+            onClick={() => navigate("/suppliers/returns")}
           >
             <Archive className="size-3.5" strokeWidth={1.75} />
             {t("inventory.expiry.prepareReturn")}

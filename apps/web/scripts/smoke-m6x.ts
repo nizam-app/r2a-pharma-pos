@@ -85,8 +85,8 @@ const SUPPLIERS_I18N_KEYS = [
   "suppliers.attention.review",
   "suppliers.attention.reviewAll",
   "suppliers.attention.reviewAllSoon",
-  "suppliers.placeholder.returnsTitle",
-  "suppliers.placeholder.returns",
+  "suppliers.placeholder.manifestTitle",
+  "suppliers.placeholder.manifest",
 ] as const;
 
 function checkPackage(): void {
@@ -204,9 +204,12 @@ function checkSuppliersPage(): void {
   assert(
     shell.includes("AddSupplierPage") &&
       shell.includes("SupplierDetailsPage") &&
+      shell.includes("ExpiryReturnsPage") &&
       shell.includes('sub.kind === "detail"') &&
-      shell.includes("suppliers.placeholder.returns"),
-    "AppShell must render the live Add Supplier page for /suppliers/new, the live Supplier Details page for /suppliers/:id, and a placeholder for /suppliers/returns",
+      shell.includes('sub.kind === "returns"') &&
+      shell.includes("CreateReturnManifestPage") &&
+      shell.includes("suppliers.placeholder.manifest"),
+    "AppShell must render Add Supplier, Supplier Details, Expiry Returns, Create Return Manifest, and a placeholder for manifest details",
   );
   assert(
     ownerPath.includes("suppliersSubpath") &&

@@ -57,3 +57,23 @@ export const returnManifestStatusSchema = z.enum([
 export type ReturnManifestStatus = z.infer<
   typeof returnManifestStatusSchema
 >;
+
+/** Mirrors Prisma `CustomerStatus`. */
+export const customerStatusSchema = z.enum([
+  "ACTIVE",
+  "PENDING_APPROVAL",
+  "INACTIVE",
+  "REJECTED",
+]);
+export type CustomerStatus = z.infer<typeof customerStatusSchema>;
+
+/** Mirrors Prisma `CustomerSource`. */
+export const customerSourceSchema = z.enum([
+  "OWNER_CREATED",
+  "POS_REGISTRATION",
+]);
+export type CustomerSource = z.infer<typeof customerSourceSchema>;
+
+/** Mirrors Prisma `CustomerGender`. Optional on the profile. */
+export const customerGenderSchema = z.enum(["MALE", "FEMALE", "OTHER"]);
+export type CustomerGender = z.infer<typeof customerGenderSchema>;

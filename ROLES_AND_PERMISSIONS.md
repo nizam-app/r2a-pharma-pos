@@ -3,7 +3,7 @@
 **Document type:** Canonical RBAC spec for the whole system (POS + future Owner/Manager surfaces)  
 **Product:** PharmaSync POS — Multi-Tenant Pharmacy POS & Inventory SaaS  
 **Version:** 2.0.0  
-**Last updated:** 2026-08-18
+**Last updated:** 2026-08-19
 **Audience:** Engineering, product, Cursor agents
 
 ---
@@ -54,7 +54,7 @@ Prisma / JWT roles (locked): `SUPER_ADMIN` \| `OWNER` \| `MANAGER` \| `CASHIER`.
 ### Pharmacy Owner
 
 * **Access:** Root authority for one tenant.
-* **Live UI:** Owner web (`apps/web`) — **M6 Slice 1 A–O DONE**; login + chrome, Dashboard, Sales/Transaction Details, Inventory, Product Add/Edit/Details, Receive Stock, Batch Management, and Expiry Management.
+* **Live UI:** Owner web (`apps/web`) — **M6 Slice 1 A–O DONE** + **Slice 2 P–AB DONE**. Slice 3 **AE DONE**; AF–AM planned. Manager/Cashier rejected on web.
 * **Until web exists:** Owner may log into desktop POS (`apps/desktop`) with the same JWT role. Desktop remains a **cashier workstation**, not the executive suite.
 * **Scope:** Financials and margins, staff, catalog/pricing, settings, audit, n8n (M6), multi-branch (M7).
 
@@ -84,16 +84,17 @@ Prisma / JWT roles (locked): `SUPER_ADMIN` \| `OWNER` \| `MANAGER` \| `CASHIER`.
 | Cashier POS checkout (Cash / Card stub / MFS invent) | **Live** | — |
 | Margin redaction (`costPerBase` omitted for cashier) | **Live** | — |
 | `POST /users` — Owner or Manager creates Cashier/Manager | **Live** | — |
-| `POST /customers` — **Owner only** | **Live** | Owner web UI = **M6** |
+| `POST /customers` — **Owner Active; Cashier/Manager POS = Pending** | **Live Owner-only today.** Slice 3 AF/AL will re-lock | Owner web UI + POS Create + Owner approve = **M6 Slice 3 AE–AM** |
 | FEFO override on POS | **Stub PIN** (any 4-digit + local “Authorized By”). **M6 D:** ingest persists `fefoOverride` + authorizer name. | Real `pinHash` when **authorized** |
 | Shift open/close | **Local** `shiftStore` (no cash count, no cloud) | Cloud shift + blind count when **authorized** |
 | Purchase / GRN / stock entry UI | Add lot + signed adjustment live; **M6 R Supplier/PO/GRN/return APIs live (OWNER-only); M6 T–U Purchasing list + Create PO web UI live** | PO Details, Receive against PO, Suppliers screens, return workflow in later Slice 2 batches |
 | Owner web dashboard | **Live** (M6 G — KPIs, bars, inventory health, FEFO, recent sales) | Sales list = **live** (M6 H). Transaction Details = **live** (M6 I). Inventory list = **live** (M6 J). Product Details = **live** (M6 K) |
 | **Owner web Add Product** | **Live** (M6 L — `POST /products` with Piece→Strip→Box units, Rx, cold chain, reorder level, storage notes; 0 initial stock; redirect to Product Details) | Receive Stock is **live** (M6 M) |
-| **Owner web Expiry Management** | **Live** (M6 N — OWNER-only expiry API, supplier/return metadata, filters/selection/CSV; return action disabled) | Real supplier return workflow later |
+| **Owner web Expiry Management** | **Live** (M6 N — OWNER-only expiry API, supplier/return metadata, filters/selection/CSV; **M6 AA** Prepare Supplier Return → `/suppliers/returns`; **M6 AB** Create Return Manifest) | Manifest Details = Batch AC **deferred** |
 | Loyalty earn/redeem persistence | **Live** on ingest snapshots (`loyaltyUsed` / `loyaltyEarned` + customer balance). POS session calc unchanged. OTP stub stays. | Owner web Transaction Details = **live** (M6 I) |
 | n8n, RLS, bi-di sync | Not started | **M6** |
-| Supplier return bucket, supplier ledger | Supplier profiles, PO, return queue, and manifest lifecycle APIs live; Purchasing list + Create PO web UI live | Later authorized M6 Slice 2 batches |
+| Supplier return bucket, supplier ledger | Supplier profiles, PO, GRN, return queue, and manifest create APIs/UI live; Purchasing/Suppliers/Expiry Returns/Create Manifest web UI live | Manifest Details + dispatch lifecycle **deferred** (Slice 2 AC) |
+| Owner web Customers | Nav disabled today | **M6 Slice 3 AE–AM** — list, Add (Active), Details, POS Review/Approve |
 | Super Admin console, multi-branch, transfers | Not started | **M7** |
 | Sale void / delete | **Forbidden** (append-only) | Only if the user **re-authorizes** |
 | On-account / customer due tender | **Forbidden** | Never |
@@ -119,7 +120,7 @@ Legend: ✅ allowed · ❌ denied · ⚠️ cashier may **request**; Owner/Manag
 | Create staff (`CASHIER` / `MANAGER` only) | ❌ | ✅ | ✅ | ❌ |
 | Create `OWNER` / `SUPER_ADMIN` via `POST /users` | ❌ | ❌ | ❌ | ❌ |
 | Assign / rotate FEFO override PIN | ❌ | ✅ *(later)* | ❌ | ❌ |
-| **Create customer** | ❌ | ✅ | ❌ | ❌ |
+| **Create customer** | ❌ | ✅ Active immediately (web or POS) | ⚠️ POS pending Owner approve *(Slice 3)* | ⚠️ POS pending Owner approve *(Slice 3)* |
 | Edit customer profile (back-office) | ❌ | ✅ *(M6)* | ✅ *(M6; not create)* | ❌ |
 | Search customer / loyalty at POS | ❌ | ✅ | ✅ | ✅ |
 | POS checkout & settled billing | ❌ | ✅ | ✅ | ✅ |
@@ -144,7 +145,7 @@ Matches `Completed_API_lists.md`. JWT claims: `{ sub, role, tenantId, storeId }`
 | `POST /api/v1/batches/:id/corrections` | `OWNER`, `MANAGER` — reason + expected version + idempotency key |
 | `POST /api/v1/batches/:id/adjustments` | `OWNER`, `MANAGER` — signed delta + reason + expected version; cashier `403` |
 | `POST /api/v1/batches/:id/void`, `/retire` | **`OWNER` only** |
-| `POST /api/v1/customers` | **`OWNER` only** (`403` for Manager and Cashier) |
+| `POST /api/v1/customers` | **Today `OWNER` only.** Slice 3 AF: `OWNER` (Active) + `MANAGER`/`CASHIER` (Pending POS). Not live until AF |
 | `GET /api/v1/customers` | Any authenticated |
 | `PATCH /api/v1/customers/:id` | `OWNER`, `MANAGER` — cashier `403` (search-only at POS) |
 | `POST /api/v1/sales/ingest`, `POST /api/v1/sync/ingest` | Any authenticated; sales **append-only** (no update/delete routes) |
@@ -167,11 +168,17 @@ Matches `Completed_API_lists.md`. JWT claims: `{ sub, role, tenantId, storeId }`
 
 ## 5. Customer authority (locked)
 
-* **Create** is **Owner only** — cloud `restrictTo("OWNER")`. Not Manager. Not Cashier. Not on desktop POS.
-* **Owner web Create Customer** is **M6** (`apps/web`). Do not re-add a Create form on POS.
-* **Fields (live schema):** `name`, `phone?`, `email?`. Do **not** add date of birth or gender unless the user authorizes a schema change.
-* **Cashier at checkout:** search by phone/name (`GET /customers`); apply loyalty if eligible; if not found → **Walk-in**. Prompt the customer to register with the **Owner** (not the Manager).
-* **`loyaltyPoints`:** display/redeem at POS (session settlement). Authoritative persist = **M6 Batch D** ingest snapshots when `loyaltyUsed`/`loyaltyEarned` are sent with a `customerId`.
+**Live today (until Slice 3 AF):** `POST /customers` is Owner-only. Create Customer is **not** on POS.
+
+**Slice 3 lock (implement in AE–AL; do not invent ahead of the authorized batch):**
+
+* **Owner create** (Admin Portal Add Customer, or Owner on POS) → **Active immediately**. Web source = `OWNER_CREATED`. POS source = `POS_REGISTRATION`.
+* **Cashier / Manager POS create** → **Pending Approval**. Name + phone only. Not searchable at F8 and not attachable to a sale until the Owner approves.
+* **Owner approve** on Registration Review → Active (Owner may add email / DOB / gender / address). **Reject** → hidden; phone may be reused.
+* **Fields:** `name`, **required `phone`**, optional `email`, `dateOfBirth`, `gender`, `address`. Do **not** surface `creditBalance`.
+* **Cashier at checkout:** search **Active** customers only (`GET /customers`); apply loyalty if eligible; if not found → **Walk-in** or POS Create (pending).
+* **`loyaltyPoints`:** display/redeem at POS (session settlement). Authoritative persist = **M6 Batch D** ingest snapshots when `loyaltyUsed`/`loyaltyEarned` are sent with an **Active** `customerId`.
+* **Edit Customer** stays parked in Slice 3. `PATCH /customers/:id` remains Owner/Manager API-only.
 * **`creditBalance`:** unused schema leftover. Do **not** expose in UI, mutate via POS, or build features on it.
 
 ---
@@ -299,8 +306,9 @@ Do **not** implement:
 
 * On-account sales, customer due, credit limits, or any unpaid remainder parked on a customer
 * A fourth payment method beyond `CASH` \| `CARD` \| `MFS`
-* Create Customer on desktop POS
-* Manager (or Cashier) `POST /customers`
+* Create Customer on desktop POS **except** Slice 3 Batch AL (name + phone; Cashier/Manager pending; Owner Active)
+* Manager or Cashier `POST /customers` **as Active** — pending only until Owner approves
+* Attaching a pending/rejected customer to a sale (ingest must require Active)
 * Sale void / update / delete
 * Super Admin POS or tenant-data console before M7
 * Replacing Prisma `User` / snake_case schemas / `uuid()` ids (use `cuid()` + camelCase)
@@ -332,3 +340,7 @@ Do **not** implement:
 | 2026-08-18 | **M6 Batch S** — Owner web Purchasing and Suppliers navigation is live with localized placeholder shells; management tables remain deferred. |
 | 2026-08-18 | **M6 Batch T** — Owner web Purchasing list live (OWNER-only GET purchase-orders; KPI cards, PO table, search/status, pagination); Create PO → `/purchasing/new`. |
 | 2026-08-18 | **M6 Batch U** — Owner web Create Purchase Order live (ACTIVE-supplier dropdown, product line search, Save as Draft / Create SENT / Cancel; no inventory effect). Seed ships 3 ACTIVE suppliers for the dropdown. |
+| 2026-08-19 | **M6 Batch AA** — Owner web Expiry Returns queue live (`GET /owner/returns/queue`); Prepare Supplier Return on Expiry Management enabled; Create Return Manifest page still later. |
+| 2026-08-19 | **M6 Batch AB** — Owner web Create Return Manifest live (`POST /owner/return-manifests`); Save as Draft disabled; stock unchanged until dispatch (Batch AC). |
+| 2026-08-19 | **M6 Slice 3 planned** — Customer create re-lock: Owner Active immediately; Cashier/Manager POS create pending Owner approval. DOB/gender/address authorized as optional. Edit Customer parked. Not live until Batches AE–AL. |
+| 2026-08-19 | **M6 Batch AE** — Customer schema + Zod landed. `POST /customers` remains OWNER-only until AF. |

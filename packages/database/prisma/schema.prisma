@@ -1,6 +1,7 @@
 // Milestone 1 — Cloud PostgreSQL schema (Prisma)
 // Sync idempotency: Sale.eventId is globally unique (offline ingest identity).
-// Tenant-scoped uniques: email, sku, barcode, phone, store code, batch number.
+// Tenant-scoped uniques: email, sku, barcode, store code, batch number.
+// Customer phone is unique per tenant among non-REJECTED rows (SQL partial unique).
 
 generator client {
   provider = "prisma-client-js"
@@ -84,6 +85,24 @@ enum ReturnManifestStatus {
   COMPLETED
 }
 
+enum CustomerStatus {
+  ACTIVE
+  PENDING_APPROVAL
+  INACTIVE
+  REJECTED
+}
+
+enum CustomerSource {
+  OWNER_CREATED
+  POS_REGISTRATION
+}
+
+enum CustomerGender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 // --- Tenancy & access ---
 
 model Tenant {
@@ -128,6 +147,7 @@ model Store {
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users           User[]
   batches         Batch[]
+  customers       Customer[]
   sales           Sale[]
   inventoryEvents InventoryEvent[]
   batchRevisions  BatchRevision[]
@@ -163,6 +183,9 @@ model User {
   returnManifestsDispatched ReturnManifest[] @relation("ReturnManifestDispatchedBy")
   returnManifestsDecided    ReturnManifest[] @relation("ReturnManifestDecidedBy")
   returnManifestsCompleted  ReturnManifest[] @relation("ReturnManifestCompletedBy")
+  customersCreated          Customer[]       @relation("CustomerCreatedBy")
+  customersApproved         Customer[]       @relation("CustomerApprovedBy")
+  customersRejected         Customer[]       @relation("CustomerRejectedBy")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -296,23 +319,46 @@ model Batch {
 // --- Customers ---
 
 model Customer {
-  id            String   @id @default(cuid())
-  tenantId      String
-  name          String
-  phone         String?
-  email         String?
-  loyaltyPoints Int      @default(0)
+  id               String           @id @default(cuid())
+  tenantId         String
+  storeId          String?
+  createdByUserId  String?
+  name             String
+  phone            String
+  email            String?
+  dateOfBirth      DateTime?        @db.Date
+  gender           CustomerGender?
+  address          String?
+  status           CustomerStatus   @default(ACTIVE)
+  source           CustomerSource   @default(OWNER_CREATED)
+  loyaltyPoints    Int              @default(0)
   /// Optional account credit balance (not a POS payment method).
-  creditBalance Decimal  @default(0) @db.Decimal(12, 2)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  creditBalance    Decimal          @default(0) @db.Decimal(12, 2)
+  approvedAt       DateTime?
+  approvedByUserId String?
+  rejectedAt       DateTime?
+  rejectedByUserId String?
+  rejectionNote    String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sales  Sale[]
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store      Store? @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  createdBy  User?  @relation("CustomerCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  approvedBy User?  @relation("CustomerApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  rejectedBy User?  @relation("CustomerRejectedBy", fields: [rejectedByUserId], references: [id], onDelete: SetNull)
+  sales      Sale[]
 
-  @@unique([tenantId, phone])
+  /// Non-rejected (tenantId, phone) uniqueness is a SQL partial unique index:
+  /// Customer_tenantId_phone_non_rejected_key WHERE status <> REJECTED.
   @@index([tenantId])
   @@index([tenantId, phone])
+  @@index([tenantId, status])
+  @@index([tenantId, source])
+  @@index([storeId])
+  @@index([createdByUserId])
+  @@index([approvedByUserId])
+  @@index([rejectedByUserId])
 }
 
 // --- Sales (append-only / immutable intent) ---

@@ -30,6 +30,7 @@ const KEYS = [
   "inventory.expiry.col.returnEligibility",
   "inventory.expiry.col.selectAll",
   "inventory.expiry.prepareReturn",
+  "inventory.expiry.prepareReturnHint",
 ] as const;
 
 function main(): void {
@@ -77,8 +78,9 @@ function main(): void {
     "Expiry page must support CSV export and row selection",
   );
   assert(
-    page.includes("inventory.expiry.prepareReturn") && /disabled\s*\n\s*aria-disabled/.test(page),
-    "Prepare Supplier Return must remain disabled",
+    page.includes("inventory.expiry.prepareReturn") &&
+      page.includes('navigate("/suppliers/returns")'),
+    "Prepare Supplier Return must navigate to /suppliers/returns",
   );
   assert(
     client.includes("supplierName") &&
@@ -93,7 +95,7 @@ function main(): void {
   }
   console.log("  ✓ live owner expiry API + route");
   console.log("  ✓ Inventory CTA, cards, tabs, search, export, and selection");
-  console.log("  ✓ live Supplier/Return filters; return workflow remains disabled");
+  console.log("  ✓ live Supplier/Return filters; Prepare Return → /suppliers/returns");
   console.log("  ✓ localized in en + bn-BD");
   console.log("\nPASS");
 }
