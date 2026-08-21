@@ -6,9 +6,9 @@
  * GET /api/v1/owner/customers/:id (OWNER only) and renders header, KPIs,
  * customer information, registration information, purchase history,
  * loyalty activity and a known-facts timeline from live data. Purchase rows
- * navigate to /sales/:id. A PENDING_APPROVAL id redirects to the Review page.
- * Edit Customer + More Actions are disabled. No hard-coded sample data
- * (no Sadia Akter / ৳2,417 / mock totals).
+ * navigate to /sales/:id. A PENDING_APPROVAL id redirects to the Review page
+ * (live in Batch AK). Edit Customer + More Actions are disabled. No hard-coded
+ * sample data (no Sadia Akter / ৳2,417 / mock totals).
  */
 
 import { readFileSync, readdirSync } from "node:fs";
@@ -225,11 +225,11 @@ function checkAppShell(): void {
     "AppShell must route /customers/:id to CustomerDetailsPage",
   );
   assert(
-    appShell.includes("CustomersPlaceholder") &&
+    appShell.includes("RegistrationReviewPage") &&
       appShell.includes('sub.kind === "review"'),
-    "Review must stay the placeholder shell (Batch AK)",
+    "AppShell must route /customers/:id/review to RegistrationReviewPage",
   );
-  console.log("  ✓ detail live; review still placeholder");
+  console.log("  ✓ detail + review live");
 }
 
 function checkNoMockData(): void {

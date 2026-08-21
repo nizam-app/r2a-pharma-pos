@@ -212,3 +212,51 @@ export async function fetchCustomerDetail(
     `/api/v1/owner/customers/${encodeURIComponent(customerId)}`,
   );
 }
+
+/** Corrections the Owner may send when approving a POS registration (Batch AK). */
+export type CustomerApprovePayload = {
+  name: string;
+  phone: string;
+  email?: string;
+  dateOfBirth?: Date;
+  gender?: CustomerGender;
+  address?: string;
+};
+
+export type CustomerApprovalResult = {
+  id: string;
+  status: "ACTIVE";
+  approvedAt: string;
+};
+
+/** Live approve — Batch AK. POST /owner/customers/:id/approve (OWNER only, pending only). */
+export async function approveCustomer(
+  customerId: string,
+  input: CustomerApprovePayload,
+): Promise<CustomerApprovalResult> {
+  return apiRequest<CustomerApprovalResult>(
+    `/api/v1/owner/customers/${encodeURIComponent(customerId)}/approve`,
+    { method: "POST", body: input },
+  );
+}
+
+export type CustomerRejectPayload = {
+  rejectionNote?: string;
+};
+
+export type CustomerRejectionResult = {
+  id: string;
+  status: "REJECTED";
+  rejectedAt: string;
+};
+
+/** Live reject — Batch AK. POST /owner/customers/:id/reject (OWNER only, pending only). */
+export async function rejectCustomer(
+  customerId: string,
+  input: CustomerRejectPayload = {},
+): Promise<CustomerRejectionResult> {
+  return apiRequest<CustomerRejectionResult>(
+    `/api/v1/owner/customers/${encodeURIComponent(customerId)}/reject`,
+    { method: "POST", body: input },
+  );
+}

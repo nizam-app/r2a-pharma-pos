@@ -5,7 +5,8 @@
  * Source guards only (no live API). Customers directory is a live page backed
  * by GET /owner/customers. Add Customer → /customers/new, Pending rows →
  * /customers/:id/review, Active/Inactive rows → /customers/:id. No hard-coded
- * 2,417 or mock ৳ totals. new/review/detail stay placeholder shells (AI–AK).
+ * 2,417 or mock ৳ totals. All subpaths are live (new = AI, detail = AJ,
+ * review = AK).
  */
 
 import { readFileSync, readdirSync } from "node:fs";
@@ -156,10 +157,16 @@ function checkAppShell(): void {
     "AppShell must route the /customers list to CustomersPage",
   );
   assert(
-    appShell.includes("CustomersPlaceholder"),
-    "new/review/detail must stay placeholder shells (AI–AK)",
+    appShell.includes("AddCustomerPage") &&
+      appShell.includes("CustomerDetailsPage") &&
+      appShell.includes("RegistrationReviewPage"),
+    "new/detail/review must route to their live pages (AI–AK)",
   );
-  console.log("  ✓ list live; new/review/detail still placeholder");
+  assert(
+    !appShell.includes("CustomersPlaceholder"),
+    "CustomersPlaceholder must be removed now that all subpaths are live",
+  );
+  console.log("  ✓ list + new + detail + review all live");
 }
 
 function checkNoMockData(): void {

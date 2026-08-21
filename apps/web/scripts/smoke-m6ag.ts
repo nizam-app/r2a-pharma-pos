@@ -120,10 +120,10 @@ function checkOwnerPath(): void {
   const appShell = readSrc("features/shell/AppShell.tsx");
   assert(
     appShell.includes("customersSubpath") &&
-      appShell.includes("CustomersPlaceholder"),
-    "AppShell must route /customers to a placeholder",
+      appShell.includes("CustomersPage"),
+    "AppShell must route /customers to the live Customers directory",
   );
-  console.log("  ✓ /customers registered, routed to placeholder shell");
+  console.log("  ✓ /customers registered, routed to live Customers directory");
 }
 
 function checkNoMockData(): void {

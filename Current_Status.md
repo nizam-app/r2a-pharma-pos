@@ -13,13 +13,13 @@
 | **Product** | Offline-first, multi-tenant Pharmacy POS + Inventory SaaS (Bangladesh / emerging markets) |
 | **Phase** | Phase 1 MVP — DB + cloud API + desktop **M3 POS shell DONE**; **M4 DONE** (one-way sync). **M5 DONE** (RBAC + Receive stock + 409 copy + paged catalog + runbook) |
 | **Latest completed milestone** | **M5 — MVP hardening**; **M6 Owner Web Slice 1 A–O + W1–W6 DONE** and **Slice 2 P–AB DONE** (AC–AD **deferred**) while M6 remains in progress |
-| **Next gated work** | Authorize **M6 Batch AK** (Registration Review + Approve/Reject). Do not start Batch AK+ without explicit authorization. Do not start deferred Slice 2 AC/AD. |
+| **Next gated work** | Authorize **M6 Batch AL** (POS Create Customer — invent). Do not start Batch AL+ without explicit authorization. Do not start deferred Slice 2 AC/AD. |
 | **Cloud database** | Neon PostgreSQL (Prisma migrate + seed applied; `RefreshToken` migration applied in M2) |
 | **Cloud API** | Express + TypeScript in `apps/server` — **real** (auth, tenant guard, inventory, FEFO, sales/sync ingest, sales/owner reads, product/batch management, OWNER-only suppliers, purchase orders, confirmed GRNs, and return manifests). General batch PATCH no longer mutates quantity. |
 | **Local desktop / SQLite / Tauri** | POS shell + one-way sync + Owner/Manager Receive Stock. Manual stock corrections are online-only signed deltas with required reason, expected version, idempotent event ID, 409 reload, and authoritative catalog refresh. |
 | **MongoDB / Mongoose** | Removed; do not reintroduce |
 
-**Bottom line:** M0–M5 remain DONE. **M6 IN PROGRESS** — Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–AB DONE**, **AC–AD deferred**. Slice 3 **AE–AJ DONE**, **AK–AM planned**. Next = **Authorize M6 Batch AK** (Registration Review + Approve/Reject).
+**Bottom line:** M0–M5 remain DONE. **M6 IN PROGRESS** — Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–AB DONE**, **AC–AD deferred**. Slice 3 **AE–AK DONE**, **AL–AM planned**. Next = **Authorize M6 Batch AL** (POS Create Customer).
 ---
 
 ## 2. Milestone board (authoritative progress)
@@ -34,7 +34,7 @@ Source of truth for milestone status: [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_
 | **M3** | Desktop POS shell | **DONE** | Slice 1–6 (A–AP). Later screens → Slice 7+ when authorized. See `MILESTONE_3_EXECUTION.md` |
 | **M4** | One-way sync | **DONE** | Batches A–F. Queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue panel + catalog §19. See `MILESTONE_4_EXECUTION.md` |
 | **M5** | MVP hardening | **DONE** | Batches A–F. RBAC API + desktop Settings Receive stock + Sync Queue 409 copy + paged catalog pull + runbook + catalog §20. Print/PIN stay stubs. See `MILESTONE_5_EXECUTION.md`. |
-| **M6** | Growth (Phase 2) | **IN PROGRESS** | Owner Web Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–AB DONE**; **AC–AD deferred**. Slice 3 **AE–AJ DONE**; **AK–AM planned**. |
+| **M6** | Growth (Phase 2) | **IN PROGRESS** | Owner Web Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–AB DONE**; **AC–AD deferred**. Slice 3 **AE–AK DONE**; **AL–AM planned**. |
 | **M7** | Scale (Phase 3) | **PENDING** | Multi-branch, transfers, enterprise RBAC |
 
 ### Milestone 1 execution batches (all green)
@@ -217,7 +217,7 @@ Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Sli
 
 ### Milestone 6 execution batches (Slice 3)
 
-Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Slice 3 section). **AE–AJ DONE.**
+Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Slice 3 section). **AE–AK DONE.**
 
 | Batch | Title | Status | Date |
 |-------|-------|--------|------|
@@ -227,7 +227,7 @@ Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Sli
 | AH | Customers list | **DONE** | 2026-08-20 |
 | AI | Add Customer + create confirm | **DONE** | 2026-08-20 |
 | AJ | Customer Details | **DONE** | 2026-08-20 |
-| AK | Registration Review + Approve/Reject modals | **NOT STARTED** | — |
+| AK | Registration Review + Approve/Reject modals | **DONE** | 2026-08-20 |
 | AL | POS Create Customer | **NOT STARTED** | — |
 | AM | Slice 3 exit | **NOT STARTED** | — |
 
@@ -290,7 +290,7 @@ R2A-Pharmacy-POS/
 | UI | `@r2a/ui` | Bootstrap (M3A) |
 | Server | `@r2a/server` | **Implemented (M2)** |
 | Desktop | `@r2a/desktop` | **M3 DONE** — Slice 1–6 (Hold [F6] / Held list [F7]); later screens → Slice 7+ |
-| Web | `@r2a/web` | **M6 Slice 1 DONE + Slice 2 Batch T–AB** — OWNER login/chrome, Dashboard, Sales, Inventory, product and batch management, Receive Stock, Expiry Management, Purchasing list, Create Purchase Order, Purchase Order Details, Receive Stock against PO, Suppliers directory, Expiry Returns queue, Create Return Manifest. **Slice 3 AE–AJ DONE** (Customer schema + Zod + role-aware APIs + enabled Customers nav + live Customers directory + Add Customer + Customer Details); AK–AM planned. Manifest Details deferred. |
+| Web | `@r2a/web` | **M6 Slice 1 DONE + Slice 2 Batch T–AB** — OWNER login/chrome, Dashboard, Sales, Inventory, product and batch management, Receive Stock, Expiry Management, Purchasing list, Create Purchase Order, Purchase Order Details, Receive Stock against PO, Suppliers directory, Expiry Returns queue, Create Return Manifest. **Slice 3 AE–AK DONE** (Customer schema + Zod + role-aware APIs + enabled Customers nav + live Customers directory + Add Customer + Customer Details + Registration Review with Approve/Reject); AL–AM planned. Manifest Details deferred. |
 
 ---
 
@@ -616,8 +616,9 @@ Do **not** start these unless the user authorizes the matching milestone:
 - ~~M6 Batch AG: Enable Customers nav~~ — **DONE** (`smoke:m6ag` 5/5)
 - ~~M6 Batch AH: Customers list~~ — **DONE** (live `/customers` directory from `GET /owner/customers`; KPIs/tabs/search/Status/Source/Sort/pagination; Pending → review, Active/Inactive → detail, Add → `/customers/new`; `smoke:m6ah`)
 - ~~M6 Batch AJ: Customer Details~~ — **DONE** (live `/customers/:customerId` from `GET /owner/customers/:id`; header + KPIs (loyalty / total purchases / visits / last purchase) + Customer Information + Registration Information (Source/Branch/Submitted/Approved + Original Registration Values) + Purchase History rows → `/sales/:id` + Loyalty Activity with running balance + known-facts Timeline; Edit Customer + More Actions disabled; pending id redirects to Review; honest zeros/—; `GET /owner/customers/:id` additively returns `storeName` / `lastPurchaseAt` / `purchaseHistory.rows` / `loyaltyActivity.rows`; `smoke:m6aj`)
+- ~~M6 Batch AK: Registration Review + Approve/Reject~~ — **DONE** (live `/customers/:customerId/review` from `GET /owner/customers/:id`; read-only Registration Request (name/phone/source/submitted/branch/by) + live duplicate check + editable Review Profile (Owner corrects before approve); right rail Registration Info + Approval Action; Approve checkbox-gated modal → `POST /owner/customers/:id/approve` → Details (Active); Reject invented checkbox-gated modal + optional note → `POST /owner/customers/:id/reject` → list (row gone); Cancel → list; Active/Inactive id → Details; unsaved-changes guard; no POS Create (AL); `smoke:m6ak`)
 - Manifest Details (Slice 2 AC) and Slice 2 exit (AD) — **deferred**
-- Owner web Customers Details/Review + POS cashier registration approval — **Slice 3 AK–AM planned** (next = Authorize Batch AK)
+- Owner web Customers Review approve flow + POS cashier create — **Slice 3 AL–AM planned** (next = Authorize Batch AL)
 - Manager web, bi-directional sync, n8n workflows, and Postgres RLS (later authorized M6 batches)
 - Real Card terminal SDK / real MFS provider APIs (backend-confirmed status; no cashier manual Trx) — later authorized work
 - Super Admin platform console (role exists; no admin product surface yet)
@@ -628,7 +629,7 @@ Do **not** start these unless the user authorizes the matching milestone:
 
 1. Read this file (`Current_Status.md`).
 2. Confirm M0–**M5** are **DONE**.
-3. **M6 Owner Web Slice 1 A–O + W1–W6 DONE. Slice 2 P–AB DONE (AC–AD deferred).** Slice 3 **AE–AJ DONE.** Next = **Authorize M6 Batch AK** (Registration Review + Approve/Reject). Do not start AK+, deferred AC/AD, later M6, hardware, or Slice 7+ from status alone.
+3. **M6 Owner Web Slice 1 A–O + W1–W6 DONE. Slice 2 P–AB DONE (AC–AD deferred).** Slice 3 **AE–AK DONE.** Next = **Authorize M6 Batch AL** (POS Create Customer). Do not start AL+, deferred AC/AD, later M6, hardware, or Slice 7+ from status alone.
 4. Attach/reference:
    - `PROJECT_MASTER_PLAN.md`
    - `Current_Status.md`
@@ -867,4 +868,6 @@ user-facing strings. Runtime/domain data and receipt content remain untranslated
 | 2026-08-20 | **M6 Batch AF DONE** — §23 Customer APIs: role-aware `POST /customers` (Owner Active; Cashier/Manager Pending + extras stripped), Active-only `GET /customers`, `GET /customers/phone-check`, Owner `GET /owner/customers` + `/:id` + approve/reject, `GET /sales?customerId=`, ingest Active-only guard, 403 on `/owner/customers*` for non-owners; `smoke:m6af` 14/14. **M6 Batch AG DONE** — Customers sidebar is now a live chrome route (`/customers`, `/customers/new`, `/customers/:id`, `/customers/:id/review`); placeholder shells only; Staff/Help/Owner Profile stay disabled; `smoke:m6ag` 5/5, lint + build clean. Next = Authorize M6 Batch AH |
 | 2026-08-20 | **M6 Batch AH DONE** — live Customers directory at `/customers` from `GET /owner/customers`: 4 KPI cards (registered / pending / active-90d / loyalty issued), tabs All/Pending/Active/Inactive, name-or-phone search, Status/Source/Sort filters, pagination; Pending row → `/customers/:id/review`, Active/Inactive → `/customers/:id`, Add Customer → `/customers/new` (form is AI); new/review/detail stay placeholder; no invented 2,417 / ৳ totals; `lib/customers.ts` + `customers.*` i18n en + bn-BD; `smoke:m6ah` PASS, `smoke:m6ag` still PASS, lint + build clean. Next = Authorize M6 Batch AI |
 | 2026-08-20 | **M6 Batch AI DONE** — live Add Customer at `/customers/new` (UI_SPEC.md used; Add Customer not re-shared): Customer Information form (name + phone required w/ inline blur/submit errors, email format check, DOB, gender dropdown, address textarea) + debounced live `GET /customers/phone-check` Duplicate Check panel (checking / teal available / amber duplicate w/ view-profile link → `/customers/:id` or review); Direct Customer Creation info card + read-only System Information (Source Owner Created, Branch = live tenant store, Created By = live session user); Create Customer CTA opens a checkbox-gated **Create Confirm** modal (500px dialog, focus trap + Esc + focus return, Name/Phone/Branch/Source summary, teal "What Happens After Creation" panel, confirmation checkbox default unchecked, CTA `#00766c`/`hover:#00635c` enabled only when checked, `#79b5ae opacity-70` disabled, inline error keeps modal open + retry) → `POST /api/v1/customers` (OWNER → ACTIVE + OWNER_CREATED) → navigate to `/customers/:id` (Details is AJ); Cancel top+bottom → `/customers`; unsaved-changes guard; Create disabled while a confirmed duplicate exists; no sample data; `createCustomer` + `checkCustomerPhone` in `lib/customers.ts`; full `customers.add.*` i18n en + bn-BD; `smoke:m6ai` PASS, `smoke:m6ah` + `smoke:m6ag` still PASS, lint + build clean. Next = Authorize M6 Batch AJ |
+| 2026-08-20 | **M6 Batch AJ DONE** — live Customer Details at `/customers/:customerId` from `GET /owner/customers/:id` (UI_SPEC.md used; Batch AH/AI pattern): breadcrumb Customers › name; header name + status badge + contact line + Edit Customer / More Actions disabled (parked); 4 KPI cards (Loyalty Points / Total Purchases ৳ / Visits / Last Purchase) — all live or honest zeros/—; Customer Information 2-col grid (name/phone `tel:`/email `mailto:`/DOB/gender/status badge/address/branch = live `storeName`); Registration Information card w/ teal audit notice + Source / Registration Branch / Submitted / Submitted By / Approved / Approved By + Original Registration Values mini-cards; Purchase History (live rows → `/sales/:id`; empty state) + Loyalty Activity (Current Balance + earn/redeem rows w/ running balance from snapshots; empty state); right rail known-facts Timeline (approved / submitted events, newest first); pending id → redirects to `/customers/:id/review` (Review stays AK placeholder); `GET /owner/customers/:id` additively returns `profile.storeName`, `purchaseHistory.lastPurchaseAt/rows`, `loyaltyActivity.rows` (shape preserved, `smoke:m6af` valid); `fetchCustomerDetail` + `CustomerDetail` types; full `customers.detail.*` i18n en + bn-BD; `smoke:m6aj` PASS, `smoke:m6ai` + `smoke:m6ah` + `smoke:m6ag` still PASS, server + web lint + web build clean. Next = Authorize M6 Batch AK |
+| 2026-08-20 | **M6 Batch AK DONE** — live Customer Registration Review at `/customers/:customerId/review` (Review not re-shared; Admin Portal family used — Batch AH/AI pattern): breadcrumb Customers › Review Registration + Pending badge; read-only **Registration Request** card (Registered Name / Registered Phone `tel:` / Source POS Registration / Registration Branch = live `storeName` / Submitted date+time / Submitted By = live actor) + **Review Profile** card (editable — Owner may correct name/phone/email/DOB/gender/address before approve; debounced live `GET /customers/phone-check` duplicate check that ignores this same customer and blocks approve when another customer owns the phone); right rail **Registration Info** + **Approval Action** copy; footer Cancel → list + **Reject Registration** (red outline) + **Approve Customer** (teal primary, disabled on validation/duplicate); shared **Approve Customer** modal (500px dialog, focus trap + Esc + focus return, Name/Phone/Branch/Source summary, teal "What Happens After Approval" panel — becomes Active immediately, appears in POS search, recorded for audit, corrections saved; confirmation checkbox default unchecked, CTA enabled only when checked) → `POST /api/v1/owner/customers/:id/approve` (OWNER only, pending only) → navigate to `/customers/:id` (Details shows Active); invented **Reject Registration** modal matching the Approve family (Registration Summary, optional rejection note ≤1000 chars, red checkbox-gated CTA) → `POST /api/v1/owner/customers/:id/reject` → navigate to `/customers` (row gone; phone reusable); Active/Inactive id on Review → redirects to Details (REJECTED rows are 404 from the detail API → not-found state); unsaved-changes guard on profile edits; no POS Create (Batch AL); `approveCustomer` + `rejectCustomer` + payload types in `lib/customers.ts`; full `customers.review.*` i18n en + bn-BD; `CustomersPlaceholder` removed from AppShell; `smoke:m6ak` PASS (source guards — live pending→approve→POS Active-search flow already covered by `smoke:m6af`); `smoke:m6aj` + `smoke:m6ai` + `smoke:m6ah` + `smoke:m6ag` updated/still PASS; web lint + web build clean. Next = Authorize M6 Batch AL |
 
