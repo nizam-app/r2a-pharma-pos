@@ -63,6 +63,9 @@ export type AuthUserRow = {
   tenantId: string;
   storeId: string | null;
   isActive: boolean;
+  phone?: string | null;
+  internalNote?: string | null;
+  lastLoginAt?: Date | null;
   createdAt: Date;
 };
 
@@ -75,6 +78,9 @@ export function toSafeUser(user: AuthUserRow) {
     tenantId: user.tenantId,
     storeId: user.storeId,
     isActive: user.isActive,
+    phone: user.phone ?? null,
+    internalNote: user.internalNote ?? null,
+    lastLoginAt: user.lastLoginAt ?? null,
     createdAt: user.createdAt,
   };
 }

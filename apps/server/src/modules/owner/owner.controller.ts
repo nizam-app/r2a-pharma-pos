@@ -3,6 +3,11 @@ import type {
   OwnerDashboardQuery,
   OwnerExpiryQuery,
   OwnerInventoryQuery,
+  OwnerSalesReportQuery,
+  StaffListQuery,
+  OwnerStaffCreateInput,
+  OwnerStaffPatchInput,
+  StaffDeactivateInput,
 } from "@r2a/shared-types";
 import { catchAsync, sendResponse } from "../../utils";
 import { requireTenantContext } from "../../utils/tenant";
@@ -13,6 +18,15 @@ export const dashboard = catchAsync(async (req: Request, res: Response) => {
   const data = await ownerService.getDashboard(
     ctx,
     req.query as unknown as OwnerDashboardQuery,
+  );
+  sendResponse(res, { statusCode: 200, message: "OK", data });
+});
+
+export const salesReport = catchAsync(async (req: Request, res: Response) => {
+  const ctx = requireTenantContext(req);
+  const data = await ownerService.getSalesReport(
+    ctx,
+    req.query as unknown as OwnerSalesReportQuery,
   );
   sendResponse(res, { statusCode: 200, message: "OK", data });
 });
@@ -70,4 +84,66 @@ export const inventory = catchAsync(async (req: Request, res: Response) => {
       offset: result.offset,
     },
   });
+});
+
+export const listStaff = catchAsync(async (req: Request, res: Response) => {
+  const ctx = requireTenantContext(req);
+  const result = await ownerService.listStaff(
+    ctx,
+    req.query as unknown as StaffListQuery,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    message: "OK",
+    data: {
+      items: result.items,
+      kpis: result.kpis,
+    },
+    meta: {
+      total: result.total,
+      limit: result.limit,
+      offset: result.offset,
+    },
+  });
+});
+
+export const getStaff = catchAsync(async (req: Request, res: Response) => {
+  const ctx = requireTenantContext(req);
+  const data = await ownerService.getStaffDetail(ctx, req.params.id!);
+  sendResponse(res, { statusCode: 200, message: "OK", data });
+});
+
+export const createStaff = catchAsync(async (req: Request, res: Response) => {
+  const ctx = requireTenantContext(req);
+  const data = await ownerService.createStaff(
+    ctx,
+    req.body as OwnerStaffCreateInput,
+  );
+  sendResponse(res, { statusCode: 201, message: "OK", data });
+});
+
+export const patchStaff = catchAsync(async (req: Request, res: Response) => {
+  const ctx = requireTenantContext(req);
+  const data = await ownerService.patchStaff(
+    ctx,
+    req.params.id!,
+    req.body as OwnerStaffPatchInput,
+  );
+  sendResponse(res, { statusCode: 200, message: "OK", data });
+});
+
+export const deactivateStaff = catchAsync(async (req: Request, res: Response) => {
+  const ctx = requireTenantContext(req);
+  const data = await ownerService.deactivateStaff(
+    ctx,
+    req.params.id!,
+    req.body as StaffDeactivateInput,
+  );
+  sendResponse(res, { statusCode: 200, message: "OK", data });
+});
+
+export const reactivateStaff = catchAsync(async (req: Request, res: Response) => {
+  const ctx = requireTenantContext(req);
+  const data = await ownerService.reactivateStaff(ctx, req.params.id!);
+  sendResponse(res, { statusCode: 200, message: "OK", data });
 });

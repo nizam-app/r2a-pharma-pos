@@ -1,6 +1,6 @@
 # R2A Pharmacy POS — Current Status
 
-**Last updated:** 2026-08-20
+**Last updated:** 2026-08-22
 **Purpose:** Single place to understand where the project stands when you return. Read this first in a new chat, then open the linked source-of-truth docs as needed.  
 **Maintainer note:** Update this file at the end of every completed milestone (or significant mid-milestone change).
 
@@ -12,14 +12,14 @@
 |------|--------|
 | **Product** | Offline-first, multi-tenant Pharmacy POS + Inventory SaaS (Bangladesh / emerging markets) |
 | **Phase** | Phase 1 MVP — DB + cloud API + desktop **M3 POS shell DONE**; **M4 DONE** (one-way sync). **M5 DONE** (RBAC + Receive stock + 409 copy + paged catalog + runbook) |
-| **Latest completed milestone** | **M5 — MVP hardening**; **M6 Owner Web Slice 1 A–O + W1–W6 DONE** and **Slice 2 P–AB DONE** (AC–AD **deferred**) while M6 remains in progress |
-| **Next gated work** | Authorize **M6 Batch AL** (POS Create Customer — invent). Do not start Batch AL+ without explicit authorization. Do not start deferred Slice 2 AC/AD. |
+| **Latest completed milestone** | **M5 — MVP hardening**; **M6 Owner Web Slice 1 A–O + W1–W6 DONE**, **Slice 2 P–AB DONE** (AC–AD **deferred**), **Slice 3 AE–AM DONE**, **Slice 4 Staff AN–AV DONE**, **Slice 5 Batch AX–BC DONE** (BD Slice 5 exit **DONE**), **Slice 6 BE–BG DONE**, **Slice 7 Batches BH–BI DONE** |
+| **Next gated work** | **Slice 7 BI DONE.** Next = **`Authorize M6 Batch BJ`** (Audit & FEFO dashboard UI; re-share required) or deferred Slice 2 **AC**. |
 | **Cloud database** | Neon PostgreSQL (Prisma migrate + seed applied; `RefreshToken` migration applied in M2) |
 | **Cloud API** | Express + TypeScript in `apps/server` — **real** (auth, tenant guard, inventory, FEFO, sales/sync ingest, sales/owner reads, product/batch management, OWNER-only suppliers, purchase orders, confirmed GRNs, and return manifests). General batch PATCH no longer mutates quantity. |
 | **Local desktop / SQLite / Tauri** | POS shell + one-way sync + Owner/Manager Receive Stock. Manual stock corrections are online-only signed deltas with required reason, expected version, idempotent event ID, 409 reload, and authoritative catalog refresh. |
 | **MongoDB / Mongoose** | Removed; do not reintroduce |
 
-**Bottom line:** M0–M5 remain DONE. **M6 IN PROGRESS** — Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–AB DONE**, **AC–AD deferred**. Slice 3 **AE–AK DONE**, **AL–AM planned**. Next = **Authorize M6 Batch AL** (POS Create Customer).
+**Bottom line:** M0–M5 remain DONE. **M6 IN PROGRESS** — Slices 1–6 **DONE** and Slice 7 **BH–BI DONE**. Next = **`Authorize M6 Batch BJ`** or deferred AC.
 ---
 
 ## 2. Milestone board (authoritative progress)
@@ -34,7 +34,7 @@ Source of truth for milestone status: [`PROJECT_MASTER_PLAN.md`](PROJECT_MASTER_
 | **M3** | Desktop POS shell | **DONE** | Slice 1–6 (A–AP). Later screens → Slice 7+ when authorized. See `MILESTONE_3_EXECUTION.md` |
 | **M4** | One-way sync | **DONE** | Batches A–F. Queue IPC + `/sync/ingest` + offline complete + 15s worker + Sync Queue panel + catalog §19. See `MILESTONE_4_EXECUTION.md` |
 | **M5** | MVP hardening | **DONE** | Batches A–F. RBAC API + desktop Settings Receive stock + Sync Queue 409 copy + paged catalog pull + runbook + catalog §20. Print/PIN stay stubs. See `MILESTONE_5_EXECUTION.md`. |
-| **M6** | Growth (Phase 2) | **IN PROGRESS** | Owner Web Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–AB DONE**; **AC–AD deferred**. Slice 3 **AE–AK DONE**; **AL–AM planned**. |
+| **M6** | Growth (Phase 2) | **IN PROGRESS** | Owner Web Slice 1 **A–O DONE** + W1–W6 **DONE**. Slice 2 **P–AB DONE**; **AC–AD deferred**. Slice 3 **AE–AM DONE**. Slice 4 **Staff AN–AV DONE**. Slice 5 **Batch AX–BC DONE** (BD Slice 5 exit **DONE**). Slice 6 **BE–BG DONE**. Slice 7 **BH–BI DONE**. |
 | **M7** | Scale (Phase 3) | **PENDING** | Multi-branch, transfers, enterprise RBAC |
 
 ### Milestone 1 execution batches (all green)
@@ -217,7 +217,7 @@ Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Sli
 
 ### Milestone 6 execution batches (Slice 3)
 
-Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Slice 3 section). **AE–AK DONE.**
+Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Slice 3 section). **AE–AL DONE.**
 
 | Batch | Title | Status | Date |
 |-------|-------|--------|------|
@@ -228,8 +228,61 @@ Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Sli
 | AI | Add Customer + create confirm | **DONE** | 2026-08-20 |
 | AJ | Customer Details | **DONE** | 2026-08-20 |
 | AK | Registration Review + Approve/Reject modals | **DONE** | 2026-08-20 |
-| AL | POS Create Customer | **NOT STARTED** | — |
-| AM | Slice 3 exit | **NOT STARTED** | — |
+| AL | POS Create Customer | **DONE** | 2026-08-21 |
+| AM | Slice 3 exit | **DONE** | 2026-08-21 |
+
+### Milestone 6 execution batches (Slice 4)
+
+Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Slice 4 section). **AN–AV DONE.** Plan: [`.cursor/plans/m6_slice_4_staff_e508519b.plan.md`](.cursor/plans/m6_slice_4_staff_e508519b.plan.md).
+
+| Batch | Title | Status | Date |
+|-------|-------|--------|------|
+| AN | Prisma + Zod + seed (User phone/note/lastLoginAt + StaffActivityEvent) | **DONE** | 2026-08-21 |
+| AO | Owner staff APIs + login lastLoginAt | **DONE** | 2026-08-21 |
+| AP | Enable Staff nav | **DONE** | 2026-08-21 |
+| AQ | Staff list | **DONE** | 2026-08-21 |
+| AR | Add Staff + temp password reveal | **DONE** | 2026-08-21 |
+| AS | Staff Details (Active / Inactive) | **DONE** | 2026-08-21 |
+| AT | Edit Staff | **DONE** | 2026-08-21 |
+| AU | Deactivate + Reactivate modals | **DONE** | 2026-08-21 |
+| AV | Slice 4 exit | **DONE** | 2026-08-21 |
+
+### Milestone 6 execution batches (Slice 5)
+
+Detailed batch plan: [`MILESTONE_6_EXECUTION.md`](MILESTONE_6_EXECUTION.md) (Slice 5 section). **AX–BC DONE, BD Slice 5 exit DONE.** Plan: [`.cursor/plans/m6_slice_5_shifts_d501783e.plan.md`](.cursor/plans/m6_slice_5_shifts_d501783e.plan.md).
+
+| Batch | Title | Status | Date |
+|-------|-------|--------|------|
+| AW | Prisma + Zod + seed (Shift + ShiftActivityEvent + Sale.shiftId) | **DONE** | 2026-08-22 |
+| AX | Shift APIs + ingest shiftId + dashboard KPIs | **DONE** | 2026-08-22 |
+| AY | Desktop cloud shift (float + count) | **DONE** | 2026-08-22 |
+| AZ | Staff Shift Management button + shifts list | **DONE** | 2026-08-22 |
+| BA | Shift Details (Open + Closed balanced) | **DONE** | 2026-08-22 |
+| BB | Review Cash Variance + resolved details | **DONE** | 2026-08-22 |
+| BC | Reports nav + Reports Dashboard | **DONE** | 2026-08-22 |
+| BD | Slice 5 exit (catalog §25 + composed smoke:m6s5 + status) | **DONE** | 2026-08-22 |
+
+### Milestone 6 execution batches (Slice 6)
+
+Detailed batch plan: [`M6_SLICE_6_EXECUTION.md`](M6_SLICE_6_EXECUTION.md) (Slice 6 section). **BE–BG DONE. Slice 6 complete.**
+
+| Batch | Title | Status | Date |
+|-------|-------|--------|------|
+| BE | Sales Report API + Zod | **DONE** | 2026-08-22 |
+| BF | Sales Report UI + enable dashboard View Report | **DONE** | 2026-08-22 |
+| BG | Slice 6 exit (catalog §26 + composed smoke:m6s6 + status) | **DONE** | 2026-08-22 |
+
+### Milestone 6 execution batches (Slice 7)
+
+Detailed batch plan: [`M6_SLICE_6_EXECUTION.md`](M6_SLICE_6_EXECUTION.md) (Slice 7 section). **BH–BI DONE. BJ–BL gated.**
+
+| Batch | Title | Status | Date |
+|-------|-------|--------|------|
+| BH | Prisma + Zod + seed (StockAudit + FEFO violations) | **DONE** | 2026-08-22 |
+| BI | Audit + FEFO APIs + ingest hook | **DONE** | 2026-08-22 |
+| BJ | Audit nav + Audit & FEFO dashboard | **PENDING** | — |
+| BK | Audit Detail + Review modal + Apply FEFO | **PENDING** | — |
+| BL | Slice 7 exit | **PENDING** | — |
 
 ## 3. Locked product & stack decisions
 
@@ -290,7 +343,7 @@ R2A-Pharmacy-POS/
 | UI | `@r2a/ui` | Bootstrap (M3A) |
 | Server | `@r2a/server` | **Implemented (M2)** |
 | Desktop | `@r2a/desktop` | **M3 DONE** — Slice 1–6 (Hold [F6] / Held list [F7]); later screens → Slice 7+ |
-| Web | `@r2a/web` | **M6 Slice 1 DONE + Slice 2 Batch T–AB** — OWNER login/chrome, Dashboard, Sales, Inventory, product and batch management, Receive Stock, Expiry Management, Purchasing list, Create Purchase Order, Purchase Order Details, Receive Stock against PO, Suppliers directory, Expiry Returns queue, Create Return Manifest. **Slice 3 AE–AK DONE** (Customer schema + Zod + role-aware APIs + enabled Customers nav + live Customers directory + Add Customer + Customer Details + Registration Review with Approve/Reject); AL–AM planned. Manifest Details deferred. |
+| Web | `@r2a/web` | **M6 Slice 1 DONE + Slice 2 Batch T–AB** — OWNER login/chrome, Dashboard, Sales, Inventory, product and batch management, Receive Stock, Expiry Management, Purchasing list, Create Purchase Order, Purchase Order Details, Receive Stock against PO, Suppliers directory, Expiry Returns queue, Create Return Manifest. **Slice 3 AE–AM DONE** (Customers + POS Create + approve). **Slice 4 Staff AN–AV DONE** — Staff directory/add/details/edit/deactivate/reactivate done; Manifest Details deferred; Reports/Settings/… still disabled. |
 
 ---
 
@@ -311,6 +364,8 @@ R2A-Pharmacy-POS/
 - `CustomerStatus`: `ACTIVE`, `PENDING_APPROVAL`, `INACTIVE`, `REJECTED` (**M6 Batch AE**)
 - `CustomerSource`: `OWNER_CREATED`, `POS_REGISTRATION` (**M6 Batch AE**)
 - `CustomerGender`: `MALE`, `FEMALE`, `OTHER` (**M6 Batch AE**)
+- `StaffActivityType`, `ShiftStatus`, `ShiftVarianceDecision`, `ShiftActivityType` (**M6 Slices 4–5**)
+- `StockAuditStatus`, `StockAuditLineStatus`, `FefoViolationStatus`, `StockAuditActivityType` (**M6 Batch BH**)
 
 **Models**
 
@@ -332,6 +387,8 @@ R2A-Pharmacy-POS/
 | `PurchaseOrder`, `PurchaseOrderLine` | Tenant/store PO header and PIECE-quantity cost snapshots; no inventory effect (**M6 Q API live**) |
 | `GoodsReceipt`, `GoodsReceiptLine` | Confirmed PO receipts linked to created batches (**M6 R API live**) |
 | `ReturnManifest`, `ReturnManifestLine` | Supplier return lifecycle and batch cost snapshots (**M6 R API live**) |
+| `StockAudit`, `StockAuditLine`, `StockAuditActivityEvent` | Full stock-audit foundation and review timeline for Slice 7 (**M6 BH schema/seed only; routes in BI**) |
+| `FefoViolationRecord` | FEFO override/violation review foundation with open/corrected demo records (**M6 BH schema/seed only; ingest hook in BI**) |
 
 **Important behaviors encoded in schema**
 
@@ -347,6 +404,7 @@ R2A-Pharmacy-POS/
 - **M6 Batch C:** `packages/database/prisma/migrations/20260815160000_m6_batch_c_schema/` (`receiptNo`, loyalty snapshots, FEFO/cost-at-sale, product extras, `InventoryEvent`)
 - **M6 Batch P:** `packages/database/prisma/migrations/20260818190000_m6_batch_p_purchasing_returns/` (Supplier/PO/GRN/manifest models + optional `Batch.supplierId`)
 - **M6 Batch AE:** `packages/database/prisma/migrations/20260819061500_m6_batch_ae_customer_registration/` (Customer status/source/profile + partial unique phone)
+- **M6 Batch BH:** `packages/database/prisma/migrations/20260822160000_m6_batch_bh_audit_fefo/` (StockAudit + FEFO violation foundation)
 - Applied successfully to Neon (`prisma migrate deploy`).
 
 ### 5.3 Seed (`packages/database/prisma/seed.ts`)
@@ -394,6 +452,7 @@ Idempotent **upserts** by stable keys (tenant slug, store code, email, product s
 | `sale.ts` | sale ingest; **`batchId` optional** for server FEFO fill; **M6 D:** optional `loyaltyUsed` / `loyaltyEarned` + line `fefoOverride` (persisted); `saleListQuerySchema` + **AE `customerId` stub** (filter in AF) |
 | `owner.ts` | **M6 F:** owner dashboard / expiry query DTOs (wired on `GET /owner/*`) |
 | `purchasing.ts` | **M6 P:** Supplier, PO, GRN, return queue/manifest create and lifecycle DTOs (routes begin in Q/R) |
+| `audit.ts` | **M6 BH:** StockAudit, StockAuditLine, FefoViolationRecord, activity schemas, and future BI request DTOs |
 | `sync.ts` | queue envelope: `event_id`, `entity_type`, `action`, `payload` (snake_case) |
 
 **Naming rule:** Domain API DTOs = camelCase (Prisma-aligned). Sync queue envelope = snake_case (desktop queue contract). Map at the sync boundary later.
@@ -618,7 +677,17 @@ Do **not** start these unless the user authorizes the matching milestone:
 - ~~M6 Batch AJ: Customer Details~~ — **DONE** (live `/customers/:customerId` from `GET /owner/customers/:id`; header + KPIs (loyalty / total purchases / visits / last purchase) + Customer Information + Registration Information (Source/Branch/Submitted/Approved + Original Registration Values) + Purchase History rows → `/sales/:id` + Loyalty Activity with running balance + known-facts Timeline; Edit Customer + More Actions disabled; pending id redirects to Review; honest zeros/—; `GET /owner/customers/:id` additively returns `storeName` / `lastPurchaseAt` / `purchaseHistory.rows` / `loyaltyActivity.rows`; `smoke:m6aj`)
 - ~~M6 Batch AK: Registration Review + Approve/Reject~~ — **DONE** (live `/customers/:customerId/review` from `GET /owner/customers/:id`; read-only Registration Request (name/phone/source/submitted/branch/by) + live duplicate check + editable Review Profile (Owner corrects before approve); right rail Registration Info + Approval Action; Approve checkbox-gated modal → `POST /owner/customers/:id/approve` → Details (Active); Reject invented checkbox-gated modal + optional note → `POST /owner/customers/:id/reject` → list (row gone); Cancel → list; Active/Inactive id → Details; unsaved-changes guard; no POS Create (AL); `smoke:m6ak`)
 - Manifest Details (Slice 2 AC) and Slice 2 exit (AD) — **deferred**
-- Owner web Customers Review approve flow + POS cashier create — **Slice 3 AL–AM planned** (next = Authorize Batch AL)
+- ~~Owner web Staff Slice 4 AN–AV~~ — **DONE** (Owner-only staff list/add/details/edit/deactivate/reactivate; email login; temp password on create; self-lockout; `smoke:m6av`)
+- ~~M6 Slice 5 Batch AW–BB~~ — **DONE** (Prisma + Zod + seed for Shift; shift open/close/active + owner list/detail/resolve; sale ingest `shiftId`; dashboard `openShifts`/`cashVarianceToday` live; desktop cloud shift — opening float, counted cash, online required, `shiftId` passed to ingest; Owner web Staff → Shift Management live list + Shift Details Open/Closed balanced + Review Cash Variance modal/resolved details; `smoke:m6ax` 19/19; `smoke:m6ay` PASS; `smoke:m6az` PASS; `smoke:m6ba` PASS; `smoke:m6bb` PASS)
+- ~~M6 Slice 5 Batch BC~~ — **DONE** (Reports nav live at `/reports`; Reports Dashboard composes existing OWNER-only `GET /owner/dashboard` last7, `GET /owner/inventory-summary`, `GET /owner/purchase-orders`, `GET /owner/shifts`; KPIs/sales chart/inventory/purchasing/staff-activity cards live; Staff Activity + Shift Report link to `/staff/shifts`; Sales/Inventory/Purchase View Report disabled; `smoke:m6bc` PASS)
+- ~~M6 Slice 5 Batch BD~~ — **DONE** (catalog §25; composed `smoke:m6s5`; Slice 5 complete)
+- ~~M6 Slice 6 Batch BE~~ — **DONE** (`GET /owner/reports/sales` OWNER-only Sales Report aggregate API + shared Zod + `smoke:m6be`; no UI; Sales View Report was disabled until BF)
+- ~~M6 Slice 6 Batch BF~~ — **DONE** (`/reports/sales` Sales Report UI live from `GET /owner/reports/sales`; dashboard Sales View Report enabled; Export disabled; Inventory/Purchase reports still disabled; `smoke:m6bf`)
+- ~~M6 Slice 6 Batch BG~~ — **DONE** (`Completed_API_lists.md` §26; composed `smoke:m6s6`; Slice 6 complete)
+- ~~M6 Slice 7 Batch BH~~ — **DONE** (StockAudit + StockAuditLine + StockAuditActivityEvent + FefoViolationRecord Prisma schema, shared Zod `audit.ts`, demo audits/FEFO violations; no routes/UI; migrate + seed + `smoke:m2` PASS)
+- ~~M6 Slice 7 Batch BI~~ — **DONE** (OWNER-only audit dashboard/list/detail/review/correct APIs; OWNER/MANAGER audit start/lines/submit APIs; sale ingest creates OPEN FEFO violation records on real override; no Owner web audit UI; `smoke:m6bi` PASS)
+- **M6 Slice 7–8 planned** — [`M6_SLICE_6_EXECUTION.md`](M6_SLICE_6_EXECUTION.md): Slice 7 full StockAudit + FEFO, Slice 8 Settings/Help/Owner Profile. Next = **Authorize M6 Batch BJ**
+- Audit & FEFO / Settings / Help / Owner Profile — enable in Slices 7–8; **Reports** live (Slice 5 BC); Sales Report detail in Slice 6
 - Manager web, bi-directional sync, n8n workflows, and Postgres RLS (later authorized M6 batches)
 - Real Card terminal SDK / real MFS provider APIs (backend-confirmed status; no cashier manual Trx) — later authorized work
 - Super Admin platform console (role exists; no admin product surface yet)
@@ -629,13 +698,14 @@ Do **not** start these unless the user authorizes the matching milestone:
 
 1. Read this file (`Current_Status.md`).
 2. Confirm M0–**M5** are **DONE**.
-3. **M6 Owner Web Slice 1 A–O + W1–W6 DONE. Slice 2 P–AB DONE (AC–AD deferred).** Slice 3 **AE–AK DONE.** Next = **Authorize M6 Batch AL** (POS Create Customer). Do not start AL+, deferred AC/AD, later M6, hardware, or Slice 7+ from status alone.
+3. **M6 Slices 1–6 DONE; Slice 7 BH–BI DONE.** Slices 7–8 continue in [`M6_SLICE_6_EXECUTION.md`](M6_SLICE_6_EXECUTION.md). Next = **`Authorize M6 Batch BJ`** or deferred Slice 2 AC. Attach **`M6_SLICE_6_EXECUTION.md`** (not the full `MILESTONE_6_EXECUTION.md`) for Slice 7+ batches.
 4. Attach/reference:
    - `PROJECT_MASTER_PLAN.md`
    - `Current_Status.md`
    - `ROLES_AND_PERMISSIONS.md`
    - `docs/DEV_RUNBOOK.md`
-    - `Completed_API_lists.md` (§14–§21)
+    - `M6_SLICE_6_EXECUTION.md` (Slices 6+ — **prefer this over full M6 file**)
+    - `Completed_API_lists.md` (§14–§28 as slices complete)
     - `WEB_MISSING_FEATURES_PLAN.md`
    - Specs under `docs/` as needed
 
@@ -870,4 +940,20 @@ user-facing strings. Runtime/domain data and receipt content remain untranslated
 | 2026-08-20 | **M6 Batch AI DONE** — live Add Customer at `/customers/new` (UI_SPEC.md used; Add Customer not re-shared): Customer Information form (name + phone required w/ inline blur/submit errors, email format check, DOB, gender dropdown, address textarea) + debounced live `GET /customers/phone-check` Duplicate Check panel (checking / teal available / amber duplicate w/ view-profile link → `/customers/:id` or review); Direct Customer Creation info card + read-only System Information (Source Owner Created, Branch = live tenant store, Created By = live session user); Create Customer CTA opens a checkbox-gated **Create Confirm** modal (500px dialog, focus trap + Esc + focus return, Name/Phone/Branch/Source summary, teal "What Happens After Creation" panel, confirmation checkbox default unchecked, CTA `#00766c`/`hover:#00635c` enabled only when checked, `#79b5ae opacity-70` disabled, inline error keeps modal open + retry) → `POST /api/v1/customers` (OWNER → ACTIVE + OWNER_CREATED) → navigate to `/customers/:id` (Details is AJ); Cancel top+bottom → `/customers`; unsaved-changes guard; Create disabled while a confirmed duplicate exists; no sample data; `createCustomer` + `checkCustomerPhone` in `lib/customers.ts`; full `customers.add.*` i18n en + bn-BD; `smoke:m6ai` PASS, `smoke:m6ah` + `smoke:m6ag` still PASS, lint + build clean. Next = Authorize M6 Batch AJ |
 | 2026-08-20 | **M6 Batch AJ DONE** — live Customer Details at `/customers/:customerId` from `GET /owner/customers/:id` (UI_SPEC.md used; Batch AH/AI pattern): breadcrumb Customers › name; header name + status badge + contact line + Edit Customer / More Actions disabled (parked); 4 KPI cards (Loyalty Points / Total Purchases ৳ / Visits / Last Purchase) — all live or honest zeros/—; Customer Information 2-col grid (name/phone `tel:`/email `mailto:`/DOB/gender/status badge/address/branch = live `storeName`); Registration Information card w/ teal audit notice + Source / Registration Branch / Submitted / Submitted By / Approved / Approved By + Original Registration Values mini-cards; Purchase History (live rows → `/sales/:id`; empty state) + Loyalty Activity (Current Balance + earn/redeem rows w/ running balance from snapshots; empty state); right rail known-facts Timeline (approved / submitted events, newest first); pending id → redirects to `/customers/:id/review` (Review stays AK placeholder); `GET /owner/customers/:id` additively returns `profile.storeName`, `purchaseHistory.lastPurchaseAt/rows`, `loyaltyActivity.rows` (shape preserved, `smoke:m6af` valid); `fetchCustomerDetail` + `CustomerDetail` types; full `customers.detail.*` i18n en + bn-BD; `smoke:m6aj` PASS, `smoke:m6ai` + `smoke:m6ah` + `smoke:m6ag` still PASS, server + web lint + web build clean. Next = Authorize M6 Batch AK |
 | 2026-08-20 | **M6 Batch AK DONE** — live Customer Registration Review at `/customers/:customerId/review` (Review not re-shared; Admin Portal family used — Batch AH/AI pattern): breadcrumb Customers › Review Registration + Pending badge; read-only **Registration Request** card (Registered Name / Registered Phone `tel:` / Source POS Registration / Registration Branch = live `storeName` / Submitted date+time / Submitted By = live actor) + **Review Profile** card (editable — Owner may correct name/phone/email/DOB/gender/address before approve; debounced live `GET /customers/phone-check` duplicate check that ignores this same customer and blocks approve when another customer owns the phone); right rail **Registration Info** + **Approval Action** copy; footer Cancel → list + **Reject Registration** (red outline) + **Approve Customer** (teal primary, disabled on validation/duplicate); shared **Approve Customer** modal (500px dialog, focus trap + Esc + focus return, Name/Phone/Branch/Source summary, teal "What Happens After Approval" panel — becomes Active immediately, appears in POS search, recorded for audit, corrections saved; confirmation checkbox default unchecked, CTA enabled only when checked) → `POST /api/v1/owner/customers/:id/approve` (OWNER only, pending only) → navigate to `/customers/:id` (Details shows Active); invented **Reject Registration** modal matching the Approve family (Registration Summary, optional rejection note ≤1000 chars, red checkbox-gated CTA) → `POST /api/v1/owner/customers/:id/reject` → navigate to `/customers` (row gone; phone reusable); Active/Inactive id on Review → redirects to Details (REJECTED rows are 404 from the detail API → not-found state); unsaved-changes guard on profile edits; no POS Create (Batch AL); `approveCustomer` + `rejectCustomer` + payload types in `lib/customers.ts`; full `customers.review.*` i18n en + bn-BD; `CustomersPlaceholder` removed from AppShell; `smoke:m6ak` PASS (source guards — live pending→approve→POS Active-search flow already covered by `smoke:m6af`); `smoke:m6aj` + `smoke:m6ai` + `smoke:m6ah` + `smoke:m6ag` updated/still PASS; web lint + web build clean. Next = Authorize M6 Batch AL |
+| 2026-08-21 | **M6 Slice 4 Staff scoped (AN–AV).** List/add/details/edit + deactivate/reactivate; email login; username = email local-part; temp password on create; MANAGER\|CASHIER; single store; self-lockout. Reports/Audit/Settings/Help/Owner Profile stay disabled. AC–AD still deferred. See `MILESTONE_6_EXECUTION.md` Slice 4. |
+| 2026-08-21 | **M6 Batch AT completed:** live Edit Staff with prefill, read-only derived username, single-store branch lock, access-impact copy, self-edit redirect, save via `PATCH /owner/users/:id`; `smoke:m6at` PASS. |
+| 2026-08-21 | **M6 Batch AV / Slice 4 completed:** Staff list/add/details/edit/deactivate/reactivate live; catalog §24 and status docs updated; `smoke:m6av` PASS. M6 remains IN PROGRESS; next = share/authorize Slice 5+ or deferred AC. |
+| 2026-08-22 | **M6 Slice 5 Shifts + Reports planned (AW–BD not started).** Staff → Shift Management; cloud shift + desktop float/count; sale ingest shiftId; variance review; Reports Dashboard enables Reports nav only. Plan: `.cursor/plans/m6_slice_5_shifts_d501783e.plan.md`. Next = **Authorize M6 Batch AW**. |
+| 2026-08-22 | **M6 Batch AX DONE** — §25 shift APIs (open/close/active cashier + owner list/detail/resolve-variance); `saleIngestSchema` optional `shiftId`; dashboard staff block live `openShifts`/`cashVarianceToday`; `smoke:m6ax` 19/19 PASS. Next = **Authorize M6 Batch AY** (desktop cloud shift). |
+| 2026-08-22 | **M6 Batch AY DONE** — Desktop cloud shift. `shiftStore.ts` rewritten: cloud API calls for open/close/active, `ActiveShift` includes `shiftId`/`shiftNo`/`openingFloat`, `fetchAndCache` rehydrates on login. `ShiftPanel.tsx`: opening float input, counted cash input, shift number display, online requirement checks, confirm dialogs. `saleIngest.ts`: `shiftId` added to `SaleIngestBuildArgs` and payload output. `App.tsx`: all 4 sale ingest call sites pass `shiftId` from cached shift. `CounterReadyScreen.tsx`: displays shift number. 16 new i18n keys in en + bn-BD. `smoke:m6ay` PASS. Next = **Authorize M6 Batch AZ**. |
+| 2026-08-22 | **M6 Batch AZ DONE** — Owner web Staff page now has Shift Management beside Add Staff; `/staff/shifts` routes through `ownerPath.ts` / `AppShell.tsx`; live Shift Management list consumes `GET /owner/shifts` with KPI totals, All/Open/Closed/Flagged tabs, search, cashier filter, pagination, View to Shift Details, and localized Review placeholder for flagged rows. `smoke:m6az`, `smoke:m6aq`, web lint, and web build PASS. Next was **Authorize M6 Batch BA** (now done). |
+| 2026-08-22 | **M6 Batch BA DONE** — Owner web Shift Details live at `/staff/shifts/:shiftId` using `GET /owner/shifts/:shiftId`; OG content layout applied with top detail cards, Cash Summary, Sales & Payment Summary, Shift Activity timeline, Audit Information rail, View POS Activity filtered `/sales`, and Request Cash Count disabled; `smoke:m6ba`, web lint, and web build PASS. Next was **Authorize M6 Batch BB**. |
+| 2026-08-22 | **M6 Batch BB DONE** — Owner web Review Cash Variance modal live from flagged shift list/detail; posts existing `POST /owner/shifts/:shiftId/resolve`; resolved Shift Details show Variance Review card and updated timeline; Generate Shift Report remains disabled; `smoke:m6bb`, web lint, and web build PASS. Next = **Authorize M6 Batch BC**. |
+| 2026-08-22 | **M6 Batch BC DONE** — Reports nav live at `/reports`; Reports Dashboard composes existing OWNER-only `GET /owner/dashboard` (last7), `GET /owner/inventory-summary`, `GET /owner/purchase-orders`, `GET /owner/shifts`; KPI cards, sales chart, inventory/purchasing/staff-activity summaries; Staff Activity + Shift Report link to `/staff/shifts`; Sales/Inventory/Purchase View Report disabled; full `reports.*` i18n; `smoke:m6bc`, web lint, and web build PASS. Next = **Authorize M6 Batch BD** (Slice 5 exit). |
+| 2026-08-22 | **M6 Batch BD / Slice 5 EXIT DONE** — `Completed_API_lists.md` §25 extended with BC Reports Dashboard + BD Slice 5 exit; composed `smoke:m6s5` (m6ax→m6ay→m6az/m6ba/m6bb/m6bc→m6s1/m6s3/m6av) registered and PASS; status/master-plan/RBAC synchronized. **Slice 5 complete.** M6 remains IN PROGRESS (Slice 2 AC–AD deferred; Slice 6 Audit/Settings/Help/Owner Profile not started). Next = share/authorize Slice 6 or deferred Slice 2 AC. |
+| 2026-08-22 | **M6 Slices 6–8 planned in [`M6_SLICE_6_EXECUTION.md`](M6_SLICE_6_EXECUTION.md)** (BE–BQ). Slice 6 Sales Report; Slice 7 full StockAudit + FEFO; Slice 8 Settings/Help/Owner Profile. **Strict re-share gate:** UI batches must ask for screenshot before coding. Next was **Authorize M6 Batch BE**. |
+| 2026-08-22 | **M6 Batch BE DONE** — OWNER-only `GET /api/v1/owner/reports/sales` with last-30-days default, range filters, optional tenant-scoped `storeId`, prior-period KPI trends, daily bars, payment summary, top category/cashiers/medicines, recent transactions; shared Zod response; `smoke:m6be` PASS. No UI; Sales View Report remains disabled. Next = **Authorize M6 Batch BF** (ask for Sales Report screenshot first). |
+| 2026-08-22 | **M6 Batch BG / Slice 6 EXIT DONE** — `Completed_API_lists.md` §26 added; composed `smoke:m6s6` registered and PASS; status/master-plan/RBAC synchronized. **Slice 6 complete.** M6 remains IN PROGRESS (Slice 2 AC–AD deferred; Slice 7+ gated). Next was **Authorize M6 Batch BH**. |
+| 2026-08-22 | **M6 Batch BH DONE** — StockAudit + StockAuditLine + StockAuditActivityEvent + FefoViolationRecord Prisma schema/migration; shared Zod `audit.ts`; deterministic IN_PROGRESS / COMPLETED / VARIANCE_FOUND audits and OPEN / CORRECTED FEFO violation seed. `prisma migrate deploy`, `prisma db seed`, and `smoke:m2` PASS. No routes/UI. Next was **Authorize M6 Batch BI**. |
+| 2026-08-22 | **M6 Batch BI DONE** — live Audit + FEFO APIs: `GET /owner/audit/dashboard`, `GET /owner/audits`, `GET /owner/audits/:id`, `POST /owner/audits/:id/review`, `POST /owner/fefo-violations/:id/correct`, `POST /audits/start`, `POST /audits/:id/lines`, `POST /audits/:id/submit`; sale ingest creates OPEN FEFO violation records for non-FEFO overrides; `smoke:m6bi` PASS. No web UI. Next = **Authorize M6 Batch BJ** (ask for Audit & FEFO screen first). |
 

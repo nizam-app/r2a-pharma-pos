@@ -51,10 +51,10 @@ export function CounterReadyScreen({
       ? shiftStore.get(user.tenantId, user.storeId ?? null)
       : null;
   const activeShiftValue = activeShift
-    ? t("counter.shiftOpenSince").replace(
+    ? `${t("counter.shiftOpenSince").replace(
         "{time}",
         formatShiftClock(activeShift.openedAt),
-      )
+      )}${activeShift.shiftNo ? ` · ${t("shift.shiftNo")} ${activeShift.shiftNo}` : ""}`
     : t("counter.noActiveShift");
 
   return (

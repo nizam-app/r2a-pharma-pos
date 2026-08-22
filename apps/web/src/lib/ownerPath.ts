@@ -11,6 +11,8 @@
  * and `/suppliers/:supplierId` are registered subpaths.
  * Batch AG: `/customers` becomes a live chrome route; `/customers/new`,
  * `/customers/:id`, and `/customers/:id/review` are registered subpaths.
+ * Batch AZ: `/staff/shifts` list and `/staff/shifts/:id` placeholder before
+ * staff user detail params. Batch BC enables `/reports`; Batch BF adds `/reports/sales`.
  */
 
 export const OWNER_PATHS = [
@@ -20,6 +22,8 @@ export const OWNER_PATHS = [
   "/purchasing",
   "/suppliers",
   "/customers",
+  "/staff",
+  "/reports",
 ] as const;
 
 export type OwnerPath = (typeof OWNER_PATHS)[number];
@@ -58,6 +62,18 @@ if (
   ) {
     return true;
   }
+  if (
+    pathname.startsWith("/staff/") &&
+    pathname.length > "/staff/".length
+  ) {
+    return true;
+  }
+  if (
+    pathname.startsWith("/reports/") &&
+    pathname.length > "/reports/".length
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -76,7 +92,18 @@ if (pathname === "/inventory" || pathname.startsWith("/inventory/")) {
   if (pathname === "/customers" || pathname.startsWith("/customers/")) {
     return "/customers";
   }
+  if (pathname === "/staff" || pathname.startsWith("/staff/")) {
+    return "/staff";
+  }
+  if (pathname === "/reports" || pathname.startsWith("/reports/")) return "/reports";
   return "/";
+}
+
+export type ReportsSubpath = { kind: "dashboard" } | { kind: "sales" };
+
+export function reportsSubpath(pathname: string): ReportsSubpath {
+  if (pathname === "/reports/sales") return { kind: "sales" };
+  return { kind: "dashboard" };
 }
 
 export function ownerPathTitleKey(
@@ -87,12 +114,16 @@ export function ownerPathTitleKey(
   | "nav.inventory"
   | "nav.purchasing"
   | "nav.suppliers"
-  | "nav.customers" {
+  | "nav.customers"
+  | "nav.staff"
+  | "nav.reports" {
   if (path === "/sales") return "nav.sales";
   if (path === "/inventory") return "nav.inventory";
   if (path === "/purchasing") return "nav.purchasing";
   if (path === "/suppliers") return "nav.suppliers";
   if (path === "/customers") return "nav.customers";
+  if (path === "/staff") return "nav.staff";
+  if (path === "/reports") return "nav.reports";
   return "nav.dashboard";
 }
 
@@ -231,6 +262,36 @@ export function customersSubpath(pathname: string): CustomersSubpath {
   }
   if (parts.length === 1 && parts[0]) {
     return { kind: "detail", customerId: decodeSegment(parts[0]) };
+  }
+  return { kind: "list" };
+}
+
+export type StaffSubpath =
+  | { kind: "list" }
+  | { kind: "new" }
+  | { kind: "shifts" }
+  | { kind: "shiftDetail"; shiftId: string }
+  | { kind: "detail"; userId: string }
+  | { kind: "edit"; userId: string };
+
+/**
+ * Batch AP staff routes. `/staff/new` and Batch AZ `/staff/shifts` before
+ * `/:id` params; `/staff/:id/edit` after detail.
+ */
+export function staffSubpath(pathname: string): StaffSubpath {
+  if (pathname === "/staff") return { kind: "list" };
+  if (!pathname.startsWith("/staff/")) return { kind: "list" };
+  const parts = pathname.slice("/staff/".length).split("/").filter(Boolean);
+  if (parts.length === 1 && parts[0] === "new") return { kind: "new" };
+  if (parts.length === 1 && parts[0] === "shifts") return { kind: "shifts" };
+  if (parts.length === 2 && parts[0] === "shifts" && parts[1]) {
+    return { kind: "shiftDetail", shiftId: decodeSegment(parts[1]) };
+  }
+  if (parts.length === 2 && parts[1] === "edit" && parts[0]) {
+    return { kind: "edit", userId: decodeSegment(parts[0]) };
+  }
+  if (parts.length === 1 && parts[0]) {
+    return { kind: "detail", userId: decodeSegment(parts[0]) };
   }
   return { kind: "list" };
 }

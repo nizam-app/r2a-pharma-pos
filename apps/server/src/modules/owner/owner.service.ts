@@ -5,9 +5,17 @@ import type {
   OwnerExpiryQuery,
   OwnerInventoryQuery,
   OwnerInventoryTab,
+  OwnerSalesReportQuery,
+  OwnerSalesReportResponse,
+  StaffListQuery,
+  OwnerStaffCreateInput,
+  OwnerStaffPatchInput,
+  StaffDeactivateInput,
 } from "@r2a/shared-types";
 import { AppError } from "../../utils/AppError";
 import type { TenantContext } from "../../types/tenant";
+import { randomBytes } from "node:crypto";
+import * as bcrypt from "bcryptjs";
 
 type DecimalLike = { toString(): string } | number;
 
@@ -76,6 +84,23 @@ function storeScope(ctx: TenantContext): { storeId?: string } {
   return ctx.storeId ? { storeId: ctx.storeId } : {};
 }
 
+async function resolveOwnerStoreId(
+  ctx: TenantContext,
+  storeId?: string,
+): Promise<string | null> {
+  const effectiveStoreId = storeId ?? ctx.storeId ?? null;
+  if (!effectiveStoreId) return null;
+
+  const store = await prisma.store.findFirst({
+    where: { id: effectiveStoreId, tenantId: ctx.tenantId },
+    select: { id: true },
+  });
+  if (!store) {
+    throw new AppError("Store not found", 404);
+  }
+  return store.id;
+}
+
 const MFS_PROVIDERS = ["BKASH", "NAGAD", "ROCKET"] as const;
 type MfsProviderId = (typeof MFS_PROVIDERS)[number];
 
@@ -113,6 +138,42 @@ export function resolveDashboardRange(query: OwnerDashboardQuery): {
     throw new AppError("date range cannot exceed 366 days", 400);
   }
   return { from, to };
+}
+
+/** Inclusive calendar range. Default = last 30 UTC days including today. */
+function resolveSalesReportRange(query: OwnerSalesReportQuery): {
+  from: Date;
+  to: Date;
+  previousFrom: Date;
+  previousTo: Date;
+} {
+  const now = new Date();
+  const to = query.to
+    ? isUtcMidnight(query.to)
+      ? endOfUtcDay(query.to)
+      : query.to
+    : now;
+  const from = query.from
+    ? startOfUtcDay(query.from)
+    : startOfUtcDay(addUtcDays(query.to ?? now, -29));
+
+  if (from.getTime() > to.getTime()) {
+    throw new AppError("from must be before to", 400);
+  }
+  const spanDays =
+    (startOfUtcDay(to).getTime() - startOfUtcDay(from).getTime()) /
+      86_400_000 +
+    1;
+  if (spanDays > 366) {
+    throw new AppError("date range cannot exceed 366 days", 400);
+  }
+
+  return {
+    from,
+    to,
+    previousFrom: addUtcDays(startOfUtcDay(from), -spanDays),
+    previousTo: endOfUtcDay(addUtcDays(startOfUtcDay(from), -1)),
+  };
 }
 
 type Trend = "up" | "down" | "steady";
@@ -160,6 +221,31 @@ function vsPrevGross(gross: number, prevGross: number) {
     trend = deltaPct > 0 ? "up" : "down";
   }
   return { delta, deltaPct, trend };
+}
+
+function reportKpi(value: number, previousValue: number) {
+  const roundedValue = round2(value);
+  const roundedPrevious = round2(previousValue);
+  const delta = round2(roundedValue - roundedPrevious);
+  const deltaPct =
+    roundedPrevious === 0
+      ? roundedValue === 0
+        ? 0
+        : null
+      : round2((delta / roundedPrevious) * 100);
+  let trend: Trend = "steady";
+  if (deltaPct === null) {
+    trend = roundedValue > 0 ? "up" : "steady";
+  } else if (Math.abs(deltaPct) >= 1) {
+    trend = deltaPct > 0 ? "up" : "down";
+  }
+  return {
+    value: roundedValue,
+    previousValue: roundedPrevious,
+    delta,
+    deltaPct,
+    trend,
+  };
 }
 
 function pickTopCashier(
@@ -337,6 +423,8 @@ export async function getDashboard(
     fefoWeek,
     activeCashiers,
     staffUsers,
+    openShiftsCount,
+    cashVarianceToday,
   ] = await Promise.all([
       prisma.sale.findMany({
         where: {
@@ -419,6 +507,25 @@ export async function getDashboard(
         },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
+      }),
+      // M6 Batch AX — live open shifts count
+      prisma.shift.count({
+        where: {
+          tenantId: ctx.tenantId,
+          ...scope,
+          status: "OPEN",
+        },
+      }),
+      // M6 Batch AX — today's cash variance for closed/flagged shifts
+      prisma.shift.aggregate({
+        where: {
+          tenantId: ctx.tenantId,
+          ...scope,
+          status: { in: ["CLOSED", "FLAGGED"] },
+          closedAt: { gte: todayStart, lte: todayEnd },
+          variance: { not: null },
+        },
+        _sum: { variance: true },
       }),
     ]);
 
@@ -560,8 +667,8 @@ export async function getDashboard(
     expiringStockValue: inventory.expiringStockValue90d,
     staff: {
       activeCashiers,
-      openShifts: null,
-      cashVarianceToday: null,
+      openShifts: openShiftsCount,
+      cashVarianceToday: toNumber(cashVarianceToday._sum.variance ?? 0),
     },
     recentSales: recentSales.map((sale) => {
       const total = toNumber(sale.total);
@@ -583,6 +690,257 @@ export async function getDashboard(
         mfsProvider: parseMfsProvider(sale.notes),
       };
     }),
+  };
+}
+
+export async function getSalesReport(
+  ctx: TenantContext,
+  query: OwnerSalesReportQuery,
+): Promise<OwnerSalesReportResponse> {
+  const range = resolveSalesReportRange(query);
+  const storeId = await resolveOwnerStoreId(ctx, query.storeId);
+  const saleWhere = {
+    tenantId: ctx.tenantId,
+    ...(storeId ? { storeId } : {}),
+  };
+
+  const [sales, recentSales] = await Promise.all([
+    prisma.sale.findMany({
+      where: {
+        ...saleWhere,
+        soldAt: { gte: range.previousFrom, lte: range.to },
+      },
+      select: {
+        id: true,
+        soldAt: true,
+        total: true,
+        user: { select: { id: true, name: true } },
+        items: {
+          select: {
+            productId: true,
+            productNameAtSale: true,
+            productGenericNameAtSale: true,
+            quantityBase: true,
+            lineTotal: true,
+            product: { select: { sku: true, category: true } },
+          },
+        },
+        payments: { select: { method: true, amount: true } },
+      },
+    }),
+    prisma.sale.findMany({
+      where: {
+        ...saleWhere,
+        soldAt: { gte: range.from, lte: range.to },
+      },
+      orderBy: { soldAt: "desc" },
+      take: 25,
+      select: {
+        id: true,
+        receiptNo: true,
+        soldAt: true,
+        total: true,
+        customer: { select: { name: true } },
+        user: { select: { name: true } },
+        items: { select: { quantityBase: true } },
+        payments: { select: { method: true } },
+      },
+    }),
+  ]);
+
+  const current = { totalSales: 0, txnCount: 0, itemsSold: 0 };
+  const previous = { totalSales: 0, txnCount: 0, itemsSold: 0 };
+  const daily = new Map<string, { totalSales: number; txnCount: number }>();
+  const paymentSummary = { CASH: 0, CARD: 0, MFS: 0 };
+  const cashiers = new Map<
+    string,
+    { name: string; totalSales: number; txnCount: number }
+  >();
+  const categories = new Map<string, { unitsSold: number; totalSales: number }>();
+  const medicines = new Map<
+    string,
+    {
+      name: string;
+      genericName: string | null;
+      sku: string | null;
+      unitsSold: number;
+      totalSales: number;
+      saleIds: Set<string>;
+    }
+  >();
+
+  for (const sale of sales) {
+    const total = toNumber(sale.total);
+    const itemsSold = sale.items.reduce((sum, item) => sum + item.quantityBase, 0);
+    const soldAt = sale.soldAt.getTime();
+    const inCurrent = soldAt >= range.from.getTime() && soldAt <= range.to.getTime();
+    const inPrevious =
+      soldAt >= range.previousFrom.getTime() && soldAt <= range.previousTo.getTime();
+
+    if (inPrevious) {
+      previous.totalSales += total;
+      previous.txnCount += 1;
+      previous.itemsSold += itemsSold;
+    }
+
+    if (!inCurrent) continue;
+
+    current.totalSales += total;
+    current.txnCount += 1;
+    current.itemsSold += itemsSold;
+
+    const dayKey = utcDateKey(sale.soldAt);
+    const day = daily.get(dayKey) ?? { totalSales: 0, txnCount: 0 };
+    day.totalSales += total;
+    day.txnCount += 1;
+    daily.set(dayKey, day);
+
+    const cashier = cashiers.get(sale.user.id) ?? {
+      name: sale.user.name,
+      totalSales: 0,
+      txnCount: 0,
+    };
+    cashier.totalSales += total;
+    cashier.txnCount += 1;
+    cashiers.set(sale.user.id, cashier);
+
+    for (const payment of sale.payments) {
+      paymentSummary[payment.method] = round2(
+        paymentSummary[payment.method] + toNumber(payment.amount),
+      );
+    }
+
+    for (const item of sale.items) {
+      const lineTotal = toNumber(item.lineTotal);
+      const category = item.product.category?.trim() || "Uncategorized";
+      const categoryRow = categories.get(category) ?? { unitsSold: 0, totalSales: 0 };
+      categoryRow.unitsSold += item.quantityBase;
+      categoryRow.totalSales += lineTotal;
+      categories.set(category, categoryRow);
+
+      const medicine = medicines.get(item.productId) ?? {
+        name: item.productNameAtSale,
+        genericName: item.productGenericNameAtSale,
+        sku: item.product.sku,
+        unitsSold: 0,
+        totalSales: 0,
+        saleIds: new Set<string>(),
+      };
+      medicine.unitsSold += item.quantityBase;
+      medicine.totalSales += lineTotal;
+      medicine.saleIds.add(sale.id);
+      medicines.set(item.productId, medicine);
+    }
+  }
+
+  const dailyBars: OwnerSalesReportResponse["dailyBars"] = [];
+  for (
+    let cursor = startOfUtcDay(range.from);
+    cursor.getTime() <= startOfUtcDay(range.to).getTime();
+    cursor = addUtcDays(cursor, 1)
+  ) {
+    const key = utcDateKey(cursor);
+    const day = daily.get(key) ?? { totalSales: 0, txnCount: 0 };
+    dailyBars.push({
+      date: key,
+      totalSales: round2(day.totalSales),
+      txnCount: day.txnCount,
+    });
+  }
+
+  const highestSalesDay =
+    current.txnCount === 0
+      ? null
+      : dailyBars.reduce<OwnerSalesReportResponse["highestSalesDay"]>(
+          (top, day) => {
+            if (!top || day.totalSales > top.totalSales) return day;
+            return top;
+          },
+          null,
+        );
+
+  const bestSellingCategory = [...categories.entries()]
+    .map(([category, row]) => ({
+      category,
+      unitsSold: row.unitsSold,
+      totalSales: round2(row.totalSales),
+    }))
+    .sort(
+      (a, b) =>
+        b.unitsSold - a.unitsSold ||
+        b.totalSales - a.totalSales ||
+        a.category.localeCompare(b.category),
+    )[0] ?? null;
+
+  const avgOrder = current.txnCount > 0 ? current.totalSales / current.txnCount : 0;
+  const previousAvgOrder =
+    previous.txnCount > 0 ? previous.totalSales / previous.txnCount : 0;
+
+  return {
+    range: {
+      from: range.from.toISOString(),
+      to: range.to.toISOString(),
+      previousFrom: range.previousFrom.toISOString(),
+      previousTo: range.previousTo.toISOString(),
+      storeId,
+    },
+    kpis: {
+      totalSales: reportKpi(current.totalSales, previous.totalSales),
+      txnCount: reportKpi(current.txnCount, previous.txnCount),
+      avgOrder: reportKpi(avgOrder, previousAvgOrder),
+      itemsSold: reportKpi(current.itemsSold, previous.itemsSold),
+    },
+    dailyBars,
+    paymentSummary: {
+      CASH: round2(paymentSummary.CASH),
+      CARD: round2(paymentSummary.CARD),
+      MFS: round2(paymentSummary.MFS),
+      total: round2(paymentSummary.CASH + paymentSummary.CARD + paymentSummary.MFS),
+    },
+    bestSellingCategory,
+    highestSalesDay,
+    topCashiers: [...cashiers.entries()]
+      .map(([userId, row]) => ({
+        userId,
+        name: row.name,
+        totalSales: round2(row.totalSales),
+        txnCount: row.txnCount,
+        avgSale: row.txnCount > 0 ? round2(row.totalSales / row.txnCount) : 0,
+      }))
+      .sort(
+        (a, b) =>
+          b.totalSales - a.totalSales ||
+          b.txnCount - a.txnCount ||
+          a.name.localeCompare(b.name),
+      )
+      .slice(0, 5),
+    topSellingMedicines: [...medicines.entries()]
+      .map(([productId, row]) => ({
+        productId,
+        name: row.name,
+        genericName: row.genericName,
+        sku: row.sku,
+        unitsSold: row.unitsSold,
+        totalSales: round2(row.totalSales),
+        txnCount: row.saleIds.size,
+      }))
+      .sort(
+        (a, b) =>
+          b.unitsSold - a.unitsSold ||
+          b.totalSales - a.totalSales ||
+          a.name.localeCompare(b.name),
+      )
+      .slice(0, 10),
+    recentTransactions: recentSales.map((sale) => ({
+      saleId: sale.id,
+      invoiceNo: sale.receiptNo,
+      date: sale.soldAt.toISOString(),
+      customerName: sale.customer?.name ?? null,
+      itemCount: sale.items.reduce((sum, item) => sum + item.quantityBase, 0),
+      paymentMethods: [...new Set(sale.payments.map((payment) => payment.method))],
+      total: toNumber(sale.total),
+      cashierName: sale.user.name,
+    })),
   };
 }
 
@@ -1339,4 +1697,410 @@ export async function getBatchDetail(ctx: TenantContext, batchId: string) {
       createdAt: revision.createdAt.toISOString(),
     })),
   };
+}
+
+export async function listStaff(ctx: TenantContext, query: StaffListQuery) {
+  const { q, role, isActive, limit = 50, offset = 0 } = query;
+
+  const where: any = {
+    tenantId: ctx.tenantId,
+    role: { not: "SUPER_ADMIN" },
+  };
+
+  if (role) {
+    where.role = role;
+  }
+
+  if (isActive === "true") {
+    where.isActive = true;
+  } else if (isActive === "false") {
+    where.isActive = false;
+  }
+
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
+      { phone: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  const [users, totalMatching, totalCount, activeCount, inactiveCount, cashiersCount] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      include: {
+        store: {
+          select: { name: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: offset,
+      take: limit,
+    }),
+    prisma.user.count({ where }),
+    prisma.user.count({ where: { tenantId: ctx.tenantId, role: { not: "SUPER_ADMIN" } } }),
+    prisma.user.count({ where: { tenantId: ctx.tenantId, role: { not: "SUPER_ADMIN" }, isActive: true } }),
+    prisma.user.count({ where: { tenantId: ctx.tenantId, role: { not: "SUPER_ADMIN" }, isActive: false } }),
+    prisma.user.count({ where: { tenantId: ctx.tenantId, role: "CASHIER" } }),
+  ]);
+
+  const items = users.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    tenantId: u.tenantId,
+    storeId: u.storeId,
+    isActive: u.isActive,
+    phone: u.phone,
+    internalNote: u.internalNote,
+    lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
+    createdAt: u.createdAt.toISOString(),
+    username: u.email.split("@")[0],
+    storeName: u.store?.name ?? null,
+  }));
+
+  return {
+    items,
+    kpis: {
+      total: totalCount,
+      active: activeCount,
+      inactive: inactiveCount,
+      cashiers: cashiersCount,
+    },
+    total: totalMatching,
+    limit,
+    offset,
+  };
+}
+
+export async function getStaffDetail(ctx: TenantContext, id: string) {
+  const user = await prisma.user.findFirst({
+    where: { id, tenantId: ctx.tenantId },
+    include: {
+      store: {
+        select: { name: true },
+      },
+      staffActivities: {
+        include: {
+          actor: {
+            select: { name: true, role: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  if (!user) {
+    throw new AppError("Staff user not found", 404);
+  }
+
+  const activities = user.staffActivities.map((act) => ({
+    id: act.id,
+    type: act.type,
+    fromValue: act.fromValue,
+    toValue: act.toValue,
+    note: act.note,
+    createdAt: act.createdAt.toISOString(),
+    actorName: act.actor.name,
+    actorRole: act.actor.role,
+  }));
+
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      storeId: user.storeId,
+      isActive: user.isActive,
+      phone: user.phone,
+      internalNote: user.internalNote,
+      lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+      createdAt: user.createdAt.toISOString(),
+      username: user.email.split("@")[0],
+      storeName: user.store?.name ?? null,
+    },
+    activities,
+  };
+}
+
+export async function createStaff(ctx: TenantContext, input: OwnerStaffCreateInput) {
+  const emailLower = input.email.toLowerCase();
+
+  // 1. Check duplicate email in tenant
+  const existing = await prisma.user.findFirst({
+    where: { tenantId: ctx.tenantId, email: emailLower },
+  });
+  if (existing) {
+    throw new AppError("Email already taken in this pharmacy", 409);
+  }
+
+  // 2. Validate storeId if provided
+  if (input.storeId) {
+    const storeExists = await prisma.store.findFirst({
+      where: { id: input.storeId, tenantId: ctx.tenantId },
+    });
+    if (!storeExists) {
+      throw new AppError("Assigned store/branch not found under this tenant", 400);
+    }
+  }
+
+  // 3. Generate password
+  const tempPassword = randomBytes(6).toString("hex");
+  const passwordHash = await bcrypt.hash(tempPassword, 12);
+
+  // 4. Create user and activity in transaction
+  const user = await prisma.$transaction(async (tx) => {
+    const createdUser = await tx.user.create({
+      data: {
+        tenantId: ctx.tenantId,
+        storeId: input.storeId || null,
+        email: emailLower,
+        passwordHash,
+        name: input.name,
+        phone: input.phone,
+        internalNote: input.internalNote || null,
+        role: input.role,
+        isActive: true,
+      },
+    });
+
+    await tx.staffActivityEvent.create({
+      data: {
+        tenantId: ctx.tenantId,
+        userId: createdUser.id,
+        actorUserId: ctx.userId,
+        type: "CREATED",
+        note: `Staff user created with role ${input.role}`,
+      },
+    });
+
+    return createdUser;
+  });
+
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      storeId: user.storeId,
+      isActive: user.isActive,
+      phone: user.phone,
+      internalNote: user.internalNote,
+      lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+      createdAt: user.createdAt.toISOString(),
+      username: user.email.split("@")[0],
+    },
+    temporaryPassword: tempPassword,
+  };
+}
+
+export async function patchStaff(ctx: TenantContext, id: string, input: OwnerStaffPatchInput) {
+  // 1. Block self edit
+  if (id === ctx.userId) {
+    throw new AppError("You cannot edit your own staff profile", 400);
+  }
+
+  // 2. Cannot change role to OWNER / SUPER_ADMIN
+  if (input.role && ((input.role as string) === "OWNER" || (input.role as string) === "SUPER_ADMIN")) {
+    throw new AppError("Cannot change role to OWNER or SUPER_ADMIN", 400);
+  }
+
+  // 3. Find target user
+  const target = await prisma.user.findFirst({
+    where: { id, tenantId: ctx.tenantId },
+  });
+  if (!target) {
+    throw new AppError("User not found", 404);
+  }
+  if (target.role === "OWNER" || target.role === "SUPER_ADMIN") {
+    throw new AppError("Cannot edit OWNER or SUPER_ADMIN profiles", 403);
+  }
+
+  // 4. Validate duplicate email
+  if (input.email) {
+    const emailLower = input.email.toLowerCase();
+    if (emailLower !== target.email) {
+      const existing = await prisma.user.findFirst({
+        where: { tenantId: ctx.tenantId, email: emailLower },
+      });
+      if (existing) {
+        throw new AppError("Email already taken in this pharmacy", 409);
+      }
+    }
+  }
+
+  // 5. Validate storeId
+  if (input.storeId) {
+    const storeExists = await prisma.store.findFirst({
+      where: { id: input.storeId, tenantId: ctx.tenantId },
+    });
+    if (!storeExists) {
+      throw new AppError("Assigned store/branch not found under this tenant", 400);
+    }
+  }
+
+  // 6. Build activity logs
+  const activitiesToCreate: any[] = [];
+
+  if (input.role && input.role !== target.role) {
+    activitiesToCreate.push({
+      tenantId: ctx.tenantId,
+      userId: target.id,
+      actorUserId: ctx.userId,
+      type: "ROLE_CHANGED" as const,
+      fromValue: target.role,
+      toValue: input.role,
+      note: `Role changed from ${target.role} to ${input.role}`,
+    });
+  }
+
+  if (input.storeId !== undefined && input.storeId !== target.storeId) {
+    activitiesToCreate.push({
+      tenantId: ctx.tenantId,
+      userId: target.id,
+      actorUserId: ctx.userId,
+      type: "BRANCH_CHANGED" as const,
+      fromValue: target.storeId || "null",
+      toValue: input.storeId || "null",
+      note: `Store changed from ${target.storeId || "none"} to ${input.storeId || "none"}`,
+    });
+  }
+
+  const profileFieldsChanged = [];
+  if (input.name && input.name !== target.name) profileFieldsChanged.push("name");
+  if (input.phone && input.phone !== target.phone) profileFieldsChanged.push("phone");
+  if (input.email && input.email.toLowerCase() !== target.email) profileFieldsChanged.push("email");
+  if (input.internalNote !== undefined && input.internalNote !== target.internalNote) profileFieldsChanged.push("internalNote");
+
+  if (profileFieldsChanged.length > 0) {
+    activitiesToCreate.push({
+      tenantId: ctx.tenantId,
+      userId: target.id,
+      actorUserId: ctx.userId,
+      type: "PROFILE_UPDATED" as const,
+      fromValue: null,
+      toValue: null,
+      note: `Updated fields: ${profileFieldsChanged.join(", ")}`,
+    });
+  }
+
+  // 7. Update in transaction
+  const updated = await prisma.$transaction(async (tx) => {
+    const user = await tx.user.update({
+      where: { id: target.id },
+      data: {
+        name: input.name,
+        phone: input.phone,
+        email: input.email ? input.email.toLowerCase() : undefined,
+        role: input.role,
+        internalNote: input.internalNote,
+        storeId: input.storeId,
+      },
+    });
+
+    if (activitiesToCreate.length > 0) {
+      await tx.staffActivityEvent.createMany({
+        data: activitiesToCreate,
+      });
+    }
+
+    return user;
+  });
+
+  return {
+    id: updated.id,
+    name: updated.name,
+    email: updated.email,
+    role: updated.role,
+    tenantId: updated.tenantId,
+    storeId: updated.storeId,
+    isActive: updated.isActive,
+    phone: updated.phone,
+    internalNote: updated.internalNote,
+    lastLoginAt: updated.lastLoginAt ? updated.lastLoginAt.toISOString() : null,
+    createdAt: updated.createdAt.toISOString(),
+    username: updated.email.split("@")[0],
+  };
+}
+
+export async function deactivateStaff(ctx: TenantContext, id: string, input: StaffDeactivateInput) {
+  // 1. Block self
+  if (id === ctx.userId) {
+    throw new AppError("You cannot deactivate yourself", 400);
+  }
+
+  // 2. Find target
+  const target = await prisma.user.findFirst({
+    where: { id, tenantId: ctx.tenantId },
+  });
+  if (!target) {
+    throw new AppError("User not found", 404);
+  }
+  if (target.role === "OWNER" || target.role === "SUPER_ADMIN") {
+    throw new AppError("Cannot deactivate OWNER or SUPER_ADMIN profiles", 403);
+  }
+
+  // 3. Deactivate, revoke tokens, log activity in transaction
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: target.id },
+      data: { isActive: false },
+    });
+
+    await tx.refreshToken.updateMany({
+      where: { userId: target.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    await tx.staffActivityEvent.create({
+      data: {
+        tenantId: ctx.tenantId,
+        userId: target.id,
+        actorUserId: ctx.userId,
+        type: "DEACTIVATED",
+        note: input.reason || "Staff profile deactivated by owner",
+      },
+    });
+  });
+
+  return { success: true };
+}
+
+export async function reactivateStaff(ctx: TenantContext, id: string) {
+  // 1. Find target
+  const target = await prisma.user.findFirst({
+    where: { id, tenantId: ctx.tenantId },
+  });
+  if (!target) {
+    throw new AppError("User not found", 404);
+  }
+  if (target.role === "OWNER" || target.role === "SUPER_ADMIN") {
+    throw new AppError("Cannot reactivate OWNER or SUPER_ADMIN profiles", 403);
+  }
+
+  // 2. Reactivate, log activity in transaction
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: target.id },
+      data: { isActive: true },
+    });
+
+    await tx.staffActivityEvent.create({
+      data: {
+        tenantId: ctx.tenantId,
+        userId: target.id,
+        actorUserId: ctx.userId,
+        type: "REACTIVATED",
+        note: "Staff profile reactivated by owner",
+      },
+    });
+  });
+
+  return { success: true };
 }

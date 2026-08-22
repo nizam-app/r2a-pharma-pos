@@ -964,6 +964,7 @@ function AuthenticatedPos() {
         eventId,
         storeId,
         customerId: saleCustomer?.customerId ?? null,
+        shiftId: shiftStore.get(user?.tenantId ?? "", storeId)?.shiftId,
         lines: cartLines,
         cartSubtotal,
         appliedLoyalty,
@@ -1073,6 +1074,7 @@ function AuthenticatedPos() {
       eventId,
       storeId,
       customerId: saleCustomer?.customerId ?? null,
+      shiftId: shiftStore.get(user?.tenantId ?? "", storeId)?.shiftId,
       lines: cartLines,
       cartSubtotal,
       appliedLoyalty,
@@ -1182,6 +1184,7 @@ function AuthenticatedPos() {
         eventId,
         storeId,
         customerId: saleCustomer?.customerId ?? null,
+        shiftId: shiftStore.get(user?.tenantId ?? "", storeId)?.shiftId,
         lines: cartLines,
         cartSubtotal,
         appliedLoyalty,
@@ -1321,6 +1324,7 @@ function AuthenticatedPos() {
       eventId,
       storeId,
       customerId: saleCustomer.customerId,
+      shiftId: shiftStore.get(user?.tenantId ?? "", storeId)?.shiftId,
       lines: cartLines,
       cartSubtotal,
       appliedLoyalty,
@@ -1947,6 +1951,7 @@ function AuthenticatedPos() {
               onClose={closeModals}
               onSelect={onSelectCustomer}
               onWalkIn={onWalkInCustomer}
+              showToast={showToast}
             />
           ) : modal.kind === "substitutes" ? (
             <GenericSubstitutesModal

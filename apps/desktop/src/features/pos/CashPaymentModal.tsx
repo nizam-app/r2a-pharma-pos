@@ -115,6 +115,11 @@ export function CashPaymentModal({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Tab") {
+      event.preventDefault();
+      return;
+    }
+
     if (event.key === "Escape") {
       if (submitting) return;
       event.preventDefault();

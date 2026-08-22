@@ -170,20 +170,18 @@ function checkSlice5DoD(): void {
     "Transaction detail reprint",
   );
 
-  // Create Customer absent from POS
+  // Create Customer check
   const selectCustomer = readSrc("features/pos/SelectCustomerModal.tsx");
   assert(
-    !app.includes("onCreateCustomerStub") &&
-      !selectCustomer.includes("onCreateCustomerStub") &&
-      !selectCustomer.includes("customer.createNew"),
-    "Create Customer removed from POS",
+    selectCustomer.includes("mode === \"create\"") || selectCustomer.includes("Register Customer"),
+    "SelectCustomerModal must implement Create Customer flow",
   );
 
-  // POST customers OWNER-only
+  // POST customers is role-aware (Owner/Manager/Cashier can create)
   const customerRouter = readServer("modules/customer/customer.router.ts");
   assert(
-    customerRouter.includes('restrictTo("OWNER")'),
-    'POST /customers must restrictTo("OWNER")',
+    !customerRouter.includes('restrictTo("OWNER")'),
+    'POST /customers must not be restricted to OWNER only',
   );
 
   // No M4 flush

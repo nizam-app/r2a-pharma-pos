@@ -65,13 +65,15 @@ export function OwnerPathProvider({ children }: { children: ReactNode }) {
   }, [navigationBlocker, pathname]);
 
   const navigate = useCallback((to: string) => {
-    const next = isLiveOwnerUrl(to) ? to : "/";
+    const pathOnly = to.split(/[?#]/, 1)[0] || "/";
+    const next = isLiveOwnerUrl(pathOnly) ? to : "/";
+    const nextPathOnly = next.split(/[?#]/, 1)[0] || "/";
     if (navigationBlocker && !navigationBlocker(next)) return;
-    if (window.location.pathname !== next) {
+    if (`${window.location.pathname}${window.location.search}` !== next) {
       window.history.pushState({}, "", next);
     }
-    setPath(matchOwnerPath(next));
-    setPathname(next);
+    setPath(matchOwnerPath(nextPathOnly));
+    setPathname(nextPathOnly);
   }, [navigationBlocker]);
 
   const value = useMemo(

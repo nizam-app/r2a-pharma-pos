@@ -28,6 +28,9 @@ function asAuthUser(user: User): AuthUserRow {
     tenantId: user.tenantId,
     storeId: user.storeId,
     isActive: user.isActive,
+    phone: user.phone,
+    internalNote: user.internalNote,
+    lastLoginAt: user.lastLoginAt,
     createdAt: user.createdAt,
   };
 }
@@ -148,7 +151,12 @@ export async function login(input: LoginInput) {
     throw new AppError("Tenant is inactive", 403);
   }
 
-  return issueTokenPair(asAuthUser(user));
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  });
+
+  return issueTokenPair(asAuthUser(updatedUser));
 }
 
 export async function refresh(input: RefreshTokenInput) {

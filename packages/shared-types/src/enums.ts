@@ -77,3 +77,74 @@ export type CustomerSource = z.infer<typeof customerSourceSchema>;
 /** Mirrors Prisma `CustomerGender`. Optional on the profile. */
 export const customerGenderSchema = z.enum(["MALE", "FEMALE", "OTHER"]);
 export type CustomerGender = z.infer<typeof customerGenderSchema>;
+
+/** Mirrors Prisma `StaffActivityType`. */
+export const staffActivityTypeSchema = z.enum([
+  "CREATED",
+  "ROLE_CHANGED",
+  "BRANCH_CHANGED",
+  "DEACTIVATED",
+  "REACTIVATED",
+  "PROFILE_UPDATED",
+]);
+export type StaffActivityType = z.infer<typeof staffActivityTypeSchema>;
+
+/** Mirrors Prisma `ShiftStatus`. */
+export const shiftStatusSchema = z.enum(["OPEN", "CLOSED", "FLAGGED"]);
+export type ShiftStatus = z.infer<typeof shiftStatusSchema>;
+
+/** Mirrors Prisma `ShiftVarianceDecision`. */
+export const shiftVarianceDecisionSchema = z.enum([
+  "ACCEPTED_DIFFERENCE",
+  "COUNT_CORRECTED",
+  "OTHER",
+]);
+export type ShiftVarianceDecision = z.infer<typeof shiftVarianceDecisionSchema>;
+
+/** Mirrors Prisma `ShiftActivityType`. */
+export const shiftActivityTypeSchema = z.enum([
+  "OPENED",
+  "SALE_RECORDED",
+  "CLOSE_SUBMITTED",
+  "VARIANCE_REVIEWED",
+  "CLOSED",
+]);
+export type ShiftActivityType = z.infer<typeof shiftActivityTypeSchema>;
+
+/** Mirrors Prisma `StockAuditStatus`. */
+export const stockAuditStatusSchema = z.enum([
+  "IN_PROGRESS",
+  "UNDER_REVIEW",
+  "COMPLETED",
+  "VARIANCE_FOUND",
+]);
+export type StockAuditStatus = z.infer<typeof stockAuditStatusSchema>;
+
+/** Mirrors Prisma `StockAuditLineStatus`. */
+export const stockAuditLineStatusSchema = z.enum([
+  "MATCHES",
+  "DISCREPANCY",
+]);
+export type StockAuditLineStatus = z.infer<typeof stockAuditLineStatusSchema>;
+
+/** Mirrors Prisma `FefoViolationStatus`. */
+export const fefoViolationStatusSchema = z.enum([
+  "OPEN",
+  "CORRECTED",
+  "DISMISSED",
+]);
+export type FefoViolationStatus = z.infer<typeof fefoViolationStatusSchema>;
+
+/** Mirrors Prisma `StockAuditActivityType`. */
+export const stockAuditActivityTypeSchema = z.enum([
+  "CREATED",
+  "COUNT_STARTED",
+  "VARIANCE_DETECTED",
+  "REVIEWED",
+  "FEFO_CORRECTED",
+  "COMPLETED",
+]);
+export type StockAuditActivityType = z.infer<
+  typeof stockAuditActivityTypeSchema
+>;
+

@@ -120,6 +120,11 @@ export function PaymentSelectMethodModal({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Tab") {
+      event.preventDefault();
+      return;
+    }
+
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();

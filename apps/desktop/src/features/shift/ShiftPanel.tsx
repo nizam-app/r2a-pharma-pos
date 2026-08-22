@@ -10,6 +10,7 @@ import { Clock3, X } from "lucide-react";
 import { useAuth } from "@/features/auth";
 import { ConfirmDialog } from "@/features/pos";
 import { useLocale } from "@/i18n";
+import { useConnectivity } from "@/features/shell";
 import {
   formatShiftDuration,
   formatShiftOpenedAt,
@@ -24,21 +25,39 @@ export type ShiftPanelProps = {
 };
 
 /**
- * Shift — Open / Close (M3 Batch AL invent).
- * Local session window only (shiftStore). No cloud shift API.
+ * Shift — Open / Close (M6 Batch AY — cloud shift).
+ * Open: opening float required → POST /shifts.
+ * Close: counted cash required → POST /shifts/active/close.
+ * Online required for both. Cached for offline sale ingest shiftId.
  * ←/→ CTAs · Esc close · no Tab · no Baki.
  */
 export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
   const { t } = useLocale();
   const { user, cashierLabel } = useAuth();
+  const { isOnline } = useConnectivity();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const openBtnRef = useRef<HTMLButtonElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const floatInputRef = useRef<HTMLInputElement>(null);
+  const countedInputRef = useRef<HTMLInputElement>(null);
 
   const [shift, setShift] = useState<ActiveShift | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  /** Open form state */
+  const [floatValue, setFloatValue] = useState("");
+  /** Close form state */
+  const [countedValue, setCountedValue] = useState("");
+  /** Close result */
+  const [closeResult, setCloseResult] = useState<{
+    variance: number;
+    status: string;
+  } | null>(null);
 
   const reload = useCallback(() => {
     if (!user?.tenantId) {
@@ -53,13 +72,13 @@ export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
   }, [reload]);
 
   useEffect(() => {
-    if (confirmClose) return;
+    if (confirmClose || confirmOpen) return;
     panelRef.current?.focus();
     queueMicrotask(() => {
       if (shift) closeBtnRef.current?.focus();
-      else openBtnRef.current?.focus();
+      else floatInputRef.current?.focus();
     });
-  }, [shift, confirmClose]);
+  }, [shift, confirmClose, confirmOpen]);
 
   // Tick duration while panel is open and a shift is active.
   useEffect(() => {
@@ -72,24 +91,67 @@ export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
     onShiftChanged?.();
   }, [onShiftChanged]);
 
-  const onOpenShift = useCallback(() => {
+  const onOpenShift = useCallback(async () => {
     if (!user?.tenantId) return;
-    const next = shiftStore.open(user.tenantId, user.storeId ?? null, {
-      openedByName: cashierLabel || user.name || user.email || "Cashier",
-      openedByUserId: user.id,
-    });
-    setShift(next);
-    notifyChanged();
-  }, [user, cashierLabel, notifyChanged]);
+    if (!isOnline) {
+      setError(t("shift.openingOnlineRequired"));
+      return;
+    }
+    const float = parseFloat(floatValue);
+    if (!Number.isFinite(float) || float < 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const next = await shiftStore.open(user.tenantId, user.storeId ?? null, {
+        openedByName: cashierLabel || user.name || user.email || "Cashier",
+        openedByUserId: user.id,
+        openingFloat: float,
+      });
+      setShift(next);
+      setConfirmOpen(false);
+      setFloatValue("");
+      notifyChanged();
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : t("shift.openFailed");
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, cashierLabel, floatValue, notifyChanged, t, isOnline]);
 
-  const onConfirmCloseShift = useCallback(() => {
+  const onConfirmCloseShift = useCallback(async () => {
     if (!user?.tenantId) return;
-    shiftStore.close(user.tenantId, user.storeId ?? null);
-    setShift(null);
-    setConfirmClose(false);
-    notifyChanged();
-    queueMicrotask(() => panelRef.current?.focus());
-  }, [user?.tenantId, user?.storeId, notifyChanged]);
+    if (!isOnline) {
+      setError(t("shift.closingOnlineRequired"));
+      return;
+    }
+    const counted = parseFloat(countedValue);
+    if (!Number.isFinite(counted) || counted < 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await shiftStore.close(
+        user.tenantId,
+        user.storeId ?? null,
+        counted,
+      );
+      setShift(null);
+      setConfirmClose(false);
+      setCloseResult(result);
+      setCountedValue("");
+      notifyChanged();
+      // Auto-clear close result after 4 seconds
+      setTimeout(() => setCloseResult(null), 4000);
+      queueMicrotask(() => panelRef.current?.focus());
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : t("shift.closeFailed");
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, countedValue, notifyChanged, t, isOnline]);
 
   const focusCta = (delta: number) => {
     const buttons = [openBtnRef.current, closeBtnRef.current].filter(
@@ -104,7 +166,7 @@ export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
   };
 
   const onKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (confirmClose) {
+    if (confirmClose || confirmOpen) {
       // ConfirmDialog owns Esc / ←→ / Enter.
       return;
     }
@@ -138,7 +200,7 @@ export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
       event.preventDefault();
       event.stopPropagation();
       if (shift) setConfirmClose(true);
-      else onOpenShift();
+      else if (floatValue) setConfirmOpen(true);
     }
   };
 
@@ -146,6 +208,10 @@ export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
   const durationLabel = shift
     ? formatShiftDuration(shift.openedAt, nowMs)
     : "";
+  const floatNum = parseFloat(floatValue);
+  const floatValid = Number.isFinite(floatNum) && floatNum >= 0;
+  const countedNum = parseFloat(countedValue);
+  const countedValid = Number.isFinite(countedNum) && countedNum >= 0;
 
   return (
     <div
@@ -192,7 +258,18 @@ export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
             aria-hidden
           />
 
-          {shift ? (
+          {closeResult ? (
+            <>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-connected">
+                {closeResult.status === "CLOSED"
+                  ? t("shift.closeShiftBalanced")
+                  : t("shift.closeShiftFlagged").replace(
+                      "{variance}",
+                      String(Math.abs(closeResult.variance)),
+                    )}
+              </p>
+            </>
+          ) : shift ? (
             <>
               <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-connected">
                 {t("shift.statusOpen")}
@@ -201,6 +278,12 @@ export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
                 {t("shift.activeHeading")}
               </h3>
               <dl className="mt-5 space-y-2 text-left text-sm">
+                <div className="flex items-baseline justify-between gap-3 border-b border-border/70 pb-2">
+                  <dt className="text-muted">{t("shift.shiftNo")}</dt>
+                  <dd className="font-mono text-xs font-medium text-foreground">
+                    {shift.shiftNo}
+                  </dd>
+                </div>
                 <div className="flex items-baseline justify-between gap-3 border-b border-border/70 pb-2">
                   <dt className="text-muted">{t("shift.openedAt")}</dt>
                   <dd className="font-mono text-xs font-medium text-foreground">
@@ -213,6 +296,12 @@ export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
                     {shift.openedByName}
                   </dd>
                 </div>
+                <div className="flex items-baseline justify-between gap-3 border-b border-border/70 pb-2">
+                  <dt className="text-muted">{t("shift.openingFloat")}</dt>
+                  <dd className="font-medium tabular-nums text-foreground">
+                    ৳{shift.openingFloat.toLocaleString()}
+                  </dd>
+                </div>
                 <div className="flex items-baseline justify-between gap-3">
                   <dt className="text-muted">{t("shift.duration")}</dt>
                   <dd className="font-medium tabular-nums text-foreground">
@@ -220,14 +309,41 @@ export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
                   </dd>
                 </div>
               </dl>
-              <div className="mt-6 flex justify-center">
+              {error && (
+                <p className="mt-3 text-xs text-destructive">{error}</p>
+              )}
+              <div className="mt-6 flex flex-col gap-3">
+                <div>
+                  <label
+                    htmlFor="counted-cash"
+                    className="mb-1 block text-left text-xs font-medium text-muted"
+                  >
+                    {t("shift.countedCash")}
+                  </label>
+                  <input
+                    ref={countedInputRef}
+                    id="counted-cash"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder={t("shift.countedCashPlaceholder")}
+                    value={countedValue}
+                    onChange={(e) => {
+                      setCountedValue(e.target.value);
+                      setError(null);
+                    }}
+                    className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted/60 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
                 <button
                   ref={closeBtnRef}
                   type="button"
-                  className="inline-flex items-center justify-center rounded-md border border-destructive/40 bg-surface px-5 py-2.5 text-sm font-semibold text-destructive shadow-sm transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                  disabled={!countedValid || loading}
+                  className="inline-flex items-center justify-center rounded-md border border-destructive/40 bg-surface px-5 py-2.5 text-sm font-semibold text-destructive shadow-sm transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={() => setConfirmClose(true)}
                 >
-                  {t("shift.closeShift")}
+                  {loading ? "…" : t("shift.closeShift")}
                 </button>
               </div>
             </>
@@ -240,14 +356,47 @@ export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
                 {t("shift.closedHeading")}
               </h3>
               <p className="mt-2 text-sm text-muted">{t("shift.closedHint")}</p>
-              <div className="mt-6 flex justify-center">
+              {error && (
+                <p className="mt-3 text-xs text-destructive">{error}</p>
+              )}
+              <div className="mt-6 flex flex-col gap-3">
+                <div>
+                  <label
+                    htmlFor="opening-float"
+                    className="mb-1 block text-left text-xs font-medium text-muted"
+                  >
+                    {t("shift.openingFloat")}
+                  </label>
+                  <input
+                    ref={floatInputRef}
+                    id="opening-float"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder={t("shift.openingFloatPlaceholder")}
+                    value={floatValue}
+                    onChange={(e) => {
+                      setFloatValue(e.target.value);
+                      setError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && floatValid && !loading) {
+                        e.preventDefault();
+                        setConfirmOpen(true);
+                      }
+                    }}
+                    className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted/60 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
                 <button
                   ref={openBtnRef}
                   type="button"
-                  className="inline-flex items-center justify-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  onClick={onOpenShift}
+                  disabled={!floatValid || loading}
+                  className="inline-flex items-center justify-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setConfirmOpen(true)}
                 >
-                  {t("shift.openShift")}
+                  {loading ? "…" : t("shift.openShift")}
                 </button>
               </div>
             </>
@@ -258,6 +407,20 @@ export function ShiftPanel({ onClose, onShiftChanged }: ShiftPanelProps) {
       <footer className="shrink-0 border-t border-border bg-shell/40 px-4 py-2 text-[11px] text-muted">
         {t("shift.footer")}
       </footer>
+
+      {confirmOpen ? (
+        <ConfirmDialog
+          title={t("shift.openShiftConfirmTitle")}
+          description={t("shift.openShiftConfirmBody")}
+          confirmLabel={t("shift.openShift")}
+          cancelLabel={t("shift.keepOpen")}
+          onConfirm={onOpenShift}
+          onCancel={() => {
+            setConfirmOpen(false);
+            queueMicrotask(() => openBtnRef.current?.focus());
+          }}
+        />
+      ) : null}
 
       {confirmClose ? (
         <ConfirmDialog

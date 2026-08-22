@@ -36,3 +36,100 @@ export const ownerInventoryQuerySchema = z.object({
   offset: z.coerce.number().int().nonnegative().default(0),
 });
 export type OwnerInventoryQuery = z.infer<typeof ownerInventoryQuerySchema>;
+
+export const ownerSalesReportQuerySchema = z.object({
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  storeId: z.string().min(1).optional(),
+});
+export type OwnerSalesReportQuery = z.infer<
+  typeof ownerSalesReportQuerySchema
+>;
+
+const ownerReportTrendSchema = z.enum(["up", "down", "steady"]);
+
+export const ownerReportKpiSchema = z.object({
+  value: z.number(),
+  previousValue: z.number(),
+  delta: z.number(),
+  deltaPct: z.number().nullable(),
+  trend: ownerReportTrendSchema,
+});
+
+export const ownerSalesReportResponseSchema = z.object({
+  range: z.object({
+    from: z.string(),
+    to: z.string(),
+    previousFrom: z.string(),
+    previousTo: z.string(),
+    storeId: z.string().nullable(),
+  }),
+  kpis: z.object({
+    totalSales: ownerReportKpiSchema,
+    txnCount: ownerReportKpiSchema,
+    avgOrder: ownerReportKpiSchema,
+    itemsSold: ownerReportKpiSchema,
+  }),
+  dailyBars: z.array(
+    z.object({
+      date: z.string(),
+      totalSales: z.number(),
+      txnCount: z.number(),
+    }),
+  ),
+  paymentSummary: z.object({
+    CASH: z.number(),
+    CARD: z.number(),
+    MFS: z.number(),
+    total: z.number(),
+  }),
+  bestSellingCategory: z
+    .object({
+      category: z.string(),
+      unitsSold: z.number(),
+      totalSales: z.number(),
+    })
+    .nullable(),
+  highestSalesDay: z
+    .object({
+      date: z.string(),
+      totalSales: z.number(),
+      txnCount: z.number(),
+    })
+    .nullable(),
+  topCashiers: z.array(
+    z.object({
+      userId: z.string(),
+      name: z.string(),
+      totalSales: z.number(),
+      txnCount: z.number(),
+      avgSale: z.number(),
+    }),
+  ),
+  topSellingMedicines: z.array(
+    z.object({
+      productId: z.string(),
+      name: z.string(),
+      genericName: z.string().nullable(),
+      sku: z.string().nullable(),
+      unitsSold: z.number(),
+      totalSales: z.number(),
+      txnCount: z.number(),
+    }),
+  ),
+  recentTransactions: z.array(
+    z.object({
+      saleId: z.string(),
+      invoiceNo: z.string().nullable(),
+      date: z.string(),
+      customerName: z.string().nullable(),
+      itemCount: z.number(),
+      paymentMethods: z.array(z.enum(["CASH", "CARD", "MFS"])),
+      total: z.number(),
+      cashierName: z.string(),
+    }),
+  ),
+});
+export type OwnerSalesReportResponse = z.infer<
+  typeof ownerSalesReportResponseSchema
+>;

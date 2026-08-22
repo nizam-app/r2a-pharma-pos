@@ -17,7 +17,9 @@
     "db:migrate": "npm run prisma:migrate -w @r2a/database",
     "db:deploy": "npm run prisma:deploy -w @r2a/database",
     "db:seed": "npm run prisma:seed -w @r2a/database",
-    "smoke:m6s1": "npm run smoke:m6s1 -w @r2a/web"
+    "smoke:m6s1": "npm run smoke:m6s1 -w @r2a/web",
+    "smoke:m6s3": "npm run smoke:m6s3 -w @r2a/web",
+    "smoke:m6s6": "npm run smoke:m6s6 -w @r2a/web"
   },
   "devDependencies": {
     "turbo": "^2.5.4",

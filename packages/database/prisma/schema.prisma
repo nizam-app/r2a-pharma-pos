@@ -103,6 +103,62 @@ enum CustomerGender {
   OTHER
 }
 
+enum StaffActivityType {
+  CREATED
+  ROLE_CHANGED
+  BRANCH_CHANGED
+  DEACTIVATED
+  REACTIVATED
+  PROFILE_UPDATED
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+  FLAGGED
+}
+
+enum ShiftVarianceDecision {
+  ACCEPTED_DIFFERENCE
+  COUNT_CORRECTED
+  OTHER
+}
+
+enum ShiftActivityType {
+  OPENED
+  SALE_RECORDED
+  CLOSE_SUBMITTED
+  VARIANCE_REVIEWED
+  CLOSED
+}
+
+enum StockAuditStatus {
+  IN_PROGRESS
+  UNDER_REVIEW
+  COMPLETED
+  VARIANCE_FOUND
+}
+
+enum StockAuditLineStatus {
+  MATCHES
+  DISCREPANCY
+}
+
+enum FefoViolationStatus {
+  OPEN
+  CORRECTED
+  DISMISSED
+}
+
+enum StockAuditActivityType {
+  CREATED
+  COUNT_STARTED
+  VARIANCE_DETECTED
+  REVIEWED
+  FEFO_CORRECTED
+  COMPLETED
+}
+
 // --- Tenancy & access ---
 
 model Tenant {
@@ -113,25 +169,32 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  stores              Store[]
-  users               User[]
-  refreshTokens       RefreshToken[]
-  products            Product[]
-  productUnits        ProductUnit[]
-  batches             Batch[]
-  customers           Customer[]
-  sales               Sale[]
-  saleItems           SaleItem[]
-  payments            Payment[]
-  inventoryEvents     InventoryEvent[]
-  batchRevisions      BatchRevision[]
-  suppliers           Supplier[]
-  purchaseOrders      PurchaseOrder[]
-  purchaseOrderLines  PurchaseOrderLine[]
-  goodsReceipts       GoodsReceipt[]
-  goodsReceiptLines   GoodsReceiptLine[]
-  returnManifests     ReturnManifest[]
-  returnManifestLines ReturnManifestLine[]
+  stores               Store[]
+  users                User[]
+  refreshTokens        RefreshToken[]
+  products             Product[]
+  productUnits         ProductUnit[]
+  batches              Batch[]
+  customers            Customer[]
+  sales                Sale[]
+  saleItems            SaleItem[]
+  payments             Payment[]
+  inventoryEvents      InventoryEvent[]
+  batchRevisions       BatchRevision[]
+  suppliers            Supplier[]
+  purchaseOrders       PurchaseOrder[]
+  purchaseOrderLines   PurchaseOrderLine[]
+  goodsReceipts        GoodsReceipt[]
+  goodsReceiptLines    GoodsReceiptLine[]
+  returnManifests      ReturnManifest[]
+  returnManifestLines  ReturnManifestLine[]
+  staffActivityEvents  StaffActivityEvent[]
+  shifts               Shift[]
+  shiftActivityEvents  ShiftActivityEvent[]
+  stockAudits          StockAudit[]
+  stockAuditLines      StockAuditLine[]
+  stockAuditActivities StockAuditActivityEvent[]
+  fefoViolationRecords FefoViolationRecord[]
 }
 
 model Store {
@@ -144,48 +207,64 @@ model Store {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  users           User[]
-  batches         Batch[]
-  customers       Customer[]
-  sales           Sale[]
-  inventoryEvents InventoryEvent[]
-  batchRevisions  BatchRevision[]
-  purchaseOrders  PurchaseOrder[]
-  goodsReceipts   GoodsReceipt[]
-  returnManifests ReturnManifest[]
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users                User[]
+  batches              Batch[]
+  customers            Customer[]
+  sales                Sale[]
+  inventoryEvents      InventoryEvent[]
+  batchRevisions       BatchRevision[]
+  purchaseOrders       PurchaseOrder[]
+  goodsReceipts        GoodsReceipt[]
+  returnManifests      ReturnManifest[]
+  shifts               Shift[]
+  stockAudits          StockAudit[]
+  fefoViolationRecords FefoViolationRecord[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   tenantId     String
   storeId      String?
   email        String
   passwordHash String
   name         String
   role         Role
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isActive     Boolean   @default(true)
+  phone        String?
+  internalNote String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  tenant                    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  store                     Store?           @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  tenant                    Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store                     Store?                    @relation(fields: [storeId], references: [id], onDelete: SetNull)
   sales                     Sale[]
   refreshTokens             RefreshToken[]
-  inventoryEvents           InventoryEvent[] @relation("InventoryEventActor")
-  batchRevisions            BatchRevision[]  @relation("BatchRevisionActor")
-  purchaseOrdersCreated     PurchaseOrder[]  @relation("PurchaseOrderCreatedBy")
-  goodsReceiptsReceived     GoodsReceipt[]   @relation("GoodsReceiptReceivedBy")
-  returnManifestsPrepared   ReturnManifest[] @relation("ReturnManifestPreparedBy")
-  returnManifestsDispatched ReturnManifest[] @relation("ReturnManifestDispatchedBy")
-  returnManifestsDecided    ReturnManifest[] @relation("ReturnManifestDecidedBy")
-  returnManifestsCompleted  ReturnManifest[] @relation("ReturnManifestCompletedBy")
-  customersCreated          Customer[]       @relation("CustomerCreatedBy")
-  customersApproved         Customer[]       @relation("CustomerApprovedBy")
-  customersRejected         Customer[]       @relation("CustomerRejectedBy")
+  inventoryEvents           InventoryEvent[]          @relation("InventoryEventActor")
+  batchRevisions            BatchRevision[]           @relation("BatchRevisionActor")
+  purchaseOrdersCreated     PurchaseOrder[]           @relation("PurchaseOrderCreatedBy")
+  goodsReceiptsReceived     GoodsReceipt[]            @relation("GoodsReceiptReceivedBy")
+  returnManifestsPrepared   ReturnManifest[]          @relation("ReturnManifestPreparedBy")
+  returnManifestsDispatched ReturnManifest[]          @relation("ReturnManifestDispatchedBy")
+  returnManifestsDecided    ReturnManifest[]          @relation("ReturnManifestDecidedBy")
+  returnManifestsCompleted  ReturnManifest[]          @relation("ReturnManifestCompletedBy")
+  customersCreated          Customer[]                @relation("CustomerCreatedBy")
+  customersApproved         Customer[]                @relation("CustomerApprovedBy")
+  customersRejected         Customer[]                @relation("CustomerRejectedBy")
+  staffActivities           StaffActivityEvent[]      @relation("StaffActivitySubject")
+  staffActivitiesActor      StaffActivityEvent[]      @relation("StaffActivityActor")
+  shifts                    Shift[]                   @relation("ShiftCashier")
+  shiftsReviewed            Shift[]                   @relation("ShiftReviewedBy")
+  shiftActivityEvents       ShiftActivityEvent[]      @relation("ShiftActivitySubject")
+  shiftActivityEventsActor  ShiftActivityEvent[]      @relation("ShiftActivityActor")
+  stockAuditsCreated        StockAudit[]              @relation("StockAuditCreatedBy")
+  stockAuditsReviewed       StockAudit[]              @relation("StockAuditReviewedBy")
+  stockAuditActivitiesActor StockAuditActivityEvent[] @relation("StockAuditActivityActor")
+  fefoViolationsCorrected   FefoViolationRecord[]     @relation("FefoViolationCorrectedBy")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -239,13 +318,15 @@ model Product {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  units              ProductUnit[]
-  batches            Batch[]
-  saleItems          SaleItem[]
-  inventoryEvents    InventoryEvent[]
-  purchaseOrderLines PurchaseOrderLine[]
-  goodsReceiptLines  GoodsReceiptLine[]
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  units                ProductUnit[]
+  batches              Batch[]
+  saleItems            SaleItem[]
+  inventoryEvents      InventoryEvent[]
+  purchaseOrderLines   PurchaseOrderLine[]
+  goodsReceiptLines    GoodsReceiptLine[]
+  stockAuditLines      StockAuditLine[]
+  fefoViolationRecords FefoViolationRecord[]
 
   @@unique([tenantId, sku])
   @@unique([tenantId, barcode])
@@ -298,15 +379,18 @@ model Batch {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  store               Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  product             Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
-  supplier            Supplier?            @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  saleItems           SaleItem[]
-  inventoryEvents     InventoryEvent[]
-  revisions           BatchRevision[]
-  goodsReceiptLine    GoodsReceiptLine?
-  returnManifestLines ReturnManifestLine[]
+  tenant                Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store                 Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product               Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supplier              Supplier?             @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  saleItems             SaleItem[]
+  inventoryEvents       InventoryEvent[]
+  revisions             BatchRevision[]
+  goodsReceiptLine      GoodsReceiptLine?
+  returnManifestLines   ReturnManifestLine[]
+  stockAuditLines       StockAuditLine[]
+  fefoViolationsSkipped FefoViolationRecord[] @relation("FefoViolationSkippedBatch")
+  fefoViolationsPicked  FefoViolationRecord[] @relation("FefoViolationPickedBatch")
 
   @@unique([tenantId, storeId, productId, batchNumber])
   @@index([tenantId])
@@ -319,28 +403,28 @@ model Batch {
 // --- Customers ---
 
 model Customer {
-  id               String           @id @default(cuid())
+  id               String          @id @default(cuid())
   tenantId         String
   storeId          String?
   createdByUserId  String?
   name             String
   phone            String
   email            String?
-  dateOfBirth      DateTime?        @db.Date
+  dateOfBirth      DateTime?       @db.Date
   gender           CustomerGender?
   address          String?
-  status           CustomerStatus   @default(ACTIVE)
-  source           CustomerSource   @default(OWNER_CREATED)
-  loyaltyPoints    Int              @default(0)
+  status           CustomerStatus  @default(ACTIVE)
+  source           CustomerSource  @default(OWNER_CREATED)
+  loyaltyPoints    Int             @default(0)
   /// Optional account credit balance (not a POS payment method).
-  creditBalance    Decimal          @default(0) @db.Decimal(12, 2)
+  creditBalance    Decimal         @default(0) @db.Decimal(12, 2)
   approvedAt       DateTime?
   approvedByUserId String?
   rejectedAt       DateTime?
   rejectedByUserId String?
   rejectionNote    String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   store      Store? @relation(fields: [storeId], references: [id], onDelete: SetNull)
@@ -369,6 +453,8 @@ model Sale {
   tenantId        String
   storeId         String
   userId          String
+  /// Cloud shift the sale belongs to (set on ingest when the cashier has an OPEN shift).
+  shiftId         String?
   customerId      String?
   /// Offline sync / ingest idempotency key (global unique).
   eventId         String   @unique
@@ -385,18 +471,21 @@ model Sale {
   createdAt       DateTime @default(now())
   // No updatedAt — sales are append-only.
 
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  store           Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  user            User             @relation(fields: [userId], references: [id], onDelete: Restrict)
-  customer        Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  items           SaleItem[]
-  payments        Payment[]
-  inventoryEvents InventoryEvent[]
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store                Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  customer             Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  shift                Shift?                @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  items                SaleItem[]
+  payments             Payment[]
+  inventoryEvents      InventoryEvent[]
+  fefoViolationRecords FefoViolationRecord[]
 
   @@unique([tenantId, receiptNo])
   @@index([tenantId])
   @@index([tenantId, storeId, soldAt])
   @@index([storeId, soldAt])
+  @@index([shiftId])
 }
 
 model SaleItem {
@@ -425,10 +514,11 @@ model SaleItem {
   createdAt                DateTime @default(now())
   // No updatedAt — line items are immutable with the parent sale.
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
-  batch   Batch   @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sale                 Sale                  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product              Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  batch                Batch                 @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  fefoViolationRecords FefoViolationRecord[]
 
   @@index([tenantId])
   @@index([saleId])
@@ -714,4 +804,215 @@ model ReturnManifestLine {
   @@unique([returnManifestId, batchId])
   @@index([tenantId])
   @@index([batchId])
+}
+
+model StaffActivityEvent {
+  id          String            @id @default(cuid())
+  tenantId    String
+  userId      String
+  actorUserId String
+  type        StaffActivityType
+  fromValue   String?
+  toValue     String?
+  note        String?
+  createdAt   DateTime          @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation("StaffActivitySubject", fields: [userId], references: [id], onDelete: Cascade)
+  actor  User   @relation("StaffActivityActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, userId])
+}
+
+// --- Shifts (M6 Slice 5) ---
+
+/// Cashier shift with opening float, counted cash close, and variance review.
+model Shift {
+  id                  String                 @id @default(cuid())
+  tenantId            String
+  storeId             String
+  /// Cashier who opened the shift.
+  userId              String
+  /// Server-generated display id (`SH-YYMMDD-A`, date + daily sequence per tenant/store).
+  shiftNo             String
+  status              ShiftStatus            @default(OPEN)
+  openingFloat        Decimal                @db.Decimal(12, 4)
+  openedAt            DateTime               @default(now())
+  closedAt            DateTime?
+  /// Physical counted cash at close.
+  countedCash         Decimal?               @db.Decimal(12, 4)
+  /// Snapshot computed at close: openingFloat + sum(CASH payments) in the shift window.
+  expectedCash        Decimal?               @db.Decimal(12, 4)
+  /// countedCash − expectedCash; non-zero on close → FLAGGED until Owner resolves.
+  variance            Decimal?               @db.Decimal(12, 4)
+  /// Payment snapshots (live-computed while OPEN, frozen at close).
+  cashSales           Decimal                @default(0) @db.Decimal(12, 4)
+  cardSales           Decimal                @default(0) @db.Decimal(12, 4)
+  mfsSales            Decimal                @default(0) @db.Decimal(12, 4)
+  txnCount            Int                    @default(0)
+  /// Variance review (flagged shifts).
+  varianceDecision    ShiftVarianceDecision?
+  varianceNote        String?
+  adjustmentReference String?
+  reviewedAt          DateTime?
+  reviewedByUserId    String?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store      Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  user       User                 @relation("ShiftCashier", fields: [userId], references: [id], onDelete: Restrict)
+  reviewedBy User?                @relation("ShiftReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  sales      Sale[]
+  activity   ShiftActivityEvent[]
+
+  @@unique([tenantId, shiftNo])
+  @@index([tenantId])
+  @@index([tenantId, storeId, status])
+  @@index([userId])
+}
+
+/// Lightweight audit timeline for a shift (open / sale / close / variance review).
+model ShiftActivityEvent {
+  id          String            @id @default(cuid())
+  tenantId    String
+  /// Subject user (cashier for the shift).
+  userId      String
+  actorUserId String
+  shiftId     String?
+  type        ShiftActivityType
+  note        String?
+  createdAt   DateTime          @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation("ShiftActivitySubject", fields: [userId], references: [id], onDelete: Cascade)
+  actor  User   @relation("ShiftActivityActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  shift  Shift? @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, userId])
+  @@index([shiftId])
+}
+
+// --- Stock audit and FEFO review (M6 Slice 7) ---
+
+model StockAudit {
+  id               String           @id @default(cuid())
+  tenantId         String
+  storeId          String
+  auditNo          String
+  status           StockAuditStatus @default(IN_PROGRESS)
+  locationLabel    String
+  itemsChecked     Int              @default(0)
+  varianceAmount   Decimal          @default(0) @db.Decimal(12, 2)
+  notes            String?
+  startedAt        DateTime         @default(now())
+  completedAt      DateTime?
+  reviewedAt       DateTime?
+  createdByUserId  String
+  reviewedByUserId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  tenant         Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store          Store                     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy      User                      @relation("StockAuditCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  reviewedBy     User?                     @relation("StockAuditReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  lines          StockAuditLine[]
+  activity       StockAuditActivityEvent[]
+  fefoViolations FefoViolationRecord[]
+
+  @@unique([tenantId, auditNo])
+  @@index([tenantId])
+  @@index([tenantId, storeId, status])
+  @@index([createdByUserId])
+  @@index([reviewedByUserId])
+}
+
+model StockAuditLine {
+  id                  String               @id @default(cuid())
+  tenantId            String
+  auditId             String
+  batchId             String
+  productId           String
+  systemQty           Int
+  countedQty          Int
+  differenceQty       Int
+  status              StockAuditLineStatus
+  productNameSnapshot String
+  batchNumberSnapshot String
+  expiryDateSnapshot  DateTime             @db.Date
+  costPerBaseSnapshot Decimal              @db.Decimal(12, 4)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  tenant  Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  audit   StockAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  batch   Batch      @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  product Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([auditId, batchId])
+  @@index([tenantId])
+  @@index([auditId])
+  @@index([batchId])
+  @@index([productId])
+}
+
+model FefoViolationRecord {
+  id                String              @id @default(cuid())
+  tenantId          String
+  storeId           String
+  saleId            String?
+  saleItemId        String?
+  auditId           String?
+  productId         String
+  skippedBatchId    String
+  pickedBatchId     String
+  observedIssue     String
+  recommendedAction String
+  status            FefoViolationStatus @default(OPEN)
+  correctionNote    String?
+  correctedAt       DateTime?
+  correctedByUserId String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store        Store       @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  sale         Sale?       @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  saleItem     SaleItem?   @relation(fields: [saleItemId], references: [id], onDelete: SetNull)
+  audit        StockAudit? @relation(fields: [auditId], references: [id], onDelete: SetNull)
+  product      Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  skippedBatch Batch       @relation("FefoViolationSkippedBatch", fields: [skippedBatchId], references: [id], onDelete: Restrict)
+  pickedBatch  Batch       @relation("FefoViolationPickedBatch", fields: [pickedBatchId], references: [id], onDelete: Restrict)
+  correctedBy  User?       @relation("FefoViolationCorrectedBy", fields: [correctedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, storeId, status])
+  @@index([saleId])
+  @@index([saleItemId])
+  @@index([auditId])
+  @@index([productId])
+  @@index([skippedBatchId])
+  @@index([pickedBatchId])
+  @@index([correctedByUserId])
+}
+
+model StockAuditActivityEvent {
+  id          String                 @id @default(cuid())
+  tenantId    String
+  auditId     String?
+  actorUserId String?
+  type        StockAuditActivityType
+  note        String?
+  createdAt   DateTime               @default(now())
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  audit  StockAudit? @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  actor  User?       @relation("StockAuditActivityActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([auditId])
+  @@index([actorUserId])
 }

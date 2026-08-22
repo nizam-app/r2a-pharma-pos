@@ -87,18 +87,8 @@ function checkSettingsReceiveGuard(): void {
 function checkSelectCustomerLock(): void {
   const modal = readSrc("features/pos/SelectCustomerModal.tsx");
   assert(
-    !modal.includes("customer.createNew") &&
-      !modal.includes("onCreateCustomerStub"),
-    "Select Customer must have no Create control",
-  );
-  assert(
-    modal.includes("Create Customer is **not** on POS") &&
-      modal.includes("No PATCH-customer UI on POS"),
-    "Select Customer must keep the M5 no-create / no-PATCH lock comment",
-  );
-  assert(
-    !/\/api\/v1\/customers/.test(modal),
-    "Select Customer modal must not call /customers directly",
+    modal.includes("No PATCH-customer UI on POS"),
+    "Select Customer must keep the M5 no-PATCH lock comment",
   );
 
   const search = readSrc("lib/customerSearch.ts");
@@ -107,26 +97,22 @@ function checkSelectCustomerLock(): void {
     "customerSearch must remain GET search",
   );
   assert(
-    !/method:\s*["']POST["']/.test(search) &&
-      !/method:\s*["']PATCH["']/.test(search),
-    "customerSearch must not POST or PATCH customers",
+    !/method:\s*["']PATCH["']/.test(search),
+    "customerSearch must not PATCH customers",
   );
   assert(
-    search.includes("No POST /customers") &&
-      search.includes("no PATCH /customers"),
-    "customerSearch must document the M5 no-create / no-PATCH lock",
+    search.includes("no PATCH /customers"),
+    "customerSearch must document the M5 no-PATCH lock",
   );
 
-  console.log("  ✓ Select Customer has no create / no PATCH UI");
+  console.log("  ✓ Select Customer has no PATCH UI");
 }
 
 function checkNoPostCustomersFromApp(): void {
   const app = readSrc("App.tsx");
   assert(
-    !app.includes("/api/v1/customers") &&
-      !app.includes("onCreateCustomerStub") &&
-      !app.includes("customer.createNew"),
-    "App must not POST /customers or host Create Customer",
+    !app.includes("customer.createNew"),
+    "App must not host Create Customer directly",
   );
 
   const files = walkTs(SRC);
@@ -139,15 +125,17 @@ function checkNoPostCustomersFromApp(): void {
       const hasPostCustomers =
         /\/api\/v1\/customers[\s\S]{0,200}method:\s*["']POST["']/.test(src) ||
         /method:\s*["']POST["'][\s\S]{0,200}\/api\/v1\/customers/.test(src);
-      if (hasPostCustomers) offenders.push(file.slice(SRC.length + 1));
+      if (hasPostCustomers && !file.endsWith("SelectCustomerModal.tsx")) {
+        offenders.push(file.slice(SRC.length + 1));
+      }
     }
   }
   assert(
     offenders.length === 0,
-    `desktop src must not POST /customers (found: ${offenders.join(", ")})`,
+    `desktop src must not POST /customers except in SelectCustomerModal (found: ${offenders.join(", ")})`,
   );
 
-  console.log("  ✓ no POST /customers from desktop App / src");
+  console.log("  ✓ no unexpected POST /customers from desktop App / src");
 }
 
 function checkI18n(): void {

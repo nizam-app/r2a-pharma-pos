@@ -31,14 +31,17 @@ type PaymentFilter = "ALL" | "CASH" | "CARD" | "MFS";
 export function SalesPage() {
   const { t } = useLocale();
   const { navigate } = useOwnerPath();
+  const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const initialFrom = initialParams.get("from") ?? "";
+  const initialTo = initialParams.get("to") ?? "";
 
-  const [datePreset, setDatePreset] = useState<SalesDatePreset>("last7");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  const [datePreset, setDatePreset] = useState<SalesDatePreset>(initialFrom || initialTo ? "custom" : "last7");
+  const [customFrom, setCustomFrom] = useState(initialFrom);
+  const [customTo, setCustomTo] = useState(initialTo);
   const [searchInput, setSearchInput] = useState("");
   const [searchQ, setSearchQ] = useState("");
   const [payment, setPayment] = useState<PaymentFilter>("ALL");
-  const [cashierId, setCashierId] = useState("ALL");
+  const [cashierId, setCashierId] = useState(initialParams.get("userId") ?? "ALL");
   const [page, setPage] = useState(0);
 
   const [dash, setDash] = useState<OwnerDashboardPayload | null>(null);

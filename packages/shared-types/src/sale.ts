@@ -41,6 +41,8 @@ export const saleIngestSchema = z.object({
   /** Optional. Omitted → snapshots 0 and do not change `Customer.loyaltyPoints`. */
   loyaltyUsed: z.number().int().nonnegative().optional(),
   loyaltyEarned: z.number().int().nonnegative().optional(),
+  /** M6 Batch AX — optional shift id; server rejects if no open shift for cashier+store. */
+  shiftId: z.string().min(1).optional(),
   items: z.array(saleItemInputSchema).min(1),
   payments: z.array(salePaymentInputSchema).min(1),
 });

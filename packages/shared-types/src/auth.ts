@@ -51,7 +51,6 @@ export const jwtClaimsSchema = z.object({
 });
 export type JwtClaims = z.infer<typeof jwtClaimsSchema>;
 
-/** Safe user projection for auth responses (never includes passwordHash). */
 export const safeUserSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -60,6 +59,10 @@ export const safeUserSchema = z.object({
   tenantId: z.string(),
   storeId: z.string().nullable(),
   isActive: z.boolean(),
+  phone: z.string().nullable().optional(),
+  internalNote: z.string().nullable().optional(),
+  lastLoginAt: z.coerce.date().nullable().optional(),
   createdAt: z.coerce.date(),
 });
 export type SafeUser = z.infer<typeof safeUserSchema>;
+

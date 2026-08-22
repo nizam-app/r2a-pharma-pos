@@ -1,461 +1,391 @@
-## 1. Layout Structure & Flex/Grid Hierarchy
+## Deactivate Staff Confirmation Modal — UI Specification
 
-* Root admin shell:
+### Layout Structure
 
-  * `min-h-screen flex bg-[#f6f8fa]`.
-  * Left navigation sidebar + flexible main content.
-* Sidebar:
+* Full-screen modal overlay:
 
-  * Fixed desktop width around `w-[180px] lg:w-[200px]`.
-  * `flex flex-col justify-between`.
-  * `min-h-screen`.
-  * Top:
+  * `fixed inset-0`
+  * Semi-transparent dark backdrop.
+  * Background content blurred/dimmed.
+* Modal container:
 
-    * Brand/logo.
-    * Main navigation.
-  * Bottom:
+  * Center aligned.
+  * Width:
 
-    * Help.
-    * Owner Profile.
-* Main application area:
+    * Desktop: `max-w-md`
+    * Mobile: `w-[calc(100%-32px)]`
+  * Structure:
 
-  * `flex-1 min-w-0 flex flex-col`.
-* Top header:
+    * Header
+    * Description
+    * Staff information card
+    * Deactivation impact section
+    * Reason textarea
+    * Confirmation checkbox
+    * Footer actions
 
-  * `h-14 flex items-center justify-between`.
-  * Left: branch selector.
-  * Right: search, notification, app/grid icon, profile.
-* Main customer-details content:
+---
 
-  * `flex-1 p-4 md:p-5`.
-  * Desktop content constrained to readable width.
-* Breadcrumb row:
+### Modal Hierarchy
 
-  * Horizontal inline navigation.
-  * `Customers > Sadia Akter`.
-* Customer header:
+* Root:
 
-  * `flex flex-col md:flex-row md:items-start md:justify-between gap-3`.
-  * Left:
+  * `fixed inset-0 flex items-center justify-center`
+* Overlay:
 
-    * Customer name.
-    * Active status badge.
-    * Supporting description.
-  * Right:
+  * `bg-black/40 backdrop-blur-sm`
+* Modal:
 
-    * Edit Customer.
-    * More Actions dropdown.
-* KPI summary row:
+  * `bg-white rounded-lg shadow-xl overflow-hidden`
 
-  * `grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3`.
-  * Cards:
+---
 
-    * Loyalty Points.
-    * Total Purchases.
-    * Visits.
-    * Last Purchase.
-* Main details region:
+### Header Section
 
-  * `grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)] gap-3`.
-  * Left column:
+* Layout:
 
-    * Customer Information.
-    * Registration Information.
-    * Bottom two-card row.
-  * Right column:
+  * `flex justify-between items-center`
+* Left:
 
-    * Timeline Activity.
-* Left column:
+  * Warning icon.
+  * Title:
 
-  * `flex flex-col gap-3`.
-* Customer Information card:
+    * "Deactivate Staff"
+* Right:
 
-  * Card header.
-  * Information body using `grid grid-cols-1 md:grid-cols-2`.
-  * Address and Branch may span full/partial row depending width.
-* Registration Information card:
+  * Close icon button.
+* Classes:
 
-  * Information notice.
-  * Two-column metadata grid.
-  * Divider.
-  * Original Registration Values subsection.
-  * Two small nested value cards.
-* Bottom activity region:
+  * `px-5 py-4 border-b`
+  * Title:
 
-  * `grid grid-cols-1 md:grid-cols-2 gap-3`.
-  * Purchase History.
-  * Loyalty Activity.
-* Timeline card:
+    * `text-sm font-semibold text-gray-900`
+  * Warning icon:
 
-  * Vertical activity list.
-  * Timeline marker/icon column + content column.
-* Responsive behavior:
+    * `text-red-600`
 
-  * `< xl`: timeline moves below primary content.
-  * `< md`: customer header actions stack.
-  * `< sm`: KPI cards become single-column.
-  * Keep all content cards full-width on mobile.
-  * Sidebar becomes drawer/collapsible navigation on smaller screens.
+---
 
-## 2. Key Tailwind Classes — Colors, Spacing & Breakpoints
+### Description Area
 
-* Global:
+* Text:
 
-  * `bg-[#f6f8fa]`
-  * `text-slate-900`
-  * `font-sans`
-  * `text-xs md:text-sm`
-* Sidebar:
+  * "Deactivate this staff account and prevent the staff member from accessing PharmaSync."
+* Classes:
 
-  * `bg-[#eef1f3]`
-  * `border-r border-slate-200`
-  * `px-3 py-4`
-* Brand:
+  * `px-5 pt-4 text-xs text-gray-500`
 
-  * `text-[#006b63]`
-  * Logo tile: `bg-[#4fa99e] text-white`
-  * `font-semibold`
-* Sidebar navigation:
+---
 
-  * `flex items-center gap-3`
-  * `px-3 py-2.5`
-  * `text-slate-600`
-  * `hover:bg-slate-100`
-* Active Customers nav:
+### Staff Information Card
 
-  * `bg-[#d7e7e7]`
-  * `text-[#006b63]`
-  * `font-semibold`
-  * Optional active left indicator:
+* Container:
 
-    * `border-l-2 border-[#00766c]`
-* Top header:
+  * `mx-5 mt-4 p-3 border rounded-md bg-gray-50`
+* Grid:
 
-  * `bg-white/70`
-  * `border-b border-slate-200`
-  * `px-4 md:px-5`
-* Main content:
+  * Two-column layout.
+  * `grid grid-cols-2 gap-y-4`
+* Fields:
 
-  * `p-4 lg:p-5`
-  * `space-y-4`
-* Breadcrumb:
+  * Staff
+  * Role
+  * Branch
+  * Username
+* Label:
 
-  * `text-[10px] md:text-xs`
-  * `text-slate-500`
-  * Current item: `text-slate-800`
-* Customer name:
+  * `text-[10px] uppercase font-semibold text-gray-500`
+* Value:
 
-  * `text-2xl font-semibold tracking-tight`
-* Description:
+  * `text-xs text-gray-800`
 
-  * `text-xs text-slate-500 mt-1`
-* Standard card:
+---
 
-  * `bg-white`
-  * `border border-slate-200`
-  * `rounded-md`
-  * `shadow-none`
-  * `overflow-hidden`
-* Card header:
+### Status Transition Section
 
-  * `px-4 py-3`
-  * `border-b border-slate-100`
-  * `text-[10px] uppercase tracking-wide`
-  * `font-semibold`
-* Card body:
+* Horizontal divider.
+* Layout:
 
-  * `p-4`
-* KPI cards:
-
-  * `px-4 py-3`
-  * `min-h-[64px]`
-  * `flex flex-col justify-between`
-* KPI label:
+  * Current status → New status
+* Classes:
 
   * `flex items-center gap-2`
-  * `text-[10px] uppercase tracking-wide`
-  * `font-semibold`
-  * `text-slate-700`
-* KPI value:
+* Status badges:
 
-  * `text-lg md:text-xl font-medium`
-  * `text-slate-950`
-* Field labels:
+  * Active:
 
-  * `text-[9px] md:text-[10px]`
-  * `text-slate-500`
-  * `mb-1`
-* Field values:
+    * `bg-teal-100 text-teal-700`
+  * Inactive:
 
-  * `text-xs`
-  * `font-medium`
-  * `text-slate-900`
-* Empty field:
+    * `bg-red-100 text-red-700`
+* Arrow:
 
-  * `text-slate-500`
-* Active badge:
+  * `text-gray-400`
 
-  * `inline-flex items-center`
-  * `bg-teal-100`
-  * `text-teal-700`
-  * `px-1.5 py-0.5`
-  * `rounded-sm`
-  * `text-[9px] font-medium`
-* Secondary button:
+---
 
-  * `h-8`
-  * `px-3`
-  * `border border-slate-200`
-  * `bg-white`
-  * `text-xs font-medium`
-  * `hover:bg-slate-50`
-  * `rounded-sm`
-* More Actions button:
+### "What Happens After Deactivation" Box
 
-  * Same secondary style.
-  * Chevron icon aligned right.
-* Information notice:
+* Info panel:
 
-  * `flex items-start gap-3`
-  * `bg-slate-50`
-  * `border border-slate-100`
-  * `px-3 py-3`
-  * `rounded-sm`
-  * Info icon: `text-[#00766c]`
-* Registration metadata:
+  * `mx-5 mt-4 p-3 bg-gray-50 border rounded-md`
+* Header:
 
-  * `grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4`
-* Divider:
+  * Small uppercase label.
+* Bullet list:
 
-  * `border-t border-slate-100 my-4`
-* Original value boxes:
+  * Access blocked immediately.
+  * Operational records unchanged.
+  * Audit history preserved.
+  * Reactivation possible later.
+* Bullet icons:
 
-  * `bg-white`
-  * `border border-slate-100`
-  * `px-3 py-2.5`
-  * `rounded-sm`
-* Timeline:
+  * Small status icons.
+* Text:
 
-  * `space-y-4`
-* Timeline item:
+  * `text-xs text-gray-600`
 
-  * `relative flex gap-3`
-* Timeline marker:
+---
 
-  * `w-6 h-6 rounded-full`
-  * `flex items-center justify-center`
-  * First/approved: `bg-teal-50 text-[#00766c]`
-  * Secondary: `bg-slate-100 text-slate-500`
-* Timeline title:
+### Reason Input
 
-  * `text-xs font-medium text-slate-900`
-* Timeline metadata:
+* Label:
 
-  * `text-[9px] text-slate-500`
-* Empty state card:
+  * "REASON / NOTE (OPTIONAL)"
+* Textarea:
 
-  * `min-h-[130px]`
-  * `flex flex-col items-center justify-center`
-  * `text-center`
-  * `px-5 py-6`
-* Empty state icon:
+  * Placeholder:
 
-  * `w-8 h-8`
-  * `text-slate-300`
-* Empty message:
+    * "Enter reason for deactivation..."
+* Classes:
 
-  * `text-[10px] text-slate-600`
-  * `max-w-[180px]`
-* Loyalty card header balance:
+  * `mx-5 mt-4`
+  * `w-full min-h-[55px]`
+  * `border rounded-md`
+  * `px-3 py-2 text-sm`
+
+---
+
+### Confirmation Checkbox
+
+* Warning bordered container:
+
+  * `mx-5 mt-3 p-2 border border-red-200 bg-red-50`
+* Checkbox:
+
+  * Required before submit.
+* Text:
+
+  * "I confirm that I want to deactivate this staff account."
+* Confirm text:
+
+  * Highlight "I confirm" in red.
+
+---
+
+### Footer Actions
+
+* Layout:
+
+  * Right aligned buttons.
+  * `flex justify-end gap-3`
+* Container:
+
+  * `px-5 py-4 border-t`
+* Cancel button:
+
+  * White background.
+  * Gray border.
+  * `hover:bg-gray-50`
+* Deactivate button:
+
+  * Disabled until checkbox checked.
+  * Red/pink background.
+  * `bg-red-400 hover:bg-red-500`
+
+---
+
+# Reactivate Staff Confirmation Modal — UI Specification
+
+### Layout Structure
+
+* Full-screen overlay:
+
+  * `fixed inset-0`
+  * Dark blurred backdrop.
+* Modal:
+
+  * Center positioned.
+  * White rounded container.
+* Structure:
+
+  * Header
+  * Description
+  * Staff summary card
+  * Reactivation impact section
+  * Confirmation checkbox
+  * Footer actions
+
+---
+
+### Header Section
+
+* Layout:
 
   * `flex items-center justify-between`
-  * Balance text: `text-[10px] text-[#00766c] font-semibold`
-* Breakpoints:
+* Left:
 
-  * `sm:` two KPI columns.
-  * `md:` two-column information grids.
-  * `lg:` increased horizontal spacing.
-  * `xl:` four KPI columns + details/timeline split.
-  * `2xl:` optional `max-w-[1450px]`.
+  * Success/user icon.
+  * Title:
 
-## 3. Required UI Elements & Interactive States
+    * "Reactivate Staff"
+* Right:
 
-* Persistent sidebar:
+  * Close icon.
+* Classes:
 
-  * PharmaSync Admin Portal branding.
-  * Dashboard.
-  * Sales.
-  * Inventory.
-  * Purchasing.
-  * Suppliers.
-  * Customers — active.
-  * Staff.
-  * Reports.
-  * Audit & FEFO.
-  * Settings.
-  * Help.
-  * Owner Profile.
-* Sidebar states:
+  * `px-5 py-4 border-b`
 
-  * Default.
-  * Hover.
-  * Active Customers state.
-  * Keyboard focus.
-  * Collapsed/mobile drawer state.
-* Top header:
+---
 
-  * Dhanmondi Branch dropdown.
-  * Search icon/action.
-  * Notification bell.
-  * App/grid menu.
-  * User/profile button.
-* Breadcrumb:
+### Description
 
-  * Customers link.
-  * Chevron/separator.
-  * Current customer name.
-  * Customers link returns to directory.
-* Customer header:
+* Text:
 
-  * Name: "Sadia Akter".
-  * Active badge inline beside name.
-  * Description:
+  * "Reactivate this staff account and restore access to PharmaSync according to the currently assigned role and branch."
+* Classes:
 
-    * Customer profile, purchase activity and loyalty information.
-* Header actions:
+  * `text-xs text-gray-500`
 
-  * Edit Customer.
-  * More Actions dropdown.
-* Edit Customer states:
+---
 
-  * Default.
-  * Hover.
-  * Focus-visible.
-  * Opens edit form/modal/page.
-* More Actions:
+### Staff Summary Card
 
-  * Default.
-  * Hover.
-  * Open menu.
-  * Menu item hover.
-  * Keyboard navigation.
-  * Potential actions:
+* Container:
 
-    * Adjust loyalty points.
-    * Deactivate customer.
-    * View registration details.
-    * Delete/archive if permissions allow.
-* KPI cards:
+  * `mx-5 mt-4 p-3 border rounded-md`
+* Top row:
 
-  * Loyalty Points: `0`.
-  * Total Purchases: `৳0`.
-  * Visits: `0`.
-  * Last Purchase: `—`.
-  * Small contextual icon in each card.
-* Customer Information:
+  * Staff member name.
+  * Status transition badges.
+* Bottom row:
 
-  * Name.
-  * Phone.
-  * Email.
-  * Date of Birth.
-  * Gender.
-  * Status.
-  * Address.
+  * Role.
   * Branch.
-* Missing customer data:
+  * Username.
+* Grid:
 
-  * Use em dash rather than blank fields.
-* Phone:
+  * `grid grid-cols-3 gap-4`
 
-  * Display Bangladesh formatted number.
-  * Optionally clickable via `tel:`.
-* Status:
+---
 
-  * Active badge.
-  * Ensure text label exists; do not rely on color only.
-* Registration Information:
+### Status Transition
 
-  * Information notice:
+* Layout:
 
-    * Customer created from POS registration and approved by Owner.
-  * Source:
+  * Inactive → Active
+* Badge styles:
 
-    * POS Registration.
-  * Registration Branch:
+  * Inactive:
 
-    * Dhanmondi Branch.
-  * Submitted date/time.
-  * Submitted By.
-  * Approved date.
-  * Approved By.
-* Original Registration Values:
+    * `bg-red-100 text-red-600`
+  * Active:
 
-  * Original registration name.
-  * Original registration phone.
-  * Display inside separate bordered mini-cards.
-* Purchase History card:
+    * `bg-teal-100 text-teal-600`
 
-  * Section header.
-  * Empty-state icon.
-  * Empty message explaining purchase history appears after first transaction.
-* Purchase History populated state:
+---
 
-  * Replace empty state with compact transaction list/table.
-  * Support date, receipt/order, amount and branch.
-  * Row hover for clickable purchases.
-* Loyalty Activity card:
+### "What Happens After Reactivation" Box
 
-  * Header with Current Balance.
-  * Empty-state icon.
-  * Empty message.
-* Loyalty populated state:
+* Container:
 
-  * Activity list with:
+  * `mx-5 mt-4 p-3 bg-gray-50 border rounded-md`
+* Header:
 
-    * Earned.
-    * Redeemed.
-    * Manual adjustment.
-    * Date/time.
-    * Point delta.
-    * Running balance.
-* Timeline Activity:
+  * Teal info icon.
+  * Uppercase title.
+* Bullet items:
 
-  * Vertically stacked chronological events.
-  * Customer approved.
-  * POS registration submitted.
-  * Date beneath each event.
-  * Actor/submitter displayed where applicable.
-* Timeline visual:
+  * Staff regains access.
+  * Access follows assigned Manager role and Dhanmondi Branch.
+  * Existing records remain unchanged.
+  * Reactivation recorded in Activity History.
+* Classes:
 
-  * Circular event markers.
-  * Optional vertical connector line.
-  * Current/positive event teal.
-  * Historical/default event neutral gray.
-* Loading states:
+  * `text-xs text-gray-600`
 
-  * Skeleton customer heading.
-  * Skeleton KPI values.
-  * Skeleton information rows.
-  * Skeleton timeline entries.
-* Error state:
+---
 
-  * Inline alert at top of details content.
-  * Retry control.
-* Permission states:
+### Confirmation Checkbox
 
-  * Hide or disable Edit Customer if user lacks permission.
-  * Hide restricted More Actions items based on role.
-* Responsive states:
+* Normal bordered area:
 
-  * Mobile action buttons full-width or grouped beneath title.
-  * Timeline moves below main cards.
-  * Information grids collapse to single column.
-  * Bottom activity cards stack vertically.
-* Accessibility:
+  * `border-gray-200`
+* Text:
 
-  * `focus-visible:ring-2 focus-visible:ring-[#00766c]`.
-  * Icon-only controls require `aria-label`.
-  * Dropdowns expose expanded state.
-  * Breadcrumb uses semantic navigation.
-  * Buttons maintain minimum usable hit area.
-  * Status and activity states include text labels.
+  * "I confirm that I want to reactivate this staff account."
+* Required before action.
+
+---
+
+### Footer Actions
+
+* Layout:
+
+  * `flex justify-end gap-3`
+* Cancel:
+
+  * White button.
+  * Gray border.
+* Reactivate:
+
+  * Disabled before checkbox.
+  * Teal primary button:
+
+    * `bg-teal-600 hover:bg-teal-700`
+* Text:
+
+  * "Reactivate Staff"
+
+---
+
+## Responsive Behavior (Both Modals)
+
+* Desktop:
+
+  * Center modal.
+  * Fixed width.
+  * Two/three-column grids.
+* Tablet:
+
+  * Reduce padding.
+  * Maintain modal width.
+* Mobile:
+
+  * Modal width:
+
+    * `w-[calc(100%-32px)]`
+  * Single-column staff information.
+  * Footer buttons stack:
+
+    * `flex-col`
+  * Text wraps naturally.
+
+---
+
+## Interactive States
+
+* Close icon hover state.
+* Overlay click closes modal (optional).
+* Checkbox required before action button enabled.
+* Disabled button opacity:
+
+  * `opacity-50 cursor-not-allowed`
+* Loading state:
+
+  * Spinner inside action button.
+* Success action:
+
+  * Close modal.
+  * Update staff status.
+  * Refresh staff list.

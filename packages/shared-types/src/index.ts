@@ -12,3 +12,6 @@ export * from "./sale";
 export * from "./owner";
 export * from "./purchasing";
 export * from "./sync";
+export * from "./staff";
+export * from "./shift";
+export * from "./audit";

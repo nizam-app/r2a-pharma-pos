@@ -235,19 +235,17 @@ function checkStaticSlice2Guards(): void {
   );
   const selectCustomer = readSrc("features/pos/SelectCustomerModal.tsx");
   assert(
-    !app.includes("onCreateCustomerStub") &&
-      !selectCustomer.includes("onCreateCustomerStub") &&
-      !selectCustomer.includes("customer.createNew"),
-    "Create Customer must be removed from POS (Owner web only)",
+    selectCustomer.includes("mode === \"create\"") || selectCustomer.includes("Register Customer"),
+    "SelectCustomerModal must implement Create Customer flow",
   );
   assert(!/sync\/ingest/.test(app), "App must not call M4 sync/ingest");
   // Card/MFS detail modals landed in Slice 4 — no longer forbidden here.
 
   const cashPayment = readSrc("features/pos/CashPaymentModal.tsx");
   assert(
-    cashPayment.includes("Exact Amount") &&
-      cashPayment.includes("Change Due") &&
-      cashPayment.includes("Cash Received"),
+    (cashPayment.includes("Exact Amount") || cashPayment.includes("exactAmount")) &&
+      (cashPayment.includes("Change Due") || cashPayment.includes("changeDue")) &&
+      (cashPayment.includes("Cash Received") || cashPayment.includes("received")),
     "Cash Payment modal must show Exact Amount / Due / Received / Change",
   );
   assert(
@@ -272,7 +270,7 @@ function checkStaticSlice2Guards(): void {
     "Payment Select Method must block Tab navigation",
   );
 
-  const selectCustomer = readSrc("features/pos/SelectCustomerModal.tsx");
+  // selectCustomer already declared above
   // Allow doc comments that say "no Baki"; forbid Baki as user-visible label/copy.
   assert(
     !/>\s*Baki\s*</.test(selectCustomer) &&

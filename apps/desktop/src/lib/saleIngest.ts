@@ -88,6 +88,8 @@ export type SaleIngestBuildArgs = {
     payerMobile: string;
     trxId?: string | null;
   } | null;
+  /** M6 Batch AY — cloud shift id from cached open shift. */
+  shiftId?: string | null;
 };
 
 export function buildSaleIngestPayload(
@@ -158,6 +160,7 @@ export function buildSaleIngestPayload(
     eventId: args.eventId,
     storeId: args.storeId,
     customerId: args.customerId ?? undefined,
+    shiftId: args.shiftId ?? undefined,
     subtotal,
     discount,
     total,
@@ -194,6 +197,7 @@ export function buildZeroPayIngestPayload(args: {
   cartSubtotal: number;
   cartDiscount?: number;
   appliedLoyalty: AppliedLoyaltyRedeem | null;
+  shiftId?: string | null;
 }): SaleIngestInput {
   return buildSaleIngestPayload({
     ...args,

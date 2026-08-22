@@ -211,6 +211,28 @@ export async function ingestSale(
     }
   }
 
+  // M6 Batch AX — validate shift if provided
+  let shiftIdToLink: string | null = null;
+  if (input.shiftId) {
+    const shift = await prisma.shift.findFirst({
+      where: {
+        id: input.shiftId,
+        tenantId: ctx.tenantId,
+        storeId: input.storeId,
+        userId: ctx.userId,
+        status: "OPEN",
+      },
+      select: { id: true },
+    });
+    if (!shift) {
+      throw new AppError(
+        "No active shift found for this cashier/store — open a shift before recording sales",
+        400,
+      );
+    }
+    shiftIdToLink = shift.id;
+  }
+
   type ResolvedLine = {
     productId: string;
     batchId: string;
@@ -221,6 +243,7 @@ export async function ingestSale(
     lineTotal: number;
     fefoOverride: boolean;
     fefoAuthorizedByName: string | null;
+    skippedBatchId: string | null;
   };
 
   const resolvedLines: ResolvedLine[] = [];
@@ -309,6 +332,17 @@ export async function ingestSale(
     }
 
     const fefoOverride = line.fefoOverride === true;
+    let skippedBatchId: string | null = null;
+    if (fefoOverride) {
+      const fefo = await pickFefoBatch({
+        tenantId: ctx.tenantId,
+        storeId: input.storeId,
+        productId: line.productId,
+      });
+      if (fefo && fefo.id !== batchId) {
+        skippedBatchId = fefo.id;
+      }
+    }
     resolvedLines.push({
       productId: line.productId,
       batchId,
@@ -321,6 +355,7 @@ export async function ingestSale(
       fefoAuthorizedByName: fefoOverride
         ? (line.fefoAuthorizedByName ?? null)
         : null,
+      skippedBatchId,
     });
   }
 
@@ -374,6 +409,13 @@ export async function ingestSale(
           type: "SALE";
           quantityBaseChange: number;
           quantityAfter: number;
+        }> = [];
+        const fefoViolationCreates: Array<{
+          productId: string;
+          skippedBatchId: string;
+          pickedBatchId: string;
+          observedIssue: string;
+          recommendedAction: string;
         }> = [];
 
         for (const line of resolvedLines) {
@@ -447,6 +489,16 @@ export async function ingestSale(
             quantityBaseChange: -line.quantityBase,
             quantityAfter: batch.quantityOnHand,
           });
+
+          if (line.fefoOverride && line.skippedBatchId) {
+            fefoViolationCreates.push({
+              productId: line.productId,
+              skippedBatchId: line.skippedBatchId,
+              pickedBatchId: line.batchId,
+              observedIssue: "Sale used a non-FEFO batch override",
+              recommendedAction: "Review authorization and coach cashier to pick the earliest eligible batch",
+            });
+          }
         }
 
         let loyaltyPrevious = 0;
@@ -498,6 +550,7 @@ export async function ingestSale(
             loyaltyPrevious,
             loyaltyUsed,
             loyaltyEarned,
+            shiftId: shiftIdToLink,
             items: { create: itemCreates },
             payments: {
               create: input.payments.map((p) => ({
@@ -511,6 +564,28 @@ export async function ingestSale(
           } as Prisma.SaleUncheckedCreateInput,
           include: saleInclude,
         });
+
+        for (const violation of fefoViolationCreates) {
+          const saleItem = sale.items.find(
+            (item) =>
+              item.productId === violation.productId &&
+              item.batchId === violation.pickedBatchId,
+          );
+          await tx.fefoViolationRecord.create({
+            data: {
+              tenantId: ctx.tenantId,
+              storeId: input.storeId,
+              saleId: sale.id,
+              saleItemId: saleItem?.id ?? null,
+              productId: violation.productId,
+              skippedBatchId: violation.skippedBatchId,
+              pickedBatchId: violation.pickedBatchId,
+              observedIssue: violation.observedIssue,
+              recommendedAction: violation.recommendedAction,
+              status: "OPEN",
+            },
+          });
+        }
 
         return { sale, idempotent: false as const };
       });

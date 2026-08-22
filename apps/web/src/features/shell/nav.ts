@@ -86,13 +86,15 @@ export const PRIMARY_NAV: readonly NavItem[] = [
     id: "staff",
     labelKey: "nav.staff",
     icon: ClipboardList,
-    live: false,
+    live: true,
+    path: "/staff",
   },
   {
     id: "reports",
     labelKey: "nav.reports",
     icon: BarChart3,
-    live: false,
+    live: true,
+    path: "/reports",
   },
   {
     id: "auditFefo",

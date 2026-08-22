@@ -4,8 +4,8 @@
 **Package:** `@r2a/server` (`apps/server`)  
 **Base URL (dev):** `http://localhost:8787` (override with `PORT` / `BASE_URL`)  
 **API prefix:** `/api/v1`  
-**Last updated:** 2026-08-20
-**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (**§19**) + **M5 MVP hardening DONE** (**§20**) + **M6 Owner Web Slice 1 A–O DONE** (**§21**) + Owner Web Missing Features **W1–W6 DONE** + **M6 Slice 2 P–AB** (**§22; T–AB web UI live; AC–AD deferred**) + **M6 Slice 3 AE–AK DONE** (Customer schema + Zod + role-aware APIs + enabled Customers nav + live Customers directory + live Add Customer + live Customer Details + live Registration Review with Approve/Reject; AL–AM planned; catalog **§23** at Batch AM)
+**Last updated:** 2026-08-22
+**Milestone coverage:** **M2 — Cloud API core** (Batches A–H) + **M3 desktop POS shell DONE** (§14–§18 / Slices 2–6) + **M4 one-way sync DONE** (**§19**) + **M5 MVP hardening DONE** (**§20**) + **M6 Owner Web Slice 1 A–O DONE** (**§21**) + Owner Web Missing Features **W1–W6 DONE** + **M6 Slice 2 P–AB** (**§22; T–AB web UI live; AC–AD deferred**) + **M6 Slice 3 AE–AM DONE** (**§23**) + **M6 Slice 4 Staff AN–AV DONE** (**§24**) + **M6 Slice 5 AW–BC DONE, BD Slice 5 exit DONE** (**§25; shift APIs + ingest shiftId + dashboard KPIs + desktop cloud shift + owner Shift Management/Details/Review Variance + Reports Dashboard + composed smoke:m6s5**) + **M6 Slice 6 BE–BG DONE** (**§26; Sales Report API + UI + composed smoke:m6s6**) + **M6 Slice 7 BH–BI DONE** (**schema/Zod/seed + audit/FEFO APIs + ingest hook; no Owner web audit UI yet**)
 
 > **Source of truth for contracts:** Zod schemas in `@r2a/shared-types`.  
 > **Live status:** [`Current_Status.md`](Current_Status.md).  
@@ -40,6 +40,12 @@
 > **M6 Slice 3 AE–AG (2026-08-20):** Customer Prisma + Zod landed (AE). Customer APIs are live (AF): role-aware `POST /customers` (Owner Active; Cashier/Manager Pending + extras stripped), Active-only `GET /customers`, `GET /customers/phone-check`, Owner `GET /owner/customers` + `/:id` + approve/reject, `GET /sales?customerId=`, ingest Active-only guard, 403 on `/owner/customers*` for non-owners. Batch AG enables the Owner web Customers nav as a live chrome route with placeholder shells (`/customers`, `/customers/new`, `/customers/:id`, `/customers/:id/review`); Staff/Help/Owner Profile remain disabled. Catalog **§23** at Batch AM.
 > **M6 Batch AJ (2026-08-20):** Owner web Customer Details live at `/customers/:customerId`. `GET /owner/customers/:id` **additively** returns `profile.storeName`, `purchaseHistory.lastPurchaseAt`, `purchaseHistory.rows` (id/receiptNo/soldAt/total/storeName), and `loyaltyActivity.rows` (id/soldAt/loyaltyPrevious/loyaltyUsed/loyaltyEarned) — prior shape preserved (`smoke:m6af` valid). No new cloud routes; `/customers/:id/review` stays a placeholder until Batch AK. `smoke:m6aj` PASS.
 > **M6 Batch AK (2026-08-20):** Owner web Customer Registration Review live at `/customers/:customerId/review` — reads live `GET /owner/customers/:id`; Approve posts existing `POST /owner/customers/:id/approve` (OWNER only, pending only; editable name/phone/email/DOB/gender/address corrections; phone duplicate check via existing `GET /customers/phone-check` ignoring the same customer), Reject posts existing `POST /owner/customers/:id/reject` (optional `rejectionNote` ≤1000). **No new cloud routes** — the live pending→approve→POS Active-search flow is covered by `smoke:m6af` (approve → ACTIVE, POS `GET /customers` Active-only, reject → REJECTED + hidden). `smoke:m6ak` PASS.
+> **M6 Batch AZ (2026-08-22):** Owner web Staff page now has **Shift Management** → `/staff/shifts`, consuming existing `GET /api/v1/owner/shifts` from Batch AX. Live list includes KPI totals from shift-list meta, All/Open/Closed/Flagged tabs, search, cashier filter, pagination, and detail navigation. **No new cloud routes.** `smoke:m6az` PASS.
+> **M6 Batch BA (2026-08-22):** Owner web Shift Details live at `/staff/shifts/:shiftId`, consuming existing `GET /api/v1/owner/shifts/:shiftId`. Shows top detail cards, cash summary, sales/payment summary, activity timeline, audit rail, and disabled Request Cash Count. View POS Activity filters `/sales` by cashier/date. **No new cloud routes.** `smoke:m6ba` PASS.
+> **M6 Batch BB (2026-08-22):** Owner web Review Cash Variance modal live from flagged shift list/detail. Uses existing `POST /api/v1/owner/shifts/:shiftId/resolve`; resolved details show Variance Review card and updated timeline. Generate Shift Report remains disabled. **No new cloud routes.** `smoke:m6bb` PASS.
+> **M6 Slice 6 BE–BG (2026-08-22):** OWNER-only `GET /api/v1/owner/reports/sales` live. Returns Sales Report aggregates with default last 30 days, `from`/`to`, optional tenant-scoped `storeId`, prior-period KPI trends, daily bars, CASH/CARD/MFS payment summary, best-selling category, highest sales day, top cashiers, top medicines, and recent transactions. Owner web Sales Report UI is live at `/reports/sales`; Reports Dashboard Sales View Report is enabled. `smoke:m6be`, `smoke:m6bf`, and composed `smoke:m6s6` PASS.
+> **M6 Batch BH (2026-08-22):** StockAudit + FEFO foundation landed in Prisma and shared Zod only: `StockAudit`, `StockAuditLine`, `StockAuditActivityEvent`, `FefoViolationRecord`, audit/FEFO enums, and deterministic seed records. **No new API routes yet**; `/owner/audit*`, manager audit submit routes, and sale ingest FEFO hook are Batch BI.
+> **M6 Batch BI (2026-08-22):** Audit + FEFO APIs live. Owner routes: `GET /owner/audit/dashboard`, `GET /owner/audits`, `GET /owner/audits/:id`, `POST /owner/audits/:id/review`, `POST /owner/fefo-violations/:id/correct`. Owner/Manager routes: `POST /audits/start`, `POST /audits/:id/lines`, `POST /audits/:id/submit`. Sale ingest creates OPEN `FefoViolationRecord` rows when a real non-FEFO override is submitted. No Owner web audit UI yet.
 > **M5 Batch A (2026-08-14):** `PATCH /customers/:id` and `PATCH /batches/:id` are **`OWNER`, `MANAGER`** (cashier `403`, including batch qty). No new routes.  
 > **M5 Batch C (2026-08-14, historical; superseded by W6):** Desktop Settings → Receive stock originally used `POST /api/v1/batches` and absolute quantity PATCH. Current stock correction uses signed `/adjustments`.
 > **M5 Batch E (2026-08-14):** Desktop `catalogPull` pages `GET /products` and `GET /batches` (`limit=100` + `offset` until `meta.total`, cap 50 pages / 5000 rows). Still **no** `costPerBase` in the local cache. No new cloud routes. No CSV.  
@@ -201,10 +207,25 @@ Owners / managers see `costPerBase` on batch payloads.
 | POST | `/api/v1/customers` | Bearer | **`OWNER` only** (not Manager; not on desktop POS — Owner web later) |
 | GET | `/api/v1/customers/:id` | Bearer | Any authenticated |
 | PATCH | `/api/v1/customers/:id` | Bearer | `OWNER`, `MANAGER` (cashier `403`) |
-| POST | `/api/v1/sales/ingest` | Bearer | Any authenticated |
+| POST | `/api/v1/sales/ingest` | Bearer | Any authenticated. Optional `shiftId` links sale to open shift |
 | GET | `/api/v1/sales` | Bearer | Any authenticated. Cost/COGS/netProfit **OWNER only** |
 | GET | `/api/v1/sales/:id` | Bearer | Any authenticated. `:id` = `Sale.id`. Same redaction |
+| POST | `/api/v1/shifts` | Bearer | `CASHIER`, `MANAGER` — open shift with float |
+| POST | `/api/v1/shifts/active/close` | Bearer | `CASHIER`, `MANAGER` — close with counted cash |
+| GET | `/api/v1/shifts/active` | Bearer | `CASHIER`, `MANAGER` — get active shift |
+| GET | `/api/v1/owner/shifts` | Bearer | **`OWNER` only** — list shifts with filters |
+| GET | `/api/v1/owner/shifts/:shiftId` | Bearer | **`OWNER` only** — shift detail + breakdown |
+| POST | `/api/v1/owner/shifts/:shiftId/resolve` | Bearer | **`OWNER` only** — resolve flagged variance |
 | GET | `/api/v1/owner/dashboard` | Bearer | **`OWNER` only** |
+| GET | `/api/v1/owner/reports/sales` | Bearer | **`OWNER` only** — Sales Report aggregate API |
+| GET | `/api/v1/owner/audit/dashboard` | Bearer | **`OWNER` only** — Audit + FEFO dashboard data |
+| GET | `/api/v1/owner/audits` | Bearer | **`OWNER` only** — Stock audit list |
+| GET | `/api/v1/owner/audits/:auditId` | Bearer | **`OWNER` only** — Stock audit detail |
+| POST | `/api/v1/owner/audits/:auditId/review` | Bearer | **`OWNER` only** — Review submitted/variance audit |
+| POST | `/api/v1/owner/fefo-violations/:violationId/correct` | Bearer | **`OWNER` only** — Correct OPEN FEFO violation |
+| POST | `/api/v1/audits/start` | Bearer | `OWNER`, `MANAGER` — start stock audit |
+| POST | `/api/v1/audits/:auditId/lines` | Bearer | `OWNER`, `MANAGER` — replace counted audit lines |
+| POST | `/api/v1/audits/:auditId/submit` | Bearer | `OWNER`, `MANAGER` — submit audit for owner review |
 | GET | `/api/v1/owner/inventory-summary` | Bearer | **`OWNER` only** |
 | GET | `/api/v1/owner/expiry` | Bearer | **`OWNER` only** |
 | GET | `/api/v1/owner/inventory` | Bearer | **`OWNER` only** |
@@ -1413,7 +1434,7 @@ Not part of Slice 1: Purchasing/Supplier/PO UI, Manager web, customer/staff/repo
 
 ## 22. M6 — Slice 2 APIs (in progress)
 
-Slice 2 **P–AB** is complete. **AC–AD are deferred.** Overall M6 remains in progress. Supplier, PO, GRN, and return-manifest cloud APIs are live. Owner web has live Purchasing, Create PO, PO Details, Receive against PO, Suppliers, Expiry Returns, and Create Return Manifest. `/suppliers/returns/:manifestId` stays a parked placeholder. Slice 3 **AE–AI DONE** (Customer schema + Zod; role-aware create, Active-only search, owner list/detail/approve/reject, phone-check, sale customerId filter, ingest Active guard; Owner web Customers nav enabled, a live Customers directory at `/customers` with KPIs/tabs/search/Status/Source/Sort/pagination, and a live Add Customer at `/customers/new` with debounced phone-check + checkbox-gated Create Confirm); **AJ–AM planned**.
+Slice 2 **P–AB** is complete. **AC–AD are deferred.** Overall M6 remains in progress. Supplier, PO, GRN, and return-manifest cloud APIs are live. Owner web has live Purchasing, Create PO, PO Details, Receive against PO, Suppliers, Expiry Returns, and Create Return Manifest. `/suppliers/returns/:manifestId` stays a parked placeholder. Slice 3 **AE–AM DONE** (Customers + POS Create + approve/reject). Slice 4 **Staff AN–AV DONE** (list/add/details/edit/deactivate/reactivate).
 
 ### 22.1 Suppliers
 
@@ -1512,7 +1533,338 @@ All routes are tenant-scoped from the JWT. `POST /customers` is role-aware (not 
 
 ---
 
-## 24. Change log
+## 24. M6 — Slice 4 Staff (Batch AV)
+
+Owner-only back-office staff management. All routes are prefixed with `/api/v1/owner` and restricted to `OWNER` role; Cashiers and Managers receive `403`. Owner web Staff screens are live: list, add, active/inactive details, edit, deactivate, and reactivate.
+
+| Method | Path | Contract |
+|--------|------|----------|
+| `GET` | `/api/v1/owner/users` | Lists users (excluding SUPER_ADMIN). Supports filters `q` (search name/email/phone), `role` (OWNER/MANAGER/CASHIER), `isActive` (true/false/all), pagination `limit`/`offset`. Returns list item fields plus `username` (derived email local-part) and `storeName`. Returns aggregate `kpis` (total, active, inactive, cashiers) for the tenant. |
+| `GET` | `/api/v1/owner/users/:id` | Returns safe user profile (including `username` and `storeName`) + array of `activities` (StaffActivityEvents) sorted newest first (with actor name and role). |
+| `POST` | `/api/v1/owner/users` | Create staff with role `CASHIER` or `MANAGER`. Store is validated. Server-generates temp password (min 8 chars); returns once in `{ user, temporaryPassword }`. Logs `CREATED` activity. `409` on email already registered. |
+| `PATCH` | `/api/v1/owner/users/:id` | Edit profile/role/store. Block self edit (`400`). Role cannot be set to `OWNER` / `SUPER_ADMIN`. Logs specific activities for role / branch changes, and a general profile update for name/phone/email/note updates. |
+| `POST` | `/api/v1/owner/users/:id/deactivate` | Set `isActive = false`, revokes target's refresh tokens. Blocks self deactivation. Logs `DEACTIVATED` activity with optional reason. |
+| `POST` | `/api/v1/owner/users/:id/reactivate` | Set `isActive = true`. Logs `REACTIVATED` activity. |
+
+**Login lastLoginAt update:** On successful login, cloud updates `lastLoginAt` database timestamp for the logging user.
+
+### 24.1 Owner web Staff routes
+
+| Screen | Web route | Live API |
+|--------|-----------|----------|
+| Staff Directory | `/staff` | `GET /api/v1/owner/users` |
+| Add Staff | `/staff/new` | `POST /api/v1/owner/users` |
+| Staff Details | `/staff/:userId` | `GET /api/v1/owner/users/:id` |
+| Edit Staff | `/staff/:userId/edit` | `PATCH /api/v1/owner/users/:id` |
+| Deactivate Staff modal | `/staff/:userId` More Actions | `POST /api/v1/owner/users/:id/deactivate` |
+| Reactivate Staff modal | `/staff/:userId` More Actions | `POST /api/v1/owner/users/:id/reactivate` |
+
+Staff usernames are derived from email local-part and are read-only. Created staff can only be `MANAGER` or `CASHIER`; the server returns a one-time temporary password. Owner self edit/deactivate/reactivate actions are hidden in web and blocked on the server. Deactivation revokes existing refresh tokens; subsequent login is blocked while inactive.
+
+### 24.2 Slice 4 verification
+
+```bash
+# API must already be running for the live server smoke
+npm run smoke:m6ao -w @r2a/server
+
+# Source-level web guard for Staff nav/list/add/details/edit/AU modals
+npm run smoke:m6av -w @r2a/web
+```
+
+Batch AV result: `smoke:m6av` **PASS** on 2026-08-21.
+
+---
+
+## 25. M6 Slice 5 Batch AX — Shift APIs + ingest shiftId + dashboard KPIs
+
+**Goal:** Live shift open/close/active + owner list/detail/resolve-variance. Ingest attaches `shiftId`. Dashboard shift KPIs live.
+
+**Source modules:** `apps/server/src/modules/shift/` (service, controller, router), `apps/server/src/modules/sale/sale.service.ts`, `apps/server/src/modules/owner/owner.service.ts`
+
+### 25.1 Shift module — cashier routes
+
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| POST | `/api/v1/shifts` | Bearer | `CASHIER`, `MANAGER` | Open shift — required `openingFloat` |
+| POST | `/api/v1/shifts/active/close` | Bearer | `CASHIER`, `MANAGER` | Close shift — required `countedCash` |
+| GET | `/api/v1/shifts/active` | Bearer | `CASHIER`, `MANAGER` | Get active shift for current user+store |
+
+**Business rules:**
+- One open shift per cashier per store — duplicate open → `409`
+- Shift number: `YYYYMMDD-NNN` per store per day (auto-generated)
+- `POST /shifts/active/close` computes variance = `countedCash − (openingFloat + cashSales)`
+  - variance = 0 → `CLOSED`
+  - variance ≠ 0 → `FLAGGED` (requires owner review)
+- Every open/close creates a `ShiftActivityEvent` audit row
+
+### 25.2 Shift module — owner routes
+
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| GET | `/api/v1/owner/shifts` | Bearer | **`OWNER`** | List shifts (filters: `status`, `userId`, `q`, `from`, `to`, `limit`, `offset`) |
+| GET | `/api/v1/owner/shifts/:shiftId` | Bearer | **`OWNER`** | Shift detail + payment breakdown + activity timeline |
+| POST | `/api/v1/owner/shifts/:shiftId/resolve` | Bearer | **`OWNER`** | Resolve flagged shift — `varianceDecision` (`ACCEPTED_DIFFERENCE` / `COUNT_CORRECTED` / `OTHER`) + optional note |
+
+**Business rules:**
+- Owner can view all shifts across users/stores
+- Resolve transitions `FLAGGED` → `CLOSED` and records review metadata
+- Activity timeline via `ShiftActivityEvent` rows
+
+### 25.3 Sale ingest — shiftId
+
+`saleIngestSchema` now accepts optional `shiftId`. When present, server validates the shift is OPEN for the cashier+store and links the sale. Omitted `shiftId` is accepted for backward compatibility.
+
+### 25.4 Dashboard — staff block
+
+`GET /owner/dashboard` `staff` block now returns live values instead of `null`:
+- `openShifts`: count of `OPEN` shifts for the store
+- `cashVarianceToday`: sum of variance from shifts closed/flagged today
+
+### 25.5 Verification
+
+```bash
+npm run smoke:m6ax -w @r2a/server
+```
+
+Batch AX result: `smoke:m6ax` **19/19 PASS** on 2026-08-22.
+
+### 25.6 Desktop cloud shift (Batch AY)
+
+Desktop `shiftStore.ts` rewritten to use cloud API:
+- `POST /api/v1/shifts` (open, requires `openingFloat`) — caches `ActiveShift` with `shiftId`/`shiftNo`/`openingFloat`
+- `POST /api/v1/shifts/active/close` (close, requires `countedCash`) — clears cache, returns variance
+- `GET /api/v1/shifts/active` — rehydrates cache on login/reconnect
+
+`ShiftPanel.tsx`:
+- Opening float input (required, ৳) on open; counted cash input on close
+- Displays shift number, opening float, opened-by, duration
+- Online required checks with explicit i18n messages
+- ConfirmDialog for both open and close
+
+`saleIngest.ts`: `shiftId` added to `SaleIngestBuildArgs` and included in `SaleIngestInput` payload.
+
+`App.tsx`: All 4 sale ingest call sites (CASH, CARD, MFS, zero-pay) pass `shiftId` from cached shift.
+
+`CounterReadyScreen.tsx`: Displays shift number next to open-since time.
+
+16 new i18n keys in `en.ts` + `bn-BD.ts`.
+
+Batch AY result: `smoke:m6ay` **PASS** on 2026-08-22.
+
+### 25.7 Owner web shift pages (Batches AZ–BB)
+
+Owner web Staff page includes **Shift Management** → `/staff/shifts`.
+
+`/staff/shifts` consumes `GET /api/v1/owner/shifts` and renders:
+- KPI totals from live shift-list meta counts
+- All / Open / Closed / Flagged tabs
+- Search, cashier filter, pagination
+- Row navigation to `/staff/shifts/:shiftId`
+- Flagged row Review opens the Review Cash Variance modal
+
+`/staff/shifts/:shiftId` consumes `GET /api/v1/owner/shifts/:shiftId` and renders:
+- Header + status badge + top detail cards (cashier, shift time, opening float, status)
+- Cash Summary (`openingFloat`, `cashSales`, expected cash, counted cash, variance)
+- Sales & Payment Summary (`txnCount`, Cash/Card/MFS, total sales)
+- Shift Activity timeline from `ShiftActivityEvent`
+- Audit Information rail
+- View POS Activity → `/sales?userId=...&from=...&to=...`
+- Request Cash Count disabled
+- Flagged details can open Review Cash Variance
+- Resolved variance details show Variance Review card (`varianceDecision`, note, adjustment reference, review date)
+- Generate Shift Report disabled
+
+Verification:
+
+```bash
+npm run smoke:m6az -w @r2a/web
+npm run smoke:m6ba -w @r2a/web
+npm run smoke:m6bb -w @r2a/web
+```
+
+Batch AZ result: `smoke:m6az` **PASS** on 2026-08-22.  
+Batch BA result: `smoke:m6ba` **PASS** on 2026-08-22.  
+Batch BB result: `smoke:m6bb` **PASS** on 2026-08-22.
+
+### 25.8 Reports Dashboard (Batch BC)
+
+**Goal:** Reports sidebar live; Reports Dashboard at `/reports` composes **existing** OWNER-only APIs (no new cloud route). Sales/Inventory/Purchase **report detail pages** stay disabled.
+
+**Web routes:**
+
+| Screen | Route | Notes |
+|--------|-------|-------|
+| Reports Dashboard | `/reports` | Aggregates live OWNER APIs below |
+
+**Composed data sources (all existing OWNER-only routes):**
+
+- `GET /api/v1/owner/dashboard?from&to` — `last7` sales KPIs, daily bars, inventory health, payment mix
+- `GET /api/v1/owner/inventory-summary` — cost value, low/out/expiring counts → inventory value KPI
+- `GET /api/v1/owner/purchase-orders` — list/aggregate → purchase value KPI
+- `GET /api/v1/owner/shifts` — meta KPIs (open/flagged counts) → active staff + shift context
+
+**Dashboard widgets (live-only):**
+
+- KPI cards: Total Sales (last 7d net), Purchase Value (MTD), Inventory Value, Active Staff
+- Sales chart (7-day bars from dashboard `dailyBars`)
+- Inventory summary, Purchasing summary, Staff Activity summary cards
+- **Staff Activity** + **Shift Report** cards → link to `/staff/shifts`
+- **Sales / Inventory / Purchase → View Report** actions are **disabled** (detail pages not shared/authorized)
+
+**RBAC / UI rules:**
+
+- Owner web only; Manager/Cashier rejected at login.
+- No mock/seed KPIs — every value comes from a live Prisma query.
+- Audit & FEFO / Settings / Help / Owner Profile remain disabled.
+
+Verification:
+
+```bash
+npm run smoke:m6bc -w @r2a/web
+```
+
+Batch BC result: `smoke:m6bc` **PASS** on 2026-08-22.
+
+### 25.9 Slice 5 exit (Batch BD)
+
+**Goal:** Catalog this §25, composed Slice 5 smoke, and synchronize status/master-plan/RBAC. M6 remains **IN PROGRESS** (Slice 2 AC–AD deferred; later slices gated).
+
+**Composed smoke:**
+
+```bash
+npm run smoke:m6s5 -w @r2a/web
+```
+
+Runs, in order: `smoke:m6ax` (server shift APIs) → `smoke:m6ay` (desktop cloud shift) → `smoke:m6az` / `smoke:m6ba` / `smoke:m6bb` / `smoke:m6bc` (owner web shift + reports) → `smoke:m6s1` / `smoke:m6s3` / `smoke:m6av` (prior M6 slices, no regression).
+
+**Slice 5 scope delivered:** AW (Prisma/seed) · AX (shift APIs + ingest `shiftId` + dashboard staff KPIs) · AY (desktop cloud shift float/count) · AZ (Staff → Shift Management list) · BA (Shift Details) · BB (Review Cash Variance + resolved) · BC (Reports nav + Reports Dashboard). AC–AD (Slice 2 Manifest Details) still **deferred**.
+
+Batch BD result: `smoke:m6s5` PASS on 2026-08-22.
+
+---
+
+## 26. M6 Slice 6 — Sales Report
+
+**Goal:** OWNER-only Sales Report API and Owner web Sales Report page from Reports Dashboard. Inventory and Purchase report details remain disabled.
+
+### 26.1 Sales Report API (Batch BE)
+
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| GET | `/api/v1/owner/reports/sales` | Bearer | **`OWNER`** | Sales report aggregate for the selected range/store |
+
+**Query:**
+
+| Param | Type | Default | Notes |
+|-------|------|---------|-------|
+| `from` | ISO/date string | last 30 days | Inclusive range start |
+| `to` | ISO/date string | today | Inclusive range end |
+| `storeId` | string | JWT store/current tenant store | Optional, tenant-scoped; single-store UI shows current branch only |
+
+**Response blocks:**
+
+- `range` with current and prior-period dates.
+- KPI cards: total sales, transaction count, average order value, and items sold.
+- `dailyBars` for range sales chart.
+- Payment summary for `CASH`, `CARD`, and `MFS` (UI label: Mobile Payment).
+- Insight widgets: best-selling category and highest sales day.
+- Top cashiers by sales in range.
+- Top selling medicines by units and sales value.
+- Recent sales transactions with invoice, date, customer, item count, payment method, total, and cashier.
+
+**Rules:**
+
+- OWNER-only; Manager/Cashier receive `403`.
+- All data is tenant-scoped from JWT context.
+- Trends compare against an equal-length prior period only when computable.
+- No Baki/on-account tender; payments remain `CASH` / `CARD` / `MFS`.
+
+Verification:
+
+```bash
+npm run smoke:m6be -w @r2a/server
+```
+
+Batch BE result: `smoke:m6be` **PASS** on 2026-08-22.
+
+### 26.2 Owner web Sales Report (Batch BF)
+
+**Route:** `/reports/sales`.
+
+**Navigation:** Reports Dashboard `/reports` → Sales card **View Report** → `/reports/sales`.
+
+**Page behavior:**
+
+- Full-scroll Sales Report page: KPI row, sales chart, payment summary, insight widgets, top selling medicines, and Recent Sales Transactions.
+- Date preset control supports Last 30 Days and Last 7 Days.
+- Branch display is locked to the current store; no multi-branch switcher yet.
+- Recent transaction invoice rows navigate to `/sales/:id`.
+- View All Staff Performance navigates to `/staff/shifts`.
+- Export Report is disabled with a hint.
+- Inventory and Purchase report View Report actions stay disabled.
+- All user-facing text uses `apps/web` i18n (`en` and `bn-BD`).
+
+Verification:
+
+```bash
+npm run smoke:m6bf -w @r2a/web
+```
+
+Batch BF result: `smoke:m6bf` **PASS** on 2026-08-22.
+
+### 26.3 Slice 6 exit (Batch BG)
+
+**Composed smoke:**
+
+```bash
+npm run smoke:m6s6 -w @r2a/web
+```
+
+Runs, in order: `smoke:m6be` (server Sales Report API) → `smoke:m6bf` (web Sales Report UI) → `smoke:m6s5` (prior Slice 5 composed regression).
+
+**Slice 6 scope delivered:** BE (Sales Report API + shared Zod) · BF (Sales Report UI + Reports Dashboard View Report enablement) · BG (catalog §26 + composed smoke + status sync). Slice 2 AC–AD remain **deferred**; Slice 7 Audit & FEFO is not started.
+
+Batch BG result: `smoke:m6s6` PASS on 2026-08-22.
+
+### 26.4 M6 Batch BI — Audit + FEFO APIs
+
+Batch BI adds API-only audit and FEFO review functionality. Owner web pages are still gated to Batches BJ–BK.
+
+Owner-only routes:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/owner/audit/dashboard` | Audit KPIs, recent audits, and audit activity |
+| GET | `/api/v1/owner/audits` | Paged audit list with `q`, `status`, `from`, `to`, `limit`, `offset` |
+| GET | `/api/v1/owner/audits/:auditId` | Audit detail with lines, activity, and linked FEFO violations |
+| POST | `/api/v1/owner/audits/:auditId/review` | Review `UNDER_REVIEW` or `VARIANCE_FOUND` audit with `decision: COMPLETE | KEEP_VARIANCE` |
+| POST | `/api/v1/owner/fefo-violations/:violationId/correct` | Mark an OPEN FEFO violation corrected with `correctionNote` |
+
+Owner/Manager routes:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/v1/audits/start` | Start an `IN_PROGRESS` stock audit for a store/location |
+| POST | `/api/v1/audits/:auditId/lines` | Replace counted batch lines and snapshot system qty/cost |
+| POST | `/api/v1/audits/:auditId/submit` | Submit audit; variance becomes `VARIANCE_FOUND`, otherwise `UNDER_REVIEW` |
+
+Sale ingest hook:
+
+- `POST /api/v1/sales/ingest` now creates an OPEN `FefoViolationRecord` when a sale line has `fefoOverride: true` and the chosen batch is not the current FEFO batch.
+- Idempotent sale replay still returns the existing sale and does not create duplicate FEFO violation records.
+- Cashiers still cannot access owner audit routes or start/submit stock audits.
+
+Verification:
+
+```bash
+npm run smoke:m6bi -w @r2a/server
+```
+
+Batch BI result: `smoke:m6bi` **PASS** on 2026-08-22.
+
+---
+
+## 27. Change log
 
 | Date | Change |
 |------|--------|
@@ -1548,4 +1900,16 @@ All routes are tenant-scoped from the JWT. `POST /customers` is role-aware (not 
 | 2026-08-19 | **M6 Batch AB:** live Create Return Manifest at `/suppliers/returns/new` (session draft from queue, supplier policy, editable return qty); `POST /owner/return-manifests` with optional `supplierReference`; Save as Draft disabled; no dispatch/stock-out; `smoke:m6ab` PASS |
 | 2026-08-19 | **M6 Slice 2 AC–AD deferred. Slice 3 planned:** Customers + POS pending-approval registration; `POST /customers` stays Owner-only until AF; catalog §23 at AM |
 | 2026-08-19 | **M6 Batch AE:** Customer Prisma status/source/profile + partial unique phone + Zod stubs; POST still OWNER-only; no new routes; catalog §23 still at AM |
-| 2026-08-20 | **M6 Batch AF:** §23 — role-aware `POST /customers` (Owner Active, Cashier/Manager Pending + extras stripped), Active-only `GET /customers`, `GET /customers/phone-check`, Owner `GET /owner/customers` + `/:id` + approve/reject (KPIs, audit, purchase history, loyalty activity), `GET /sales?customerId=` additive filter, ingest Active-only customer guard, Cashier/Manager 403 on `/owner/customers*`; `PATCH /customers/:id` unchanged; `smoke:m6af`
+| 2026-08-20 | **M6 Batch AF:** §23 — role-aware `POST /customers` (Owner Active, Cashier/Manager Pending + extras stripped), Active-only `GET /customers`, `GET /customers/phone-check`, Owner `GET /owner/customers` + `/:id` + approve/reject (KPIs, audit, purchase history, loyalty activity), `GET /sales?customerId=` additive filter, ingest Active-only customer guard, Cashier/Manager 403 on `/owner/customers*`; `PATCH /customers/:id` unchanged; `smoke:m6af` |
+| 2026-08-21 | **M6 Batch AM completed:** Slice 3 exit; updated Completed API lists, created composed Slice 3 smoke runner script `smoke:m6s3`; updated status docs |
+| 2026-08-21 | **M6 Batch AO completed:** §24 — Owner staff APIs (list, KPIs, detail, create w/ temp password, patch, deactivate, reactivate, block self actions, and lastLoginAt successful login update); `smoke:m6ao` PASS |
+| 2026-08-21 | **M6 Batch AV / Slice 4 Staff DONE:** §24 updated with Staff web routes and verification; `smoke:m6av` PASS; M6 remains IN PROGRESS with deferred AC–AD and later slices gated |
+| 2026-08-22 | **M6 Batch AX / Slice 5 Shift APIs DONE:** §25 — shift open/close/active (cashier), owner list/detail/resolve-variance; `saleIngestSchema` accepts optional `shiftId`; `GET /owner/dashboard` staff block live `openShifts`/`cashVarianceToday`; `smoke:m6ax` 19/19 PASS |
+| 2026-08-22 | **M6 Batch AY / Slice 5 Desktop cloud shift DONE:** §25.6 — desktop `shiftStore.ts` rewritten with cloud API calls (open/close/active), `ActiveShift` includes `shiftId`/`shiftNo`/`openingFloat`, `fetchAndCache` rehydrates on login; `ShiftPanel.tsx` — opening float input, counted cash input, shift number display, online required; `saleIngest.ts` — `shiftId` in `SaleIngestBuildArgs` and payload; `App.tsx` — all 4 ingest call sites pass `shiftId`; `CounterReadyScreen` — shift number display; 16 i18n keys; `smoke:m6ay` PASS |
+| 2026-08-22 | **M6 Batch BA / Slice 5 Shift Details DONE:** §25.7 — Owner web `/staff/shifts/:shiftId` live with OG content layout, cash/payment summaries, activity timeline, audit rail, View POS Activity filtered `/sales`, Request Cash Count disabled; `smoke:m6ba` PASS |
+| 2026-08-22 | **M6 Batch BB / Slice 5 Review Cash Variance DONE:** §25.7 — Owner web Review Cash Variance modal opens from flagged shift list/detail, posts existing `POST /owner/shifts/:shiftId/resolve`, resolved details show Variance Review card + timeline, Generate Shift Report disabled; `smoke:m6bb` PASS |
+| 2026-08-22 | **M6 Batch BC / Slice 5 Reports Dashboard DONE:** §25.8 — Reports sidebar live at `/reports`; page composes existing OWNER-only `GET /owner/dashboard` (last7), `GET /owner/inventory-summary`, `GET /owner/purchase-orders`, `GET /owner/shifts`; KPIs/sales chart/inventory/purchasing/staff-activity cards live; Staff Activity + Shift Report link to `/staff/shifts`; Sales/Inventory/Purchase View Report disabled; full `reports.*` i18n; `smoke:m6bc` PASS |
+| 2026-08-22 | **M6 Batch BD / Slice 5 EXIT DONE:** §25.9 — catalog §25 (shift routes, ingest `shiftId`, reports dashboard), composed `smoke:m6s5` (m6ax→m6ay→m6az/m6ba/m6bb/m6bc→m6s1/m6s3/m6av), status/master-plan/RBAC synchronized; M6 remains IN PROGRESS (Slice 2 AC–AD deferred) |
+| 2026-08-22 | **M6 Batch BE / Slice 6 Sales Report API DONE:** OWNER-only `GET /owner/reports/sales`; shared Zod response; default last 30 days, range filters, optional tenant-scoped `storeId`, prior-period trends, daily bars, payment summary, top category/cashiers/medicines, recent transactions; `smoke:m6be` PASS. |
+| 2026-08-22 | **M6 Batch BG / Slice 6 EXIT DONE:** §26 Sales Report catalog added; composed `smoke:m6s6` (m6be→m6bf→m6s5) registered and PASS; M6 remains IN PROGRESS with Slice 2 AC–AD deferred and Slice 7 gated. |
+| 2026-08-22 | **M6 Batch BI DONE:** Audit + FEFO APIs live; owner dashboard/list/detail/review/correct, owner/manager audit start/lines/submit, and sale ingest FEFO violation hook; `smoke:m6bi` PASS. No Owner web audit UI until BJ–BK. |

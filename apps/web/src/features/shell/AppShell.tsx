@@ -28,12 +28,16 @@ import {
   CustomersPage,
   RegistrationReviewPage,
 } from "@/features/customers";
+import { AddStaffPage, EditStaffPage, ShiftDetailPage, ShiftManagementPage, StaffPage, StaffDetailPage } from "@/features/staff";
+import { ReportsDashboardPage, SalesReportPage } from "@/features/reports";
 import { useLocale } from "@/i18n";
 import {
   customersSubpath,
   inventorySubpath,
   purchasingSubpath,
+  reportsSubpath,
   salesDetailIdFromPath,
+  staffSubpath,
   suppliersSubpath,
 } from "@/lib/ownerPath";
 import { useOwnerPath } from "@/lib/OwnerPathProvider";
@@ -127,6 +131,32 @@ function ShellMain() {
       return <CustomerDetailsPage key={sub.customerId} customerId={sub.customerId} />;
     }
   }
+  if (path === "/staff") {
+    const sub = staffSubpath(pathname);
+    if (sub.kind === "list") return <StaffPage />;
+    if (sub.kind === "new") return <AddStaffPage />;
+    if (sub.kind === "shifts") return <ShiftManagementPage />;
+    if (sub.kind === "shiftDetail") {
+      return <ShiftDetailPage shiftId={sub.shiftId} />;
+    }
+    if (sub.kind === "detail") {
+      return <StaffDetailPage userId={sub.userId} />;
+    }
+    if (sub.kind === "edit") {
+      return <EditStaffPage userId={sub.userId} />;
+    }
+    return (
+      <StaffPlaceholder
+        titleKey="staff.placeholder.title"
+        hintKey="staff.placeholder.hint"
+      />
+    );
+  }
+  if (path === "/reports") {
+    const sub = reportsSubpath(pathname);
+    if (sub.kind === "sales") return <SalesReportPage />;
+    return <ReportsDashboardPage />;
+  }
   return <DashboardPage />;
 }
 
@@ -164,6 +194,32 @@ function PurchasingPlaceholder() {
   );
 }
 
+function StaffPlaceholder({
+  titleKey,
+  hintKey,
+}: {
+  titleKey:
+    | "staff.placeholder.title"
+    | "staff.placeholder.newTitle"
+    | "staff.placeholder.editTitle"
+    | "staff.shifts.placeholder.detailTitle";
+  hintKey:
+    | "staff.placeholder.hint"
+    | "staff.placeholder.newHint"
+    | "staff.placeholder.editHint"
+    | "staff.shifts.placeholder.detailHint";
+}) {
+  const { t } = useLocale();
+  return (
+    <section className="mx-auto w-full max-w-7xl p-4 sm:p-6">
+      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+        <h1 className="text-xl font-semibold text-foreground">{t(titleKey)}</h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted">{t(hintKey)}</p>
+      </div>
+    </section>
+  );
+}
+
 /**
  * Locked Admin Portal chrome. Dashboard KPIs are Batch G; Sales list is Batch H;
  * Transaction Details is Batch I; Inventory list is Batch J; Product Details is Batch K;
@@ -182,7 +238,8 @@ function PurchasingPlaceholder() {
  * shells; Batch AH fills the directory, Batch AI fills /customers/new
  * (Add Customer + create confirm), Batch AJ fills /customers/:id
  * (Customer Details; pending redirects to Review), Batch AK fills
- * /customers/:id/review (Registration Review + Approve/Reject).
+ * /customers/:id/review (Registration Review + Approve/Reject). Batch BC
+ * enables Reports at /reports; report detail pages stay parked.
  */
 export function AppShell() {
   const { t } = useLocale();
